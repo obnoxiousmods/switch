@@ -8,8 +8,27 @@
 </head>
 <body>
     <header>
-        <div class="container">
+        <div class="container header-content">
             <h1>🎮 {{ app_name|default('Switch Game Repository') }}</h1>
+            <div class="header-actions">
+                {% if request.session.get('username') %}
+                    <div class="user-menu">
+                        <span class="user-info">
+                            👤 {{ request.session.get('username') }}
+                        </span>
+                        {% if request.session.get('is_admin') %}
+                            <a href="/admincp" class="btn-admin">⚙️ Admin</a>
+                        {% endif %}
+                        <a href="#" class="btn-settings">⚙️ Settings</a>
+                        <a href="/logout" class="btn-logout">Logout</a>
+                    </div>
+                {% else %}
+                    <div class="auth-links">
+                        <a href="/login" class="btn-login">Login</a>
+                        <a href="/register" class="btn-register">Register</a>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </header>
 
@@ -20,5 +39,95 @@
             © 2026 {{ app_name|default('Switch Game Repository') }} - Community Edition
         </div>
     </footer>
+    
+    <style>
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .user-menu {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .user-info {
+            color: #fff;
+            font-weight: 600;
+            padding: 8px 16px;
+            background: #333;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .auth-links {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-login, .btn-register, .btn-logout, .btn-settings, .btn-admin {
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-login {
+            background: #444;
+            color: #fff;
+        }
+        
+        .btn-login:hover {
+            background: #555;
+        }
+        
+        .btn-register {
+            background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+            color: #fff;
+        }
+        
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(90, 159, 212, 0.4);
+        }
+        
+        .btn-admin {
+            background: #ff8c00;
+            color: #fff;
+        }
+        
+        .btn-admin:hover {
+            background: #ff9d1a;
+            transform: translateY(-2px);
+        }
+        
+        .btn-settings {
+            background: #444;
+            color: #fff;
+        }
+        
+        .btn-settings:hover {
+            background: #555;
+        }
+        
+        .btn-logout {
+            background: #d9534f;
+            color: #fff;
+        }
+        
+        .btn-logout:hover {
+            background: #c9302c;
+        }
+    </style>
 </body>
 </html>
