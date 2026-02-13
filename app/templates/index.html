@@ -16,6 +16,56 @@
         </div>
     </div>
     {% endif %}
+    
+    <!-- System Statistics Dashboard -->
+    {% if system_stats %}
+    <div class="stats-dashboard">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">🎮</div>
+                <div class="stat-label">Total Games</div>
+                <div class="stat-value">{{ system_stats.total_games }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💾</div>
+                <div class="stat-label">Total Storage</div>
+                <div class="stat-value">{{ system_stats.total_size_gb }} GB</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📁</div>
+                <div class="stat-label">Directories</div>
+                <div class="stat-value">{{ system_stats.directories|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔓</div>
+                <div class="stat-label">Available Space</div>
+                <div class="stat-value">{{ system_stats.total_available_gb }} GB</div>
+            </div>
+        </div>
+        
+        {% if system_stats.directories|length > 0 %}
+        <div class="directories-list">
+            <h3 class="directories-title">Storage Directories</h3>
+            {% for dir in system_stats.directories %}
+            <div class="directory-item {% if not dir.exists %}directory-missing{% endif %}">
+                <div class="directory-path">📂 {{ dir.path }}</div>
+                {% if dir.exists %}
+                <div class="directory-stats">
+                    <span class="dir-stat">🎮 {{ dir.game_count }} games</span>
+                    <span class="dir-stat">💾 {{ dir.size_gb }} GB used</span>
+                    <span class="dir-stat">🔓 {{ dir.available_gb }} GB free</span>
+                    <span class="dir-stat">📊 {{ dir.capacity_gb }} GB total</span>
+                </div>
+                {% else %}
+                <div class="directory-error">⚠️ Directory not found</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
     <!-- Chat Button for Non-Moderators -->
     <div class="chat-section">
         <a href="https://chat.obnoxious.lol" target="_blank" rel="noopener noreferrer" class="btn-chat-hero">
@@ -68,6 +118,122 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Statistics Dashboard Styles */
+.stats-dashboard {
+    margin: 30px 0;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.directories-list {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.directories-title {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.directory-item {
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.directory-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.directory-item.directory-missing {
+    border-left-color: #dc3545;
+    background: #fff5f5;
+}
+
+.directory-path {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 10px;
+    color: #333;
+    word-break: break-all;
+}
+
+.directory-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.dir-stat {
+    font-size: 0.85rem;
+    color: #666;
+    background: white;
+    padding: 5px 12px;
+    border-radius: 6px;
+}
+
+.directory-error {
+    color: #dc3545;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .directory-stats {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+</style>
 
 <script src="{{ url_for('static', path='js/search.js') }}"></script>
 {% endblock %}

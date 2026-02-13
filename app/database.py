@@ -1,4 +1,6 @@
 import logging
+import os
+import shutil
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from arangoasync import ArangoClient
@@ -9,6 +11,9 @@ from arangoasync.collection import StandardCollection
 from app.config import Config
 
 logger = logging.getLogger(__name__)
+
+# Constants
+BYTES_PER_GB = 1024 ** 3  # 1073741824 bytes per GB
 
 
 class Database:
@@ -908,7 +913,7 @@ class Database:
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             async with cursor:
                 async for result in cursor:
-                    total_gb = (result.get("total_bytes", 0) or 0) / (1024 ** 3)
+                    total_gb = (result.get("total_bytes", 0) or 0) / BYTES_PER_GB
                     return {
                         "total_uploads": result.get("total_uploads", 0) or 0,
                         "total_bytes": result.get("total_bytes", 0) or 0,
@@ -933,19 +938,123 @@ class Database:
                 user_id,
                 username,
                 total_uploads,
-                total_bytes,
-                total_gb: ROUND(total_bytes / 1073741824, 2)
+                total_bytes
             }
             """
             cursor = await self.db.aql.execute(query)
             stats = []
             async with cursor:
                 async for doc in cursor:
+                    # Calculate total_gb in Python instead of AQL
+                    total_bytes = doc.get('total_bytes', 0) or 0
+                    doc['total_gb'] = round(total_bytes / BYTES_PER_GB, 2)
                     stats.append(doc)
             return stats
         except Exception as e:
             logger.error(f"Error fetching all uploader statistics: {e}")
             return []
+
+    async def get_system_statistics(self) -> Dict[str, Any]:
+        """Get system-wide statistics including directories, storage, and game count"""
+        try:
+            # Get total game count
+            query = "RETURN LENGTH(entries)"
+            cursor = await self.db.aql.execute(query)
+            total_games = 0
+            async with cursor:
+                async for count in cursor:
+                    total_games = count
+            
+            # Get all directories
+            directories = await self.get_all_directories()
+            
+            # Fetch game counts and sizes for all directories at once
+            # This avoids N+1 query pattern
+            dir_paths = [d.get('path', '') for d in directories]
+            games_by_dir = {}
+            
+            if dir_paths:
+                # Single aggregation query to get counts and sizes per directory
+                query = """
+                FOR doc IN entries
+                FILTER doc.type == 'filepath'
+                LET matching_dir = (
+                    FOR path IN @paths
+                    FILTER STARTS_WITH(doc.source, path)
+                    LIMIT 1
+                    RETURN path
+                )[0]
+                FILTER matching_dir != null
+                COLLECT dir_path = matching_dir
+                AGGREGATE 
+                    game_count = LENGTH(1),
+                    total_size = SUM(doc.size)
+                RETURN {
+                    dir_path,
+                    game_count,
+                    total_size
+                }
+                """
+                cursor = await self.db.aql.execute(query, bind_vars={"paths": dir_paths})
+                async with cursor:
+                    async for result in cursor:
+                        games_by_dir[result['dir_path']] = {
+                            'game_count': result['game_count'] or 0,
+                            'total_size': result['total_size'] or 0
+                        }
+            
+            # Calculate storage info for each directory
+            directory_stats = []
+            total_size_bytes = 0
+            total_available_bytes = 0
+            total_capacity_bytes = 0
+            
+            for directory in directories:
+                dir_path = directory.get('path', '')
+                dir_info = games_by_dir.get(dir_path, {'game_count': 0, 'total_size': 0})
+                
+                dir_stat = {
+                    'path': dir_path,
+                    'exists': False,
+                    'game_count': dir_info['game_count'],
+                    'size_gb': round(dir_info['total_size'] / BYTES_PER_GB, 2),
+                    'available_gb': 0,
+                    'capacity_gb': 0
+                }
+                
+                if os.path.exists(dir_path):
+                    try:
+                        # Get disk usage
+                        disk_usage = shutil.disk_usage(dir_path)
+                        dir_stat['exists'] = True
+                        dir_stat['available_gb'] = round(disk_usage.free / BYTES_PER_GB, 2)
+                        dir_stat['capacity_gb'] = round(disk_usage.total / BYTES_PER_GB, 2)
+                        
+                        total_available_bytes += disk_usage.free
+                        total_capacity_bytes += disk_usage.total
+                        total_size_bytes += dir_info['total_size']
+                        
+                    except Exception as e:
+                        logger.error(f"Error getting stats for directory {dir_path}: {e}")
+                
+                directory_stats.append(dir_stat)
+            
+            return {
+                'total_games': total_games,
+                'total_size_gb': round(total_size_bytes / BYTES_PER_GB, 2),
+                'total_available_gb': round(total_available_bytes / BYTES_PER_GB, 2),
+                'total_capacity_gb': round(total_capacity_bytes / BYTES_PER_GB, 2),
+                'directories': directory_stats
+            }
+        except Exception as e:
+            logger.error(f"Error fetching system statistics: {e}")
+            return {
+                'total_games': 0,
+                'total_size_gb': 0,
+                'total_available_gb': 0,
+                'total_capacity_gb': 0,
+                'directories': []
+            }
 
 
 # Global database instance

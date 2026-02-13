@@ -22,6 +22,9 @@ async def index(request: Request) -> Response:
         # Get pending requests count for mods (efficient count query)
         pending_count = await db.count_requests(status='pending')
     
+    # Get system statistics for dashboard
+    system_stats = await db.get_system_statistics()
+    
     response = templates.TemplateResponse(
         request,
         "index.html",
@@ -29,7 +32,8 @@ async def index(request: Request) -> Response:
             "title": "Home",
             "app_name": Config.get('app.name', 'Switch Game Repository'),
             "is_moderator": is_moderator,
-            "pending_count": pending_count
+            "pending_count": pending_count,
+            "system_stats": system_stats
         }
     )
     
