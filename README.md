@@ -56,7 +56,7 @@ arangod
 ### 4. Run the application
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 6069
 ```
 
 **Or use the provided launch scripts:**
@@ -68,7 +68,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 🌐 Open your browser and navigate to:
 
 ```
-http://localhost:8000/admincp/init
+http://localhost:6069/admincp/init
 ```
 
 Complete the setup form with:
@@ -157,7 +157,7 @@ X-API-Key: your_api_key_here
   "source": "/path/to/file.nsp",
   "type": "filepath",
   "file_type": "nsp",
-  "size": 5800000000,
+  "size": 5606900000,
   "created_at": "2026-02-13T12:00:00Z",
   "created_by": "admin",
   "metadata": {
@@ -196,7 +196,7 @@ security:
 ### Running in development mode
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 6069
 ```
 
 The `--reload` flag enables auto-restart on code changes.
@@ -234,7 +234,7 @@ The application uses Python's logging module. Logs are output to stdout.
 **Port already in use:**
 ```bash
 # Change port in launch command
-uvicorn app.main:app --host 0.0.0.0 --port 8080
+uvicorn app.main:app --host 0.0.0.0 --port 6069
 ```
 
 ## 📝 License

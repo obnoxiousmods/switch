@@ -22,7 +22,7 @@ SAMPLE_GAMES = [
         "source": "/games/super_mario_odyssey.nsp",
         "type": "filepath",
         "file_type": "nsp",
-        "size": 5800000000,
+        "size": 5606900000,
         "created_by": "admin",
         "metadata": {
             "description": "A 3D platform game where Mario explores various kingdoms",
