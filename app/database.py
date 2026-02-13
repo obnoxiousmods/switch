@@ -26,6 +26,7 @@ class Database:
         self.api_usage_collection: Optional[StandardCollection] = None
         self.audit_logs_collection: Optional[StandardCollection] = None
         self.activity_logs_collection: Optional[StandardCollection] = None
+        self.upload_statistics_collection: Optional[StandardCollection] = None
 
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -117,6 +118,13 @@ class Database:
                 logger.info("Created collection: activity_logs")
             else:
                 self.activity_logs_collection = self.db.collection("activity_logs")
+
+            # Create upload_statistics collection if it doesn't exist
+            if not await self.db.has_collection("upload_statistics"):
+                self.upload_statistics_collection = await self.db.create_collection("upload_statistics")
+                logger.info("Created collection: upload_statistics")
+            else:
+                self.upload_statistics_collection = self.db.collection("upload_statistics")
 
             logger.info("Successfully connected to ArangoDB")
 
@@ -518,6 +526,18 @@ class Database:
             logger.error(f"Error updating admin status: {e}")
             return False
 
+    async def update_user_uploader_status(self, user_id: str, is_uploader: bool) -> bool:
+        """Update a user's uploader status"""
+        try:
+            await self.users_collection.update(
+                {"_key": user_id, "is_uploader": is_uploader}
+            )
+            logger.info(f"Updated user {user_id} uploader status to {is_uploader}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating uploader status: {e}")
+            return False
+
     async def get_all_users(self) -> List[Dict[str, Any]]:
         """Get all users"""
         try:
@@ -840,6 +860,92 @@ class Database:
         except Exception as e:
             logger.error(f"Error fetching activity log stats: {e}")
             return {"total_logs": 0, "by_event_type": []}
+
+    # Upload statistics methods
+    async def record_upload(self, user_id: str, username: str, entry_id: str, 
+                           size_bytes: int) -> Optional[str]:
+        """Record an upload in the statistics"""
+        try:
+            upload_data = {
+                "user_id": user_id,
+                "username": username,
+                "entry_id": entry_id,
+                "size_bytes": size_bytes,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            result = await self.upload_statistics_collection.insert(upload_data)
+            logger.info(f"Recorded upload by {username}: {size_bytes} bytes")
+            return result["_key"]
+        except Exception as e:
+            logger.error(f"Error recording upload: {e}")
+            return None
+
+    async def get_upload_statistics(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get upload statistics for a user or all users"""
+        try:
+            if user_id:
+                # Get stats for specific user
+                query = """
+                FOR doc IN upload_statistics
+                FILTER doc.user_id == @user_id
+                COLLECT AGGREGATE 
+                    total_uploads = COUNT(1),
+                    total_bytes = SUM(doc.size_bytes)
+                RETURN {total_uploads, total_bytes}
+                """
+                bind_vars = {"user_id": user_id}
+            else:
+                # Get overall stats
+                query = """
+                FOR doc IN upload_statistics
+                COLLECT AGGREGATE 
+                    total_uploads = COUNT(1),
+                    total_bytes = SUM(doc.size_bytes)
+                RETURN {total_uploads, total_bytes}
+                """
+                bind_vars = {}
+            
+            cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
+            async with cursor:
+                async for result in cursor:
+                    total_gb = (result.get("total_bytes", 0) or 0) / (1024 ** 3)
+                    return {
+                        "total_uploads": result.get("total_uploads", 0) or 0,
+                        "total_bytes": result.get("total_bytes", 0) or 0,
+                        "total_gb": round(total_gb, 2)
+                    }
+            return {"total_uploads": 0, "total_bytes": 0, "total_gb": 0}
+        except Exception as e:
+            logger.error(f"Error fetching upload statistics: {e}")
+            return {"total_uploads": 0, "total_bytes": 0, "total_gb": 0}
+
+    async def get_all_uploader_statistics(self) -> List[Dict[str, Any]]:
+        """Get upload statistics for all uploaders"""
+        try:
+            query = """
+            FOR doc IN upload_statistics
+            COLLECT user_id = doc.user_id, username = doc.username
+            AGGREGATE 
+                total_uploads = COUNT(1),
+                total_bytes = SUM(doc.size_bytes)
+            SORT total_bytes DESC
+            RETURN {
+                user_id,
+                username,
+                total_uploads,
+                total_bytes,
+                total_gb: ROUND(total_bytes / 1073741824, 2)
+            }
+            """
+            cursor = await self.db.aql.execute(query)
+            stats = []
+            async with cursor:
+                async for doc in cursor:
+                    stats.append(doc)
+            return stats
+        except Exception as e:
+            logger.error(f"Error fetching all uploader statistics: {e}")
+            return []
 
 
 # Global database instance

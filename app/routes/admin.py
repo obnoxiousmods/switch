@@ -621,7 +621,7 @@ async def admin_users(request: Request) -> Response:
 
 
 async def admin_update_user_role(request: Request) -> Response:
-    """Update a user's role (admin or moderator status)"""
+    """Update a user's role (admin, moderator, or uploader status)"""
     if not Config.is_initialized():
         return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
     
@@ -638,7 +638,7 @@ async def admin_update_user_role(request: Request) -> Response:
         if not user_id or not role or not action:
             return JSONResponse({"success": False, "error": "Missing required fields"}, status_code=400)
         
-        if role not in ['admin', 'moderator']:
+        if role not in ['admin', 'moderator', 'uploader']:
             return JSONResponse({"success": False, "error": "Invalid role"}, status_code=400)
         
         if action not in ['grant', 'revoke']:
@@ -653,8 +653,10 @@ async def admin_update_user_role(request: Request) -> Response:
         new_status = (action == 'grant')
         if role == 'admin':
             success = await db.update_user_admin_status(user_id, new_status)
-        else:  # moderator
+        elif role == 'moderator':
             success = await db.update_user_moderator_status(user_id, new_status)
+        else:  # uploader
+            success = await db.update_user_uploader_status(user_id, new_status)
         
         if not success:
             return JSONResponse({"success": False, "error": "Failed to update user role"}, status_code=500)
@@ -1114,5 +1116,41 @@ async def admin_storage_info(request: Request) -> Response:
             "total_games": total_games,
             "total_entries": total_entries,
             "total_size_bytes": total_size_bytes
+        }
+    )
+
+
+async def admin_upload_statistics(request: Request) -> Response:
+    """View upload statistics for all uploaders"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Access Denied",
+                "error_message": "You do not have permission to access this page.",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get all uploader statistics
+    uploader_stats = await db.get_all_uploader_statistics()
+    
+    # Get overall statistics
+    overall_stats = await db.get_upload_statistics()
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/upload_statistics.html",
+        {
+            "title": "Upload Statistics",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "uploader_stats": uploader_stats,
+            "overall_stats": overall_stats
         }
     )

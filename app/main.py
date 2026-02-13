@@ -14,7 +14,8 @@ from app.routes.admin import (
     admin_scan_directory, admin_clear_entries, admin_rescan_all,
     admin_users, admin_update_user_role, admin_force_password_change,
     admin_api_keys, admin_revoke_api_key, admin_user_api_usage,
-    admin_audit_logs, admin_activity_logs, admin_storage_info
+    admin_audit_logs, admin_activity_logs, admin_storage_info,
+    admin_upload_statistics
 )
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
 from app.routes.settings import settings_page, change_password, download_history_page
@@ -22,6 +23,10 @@ from app.routes.api_keys import api_keys_page, generate_api_key, revoke_api_key,
 from app.routes.mod import (
     mod_dashboard, mod_requests, mod_approve_request, mod_reject_request,
     mod_force_password_change, user_submit_request, user_requests_page
+)
+from app.routes.uploader import (
+    uploader_dashboard, uploader_game_requests, uploader_approve_request,
+    uploader_reject_request, uploader_upload_page, uploader_upload_submit
 )
 from app.database import db
 from app.config import Config
@@ -62,6 +67,12 @@ routes = [
     Route("/modcp/requests/approve", mod_approve_request, methods=["POST"]),
     Route("/modcp/requests/reject", mod_reject_request, methods=["POST"]),
     Route("/modcp/users/force-change-password", mod_force_password_change, methods=["POST"]),
+    Route("/uploadercp", uploader_dashboard),
+    Route("/uploadercp/game-requests", uploader_game_requests, methods=["GET"]),
+    Route("/uploadercp/game-requests/approve", uploader_approve_request, methods=["POST"]),
+    Route("/uploadercp/game-requests/reject", uploader_reject_request, methods=["POST"]),
+    Route("/uploadercp/upload", uploader_upload_page, methods=["GET"]),
+    Route("/uploadercp/upload", uploader_upload_submit, methods=["POST"]),
     Route("/admincp/init", admin_init_page, methods=["GET"]),
     Route("/admincp/init", admin_init_submit, methods=["POST"]),
     Route("/admincp", admin_dashboard),
@@ -80,6 +91,7 @@ routes = [
     Route("/admincp/audit-logs", admin_audit_logs, methods=["GET"]),
     Route("/admincp/activity-logs", admin_activity_logs, methods=["GET"]),
     Route("/admincp/storage-info", admin_storage_info, methods=["GET"]),
+    Route("/admincp/upload-statistics", admin_upload_statistics, methods=["GET"]),
     Mount("/static", StaticFiles(directory="static"), name="static"),
 ]
 
