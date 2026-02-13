@@ -13,12 +13,18 @@
             <form id="requestForm" class="request-form">
                 <div class="form-group">
                     <label for="request_type">Request Type</label>
-                    <select id="request_type" name="request_type" required>
+                    <select id="request_type" name="request_type" required onchange="toggleGameNameField()">
                         <option value="">Select a type...</option>
+                        <option value="game_request">🎮 Game Request</option>
                         <option value="upload_access">📤 Upload Access</option>
                         <option value="moderator_access">🛡️ Moderator Access</option>
                         <option value="other">📋 Other</option>
                     </select>
+                </div>
+                
+                <div class="form-group" id="game_name_group" style="display: none;">
+                    <label for="game_name">Game Name</label>
+                    <input type="text" id="game_name" name="game_name" placeholder="e.g., Super Mario Odyssey" />
                 </div>
                 
                 <div class="form-group">
@@ -39,7 +45,9 @@
                 <div class="request-card status-{{ req.status }}">
                     <div class="request-header">
                         <div class="request-type">
-                            {% if req.request_type == 'moderator_access' %}
+                            {% if req.request_type == 'game_request' %}
+                                🎮 Game Request
+                            {% elif req.request_type == 'moderator_access' %}
                                 🛡️ Moderator Access
                             {% elif req.request_type == 'upload_access' %}
                                 📤 Upload Access
@@ -49,6 +57,12 @@
                         </div>
                         <span class="request-status badge-{{ req.status }}">{{ req.status|upper }}</span>
                     </div>
+                    
+                    {% if req.game_name %}
+                    <div class="game-name">
+                        <strong>Game:</strong> {{ req.game_name }}
+                    </div>
+                    {% endif %}
                     
                     <div class="request-message">
                         {{ req.message }}
@@ -74,6 +88,21 @@
 </div>
 
 <script>
+function toggleGameNameField() {
+    const requestType = document.getElementById('request_type').value;
+    const gameNameGroup = document.getElementById('game_name_group');
+    const gameNameInput = document.getElementById('game_name');
+    
+    if (requestType === 'game_request') {
+        gameNameGroup.style.display = 'block';
+        gameNameInput.required = true;
+    } else {
+        gameNameGroup.style.display = 'none';
+        gameNameInput.required = false;
+        gameNameInput.value = '';
+    }
+}
+
 document.getElementById('requestForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -151,7 +180,8 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
 }
 
 .form-group select,
-.form-group textarea {
+.form-group textarea,
+.form-group input[type="text"] {
     width: 100%;
     padding: 12px;
     background: #1a1a1a;
@@ -163,7 +193,8 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
 }
 
 .form-group select:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group input[type="text"]:focus {
     outline: none;
     border-color: #6c5ce7;
 }
@@ -218,6 +249,20 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
     color: #6c5ce7;
     font-size: 16px;
     font-weight: 600;
+}
+
+.game-name {
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #1a1a1a;
+    border-radius: 6px;
+    border-left: 3px solid #6c5ce7;
+}
+
+.game-name strong {
+    color: #6c5ce7;
 }
 
 .request-message {

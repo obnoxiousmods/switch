@@ -202,14 +202,19 @@ async def user_submit_request(request: Request) -> Response:
         form_data = await request.form()
         request_type = form_data.get('request_type', '').strip()
         message = form_data.get('message', '').strip()
+        game_name = form_data.get('game_name', '').strip() if request_type == 'game_request' else None
         
         if not request_type or not message:
             return JSONResponse({"success": False, "error": "All fields are required"}, status_code=400)
         
         # Validate request type
-        valid_types = ['upload_access', 'moderator_access', 'other']
+        valid_types = ['upload_access', 'moderator_access', 'game_request', 'other']
         if request_type not in valid_types:
             return JSONResponse({"success": False, "error": "Invalid request type"}, status_code=400)
+        
+        # Validate game_name for game_request type
+        if request_type == 'game_request' and not game_name:
+            return JSONResponse({"success": False, "error": "Game name is required for game requests"}, status_code=400)
         
         # Create the request
         user_request = UserRequest(
@@ -217,7 +222,8 @@ async def user_submit_request(request: Request) -> Response:
             username=username,
             request_type=RequestType(request_type),
             message=message,
-            status=RequestStatus.PENDING
+            status=RequestStatus.PENDING,
+            game_name=game_name
         )
         
         request_id = await db.create_request(user_request.to_dict())
