@@ -24,6 +24,7 @@ from app.routes.mod import (
 )
 from app.database import db
 from app.config import Config
+from app.middleware.api_auth import APIAuthMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -78,7 +79,8 @@ routes = [
 
 # Middleware
 middleware = [
-    Middleware(SessionMiddleware, secret_key=Config.SECRET_KEY())
+    Middleware(SessionMiddleware, secret_key=Config.SECRET_KEY()),
+    Middleware(APIAuthMiddleware)
 ]
 
 # Create Starlette application
