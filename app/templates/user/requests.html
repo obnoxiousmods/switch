@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="requests-page">
+        <div class="page-header">
+            <h2>📝 My Requests</h2>
+            <p class="page-subtitle">View and submit your requests</p>
+        </div>
+
+        <div class="submit-request-section">
+            <h3>Submit a New Request</h3>
+            <form id="requestForm" class="request-form">
+                <div class="form-group">
+                    <label for="request_type">Request Type</label>
+                    <select id="request_type" name="request_type" required>
+                        <option value="">Select a type...</option>
+                        <option value="upload_access">📤 Upload Access</option>
+                        <option value="moderator_access">🛡️ Moderator Access</option>
+                        <option value="other">📋 Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="message">Message</label>
+                    <textarea id="message" name="message" rows="5" required placeholder="Please explain your request..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn-submit">Submit Request</button>
+            </form>
+        </div>
+
+        <div class="my-requests-section">
+            <h3>My Previous Requests</h3>
+            
+            {% if requests %}
+            <div class="requests-list">
+                {% for req in requests %}
+                <div class="request-card status-{{ req.status }}">
+                    <div class="request-header">
+                        <div class="request-type">
+                            {% if req.request_type == 'moderator_access' %}
+                                🛡️ Moderator Access
+                            {% elif req.request_type == 'upload_access' %}
+                                📤 Upload Access
+                            {% else %}
+                                📋 Other Request
+                            {% endif %}
+                        </div>
+                        <span class="request-status badge-{{ req.status }}">{{ req.status|upper }}</span>
+                    </div>
+                    
+                    <div class="request-message">
+                        {{ req.message }}
+                    </div>
+                    
+                    <div class="request-footer">
+                        <span class="request-date">📅 Submitted: {{ req.created_at[:10] }}</span>
+                        {% if req.reviewed_by %}
+                            <span class="reviewed-by">Reviewed by: {{ req.reviewed_by }} on {{ req.reviewed_at[:10] }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>You haven't submitted any requests yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('requestForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch('/requests/submit', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error submitting request: ' + error.message);
+    }
+});
+</script>
+
+<style>
+.requests-page {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.page-header h2 {
+    color: #fff;
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.page-subtitle {
+    color: #999;
+    font-size: 18px;
+}
+
+.submit-request-section, .my-requests-section {
+    margin-bottom: 50px;
+}
+
+.submit-request-section h3, .my-requests-section h3 {
+    color: #fff;
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.request-form {
+    background: #2a2a2a;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: #ccc;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #6c5ce7;
+}
+
+.btn-submit {
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #6c5ce7, #5f4dd8);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(108, 92, 231, 0.4);
+}
+
+.requests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.request-card {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border-left: 4px solid #6c5ce7;
+}
+
+.request-card.status-approved {
+    border-left-color: #51cf66;
+}
+
+.request-card.status-rejected {
+    border-left-color: #ff6b6b;
+}
+
+.request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.request-type {
+    color: #6c5ce7;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.request-message {
+    color: #ccc;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #222;
+    border-radius: 8px;
+}
+
+.request-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.request-date {
+    color: #999;
+    font-size: 13px;
+}
+
+.request-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-pending {
+    background: #ffa500;
+    color: #000;
+}
+
+.badge-approved {
+    background: #51cf66;
+    color: #000;
+}
+
+.badge-rejected {
+    background: #ff6b6b;
+    color: #fff;
+}
+
+.reviewed-by {
+    color: #888;
+    font-size: 12px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.empty-state p {
+    font-size: 18px;
+}
+</style>
+{% endblock %}

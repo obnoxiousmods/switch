@@ -11,6 +11,7 @@ class User:
     username: str
     password_hash: str
     is_admin: bool = False
+    is_moderator: bool = False
     created_at: Optional[str] = None
     _key: Optional[str] = None
     
@@ -30,6 +31,7 @@ class User:
             'username': self.username,
             'password_hash': self.password_hash,
             'is_admin': self.is_admin,
+            'is_moderator': self.is_moderator,
             'created_at': self.created_at or datetime.utcnow().isoformat()
         }
         if self._key:
@@ -43,6 +45,7 @@ class User:
             username=data['username'],
             password_hash=data['password_hash'],
             is_admin=data.get('is_admin', False),
+            is_moderator=data.get('is_moderator', False),
             created_at=data.get('created_at'),
             _key=data.get('_key')
         )

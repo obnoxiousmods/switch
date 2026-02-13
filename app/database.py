@@ -20,6 +20,7 @@ class Database:
         self.users_collection: Optional[StandardCollection] = None
         self.directories_collection: Optional[StandardCollection] = None
         self.download_history_collection: Optional[StandardCollection] = None
+        self.requests_collection: Optional[StandardCollection] = None
     
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -71,6 +72,13 @@ class Database:
                 logger.info("Created collection: download_history")
             else:
                 self.download_history_collection = self.db.collection('download_history')
+            
+            # Create requests collection if it doesn't exist
+            if not await self.db.has_collection('requests'):
+                self.requests_collection = await self.db.create_collection('requests')
+                logger.info("Created collection: requests")
+            else:
+                self.requests_collection = self.db.collection('requests')
             
             logger.info("Successfully connected to ArangoDB")
             
@@ -336,6 +344,125 @@ class Database:
             return history
         except Exception as e:
             logger.error(f"Error fetching download history: {e}")
+            return []
+    
+    # Request management methods
+    async def create_request(self, request_data: Dict[str, Any]) -> Optional[str]:
+        """Create a new request"""
+        try:
+            if 'created_at' not in request_data:
+                request_data['created_at'] = datetime.utcnow().isoformat()
+            
+            result = await self.requests_collection.insert(request_data)
+            logger.info(f"Created request with key: {result['_key']}")
+            return result['_key']
+        except Exception as e:
+            logger.error(f"Error creating request: {e}")
+            return None
+    
+    async def get_all_requests(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all requests, optionally filtered by status"""
+        try:
+            if status:
+                cursor = await self.db.aql.execute(
+                    'FOR doc IN requests FILTER doc.status == @status SORT doc.created_at DESC RETURN doc',
+                    bind_vars={'status': status}
+                )
+            else:
+                cursor = await self.db.aql.execute(
+                    'FOR doc IN requests SORT doc.created_at DESC RETURN doc'
+                )
+            
+            requests = []
+            async with cursor:
+                async for doc in cursor:
+                    requests.append(doc)
+            return requests
+        except Exception as e:
+            logger.error(f"Error fetching requests: {e}")
+            return []
+    
+    async def get_request_by_id(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single request by ID"""
+        try:
+            doc = await self.requests_collection.get(request_id)
+            return doc
+        except Exception as e:
+            logger.error(f"Error fetching request by ID: {e}")
+            return None
+    
+    async def update_request_status(self, request_id: str, status: str, reviewed_by: str) -> bool:
+        """Update request status"""
+        try:
+            await self.requests_collection.update(
+                {'_key': request_id},
+                {
+                    'status': status,
+                    'reviewed_by': reviewed_by,
+                    'reviewed_at': datetime.utcnow().isoformat()
+                }
+            )
+            logger.info(f"Updated request {request_id} status to {status}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating request status: {e}")
+            return False
+    
+    async def get_user_requests(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all requests for a specific user"""
+        try:
+            cursor = await self.db.aql.execute(
+                'FOR doc IN requests FILTER doc.user_id == @user_id SORT doc.created_at DESC RETURN doc',
+                bind_vars={'user_id': user_id}
+            )
+            requests = []
+            async with cursor:
+                async for doc in cursor:
+                    requests.append(doc)
+            return requests
+        except Exception as e:
+            logger.error(f"Error fetching user requests: {e}")
+            return []
+    
+    async def update_user_moderator_status(self, user_id: str, is_moderator: bool) -> bool:
+        """Update a user's moderator status"""
+        try:
+            await self.users_collection.update(
+                {'_key': user_id},
+                {'is_moderator': is_moderator}
+            )
+            logger.info(f"Updated user {user_id} moderator status to {is_moderator}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating moderator status: {e}")
+            return False
+    
+    async def update_user_admin_status(self, user_id: str, is_admin: bool) -> bool:
+        """Update a user's admin status"""
+        try:
+            await self.users_collection.update(
+                {'_key': user_id},
+                {'is_admin': is_admin}
+            )
+            logger.info(f"Updated user {user_id} admin status to {is_admin}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating admin status: {e}")
+            return False
+    
+    async def get_all_users(self) -> List[Dict[str, Any]]:
+        """Get all users"""
+        try:
+            cursor = await self.db.aql.execute(
+                'FOR doc IN users SORT doc.created_at DESC RETURN doc'
+            )
+            users = []
+            async with cursor:
+                async for doc in cursor:
+                    users.append(doc)
+            return users
+        except Exception as e:
+            logger.error(f"Error fetching all users: {e}")
             return []
 
 # Global database instance

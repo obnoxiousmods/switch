@@ -2,10 +2,10 @@
 
 {% block content %}
 <div class="container">
-    <div class="admin-dashboard">
-        <div class="admin-header">
-            <h2>⚙️ Admin Control Panel</h2>
-            <p class="admin-subtitle">Manage your {{ app_name }} instance</p>
+    <div class="mod-dashboard">
+        <div class="mod-header">
+            <h2>🛡️ Moderator Control Panel</h2>
+            <p class="mod-subtitle">Manage requests and moderate content</p>
         </div>
 
         <div class="dashboard-grid">
@@ -17,63 +17,48 @@
             </div>
 
             <div class="dashboard-card">
-                <div class="card-icon">📁</div>
-                <h3>Directory Management</h3>
-                <p>Manage scan directories and populate the game library</p>
-                <a href="/admincp/directories" class="card-link">Manage Directories →</a>
-            </div>
-
-            <div class="dashboard-card">
-                <div class="card-icon">👥</div>
-                <h3>User Management</h3>
-                <p>Manage users and their roles (admin/moderator)</p>
-                <a href="/admincp/users" class="card-link">Manage Users →</a>
-            </div>
-
-            <div class="dashboard-card">
-                <div class="card-icon">💾</div>
-                <h3>Database Status</h3>
-                <p><strong>Host:</strong> {{ db_host }}</p>
-                <p><strong>Database:</strong> {{ db_name }}</p>
-                <div class="status-badge status-connected">Connected</div>
-            </div>
-
-            <div class="dashboard-card">
-                <div class="card-icon">📊</div>
-                <h3>System Info</h3>
-                <p><strong>Site Name:</strong> {{ app_name }}</p>
-                <p><strong>Status:</strong> Initialized</p>
-            </div>
-
-            <div class="dashboard-card">
                 <div class="card-icon">📝</div>
-                <h3>Configuration</h3>
-                <p>Configuration is stored in config.yaml</p>
-                <p class="card-note">Edit the file directly to update settings</p>
+                <h3>Manage Requests</h3>
+                <p>Review and approve user requests</p>
+                {% if pending_count > 0 %}
+                    <div class="badge-pending">{{ pending_count }} Pending</div>
+                {% else %}
+                    <div class="badge-none">No pending requests</div>
+                {% endif %}
+                <a href="/modcp/requests" class="card-link">View Requests →</a>
             </div>
+
+            {% if is_admin %}
+            <div class="dashboard-card">
+                <div class="card-icon">⚙️</div>
+                <h3>Admin Panel</h3>
+                <p>Access full administrative controls</p>
+                <a href="/admincp" class="card-link">Go to Admin →</a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <style>
-.admin-dashboard {
+.mod-dashboard {
     max-width: 1200px;
     margin: 40px auto;
     padding: 20px;
 }
 
-.admin-header {
+.mod-header {
     text-align: center;
     margin-bottom: 50px;
 }
 
-.admin-header h2 {
+.mod-header h2 {
     color: #fff;
     font-size: 36px;
     margin-bottom: 10px;
 }
 
-.admin-subtitle {
+.mod-subtitle {
     color: #999;
     font-size: 18px;
 }
@@ -116,15 +101,11 @@
     line-height: 1.6;
 }
 
-.dashboard-card p strong {
-    color: #ccc;
-}
-
 .card-link {
     display: inline-block;
     margin-top: 15px;
     padding: 10px 20px;
-    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    background: linear-gradient(135deg, #6c5ce7, #5f4dd8);
     color: #fff;
     text-decoration: none;
     border-radius: 6px;
@@ -136,23 +117,23 @@
     transform: translateX(5px);
 }
 
-.card-note {
-    font-size: 12px;
-    color: #777;
-    font-style: italic;
-}
-
-.status-badge {
+.badge-pending, .badge-none {
     display: inline-block;
     padding: 6px 12px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
     margin-top: 10px;
+    margin-bottom: 10px;
 }
 
-.status-connected {
-    background: #44ff44;
+.badge-pending {
+    background: #ff6b6b;
+    color: #fff;
+}
+
+.badge-none {
+    background: #51cf66;
     color: #000;
 }
 </style>
