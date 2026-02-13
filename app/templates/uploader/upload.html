@@ -12,12 +12,6 @@
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="form-section">
                     <h3>Game Information</h3>
-                    
-                    <div class="form-group">
-                        <label for="name">Game Name *</label>
-                        <input type="text" id="name" name="name" required 
-                               placeholder="e.g., The Legend of Zelda: Breath of the Wild">
-                    </div>
 
                     <div class="form-group">
                         <label for="type">Upload Type *</label>
@@ -62,34 +56,6 @@
                     </div>
                 </div>
 
-                <div class="form-section">
-                    <h3>Metadata (Optional)</h3>
-                    
-                    <div class="form-group">
-                        <label for="description">Description</label>
-                        <textarea id="description" name="description" rows="3"
-                                  placeholder="Brief description of the game"></textarea>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="version">Version</label>
-                            <input type="text" id="version" name="version" 
-                                   placeholder="e.g., 1.6.0">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="publisher">Publisher</label>
-                            <input type="text" id="publisher" name="publisher" 
-                                   placeholder="e.g., Nintendo">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="release_date">Release Date</label>
-                        <input type="date" id="release_date" name="release_date">
-                    </div>
-                </div>
 
                 <div class="form-actions">
                     <button type="button" class="btn-cancel" onclick="window.history.back()">
