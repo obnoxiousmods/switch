@@ -1,9 +1,13 @@
 from starlette.responses import JSONResponse, FileResponse, RedirectResponse
 from starlette.requests import Request
 import os
+import logging
 
 from app.database import db
 from app.utils.ip_utils import get_ip_info, format_ip_for_log
+from app.config import Config
+
+logger = logging.getLogger(__name__)
 
 async def list_entries(request: Request):
     """API endpoint to list all entries"""
@@ -91,8 +95,54 @@ async def download_entry(request: Request):
         if entry.get('type') == 'url':
             return RedirectResponse(url=entry.get('source'))
         
-        # If it's a filepath, serve the file
+        # If it's a filepath, serve the file with security validation
         filepath = entry.get('source')
+        
+        # Validate the filepath is within allowed directories
+        try:
+            filepath_resolved = os.path.abspath(filepath)
+            
+            # Get list of allowed directories from config or use defaults
+            # These should be directories where game files are stored
+            allowed_dirs = []
+            
+            # Add configured upload directory
+            upload_dir = Config.get('upload.directory', '/app/uploads')
+            if upload_dir:
+                allowed_dirs.append(os.path.abspath(upload_dir))
+            
+            # Add any scan directories from the database
+            scan_dirs = await db.get_all_directories()
+            for dir_entry in scan_dirs:
+                dir_path = dir_entry.get('path')
+                if dir_path:
+                    allowed_dirs.append(os.path.abspath(dir_path))
+            
+            # Check if filepath is within any allowed directory
+            is_allowed = False
+            for allowed_dir in allowed_dirs:
+                # Ensure the file is within the allowed directory
+                if filepath_resolved.startswith(allowed_dir + os.sep) or filepath_resolved == allowed_dir:
+                    is_allowed = True
+                    break
+            
+            if not is_allowed:
+                logger.warning(f"Attempted unauthorized file access: {filepath} (resolved: {filepath_resolved})")
+                return JSONResponse({
+                    "error": "Access denied"
+                }, status_code=403)
+            
+            # Additional security check - ensure it's actually a file and not a directory
+            if not os.path.isfile(filepath_resolved):
+                return JSONResponse({
+                    "error": "File not found on server"
+                }, status_code=404)
+            
+        except Exception as e:
+            logger.error(f"Error validating file path: {e}")
+            return JSONResponse({
+                "error": "Invalid file path"
+            }, status_code=400)
         
         if not os.path.exists(filepath):
             return JSONResponse({
@@ -110,6 +160,7 @@ async def download_entry(request: Request):
         )
         
     except Exception as e:
+        logger.error(f"Download error: {e}", exc_info=True)
         return JSONResponse({
-            "error": str(e)
+            "error": "An error occurred while processing your request"
         }, status_code=500)

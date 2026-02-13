@@ -276,27 +276,61 @@ async def uploader_upload_submit(request: Request) -> Response:
         if not file or not isinstance(file, UploadFile):
             return JSONResponse({"success": False, "error": "File is required"}, status_code=400)
         
-        # Get filename
+        # Get filename and sanitize it
         filename = file.filename
         if not filename:
             return JSONResponse({"success": False, "error": "Invalid filename"}, status_code=400)
         
-        # Auto-detect file type from extension
-        file_ext = filename.lower().split('.')[-1]
+        # Sanitize filename to prevent path traversal
+        # Remove any path separators and dangerous characters
+        import re
+        import secrets
+        
+        # Get extension first
+        name_part, ext_part = os.path.splitext(filename)
+        if not ext_part:
+            return JSONResponse({"success": False, "error": "File must have an extension"}, status_code=400)
+        
+        # Validate file extension using splitext (secure method)
+        file_ext = ext_part.lower().lstrip('.')
         if file_ext not in ['nsp', 'nsz', 'xci']:
             return JSONResponse({"success": False, "error": "Invalid file type. Supported: NSP, NSZ, XCI"}, status_code=400)
         
         file_type = file_ext
         
-        # Extract game name from filename (remove extension)
-        name = '.'.join(filename.split('.')[:-1])
+        # Sanitize the base filename - remove path separators and dangerous chars
+        safe_basename = re.sub(r'[/\\:\*\?"<>|]', '', name_part)
+        safe_basename = safe_basename.strip('. ')  # Remove leading/trailing dots and spaces
+        
+        if not safe_basename or len(safe_basename) > 200:
+            # If filename is invalid or too long, generate a random one
+            safe_basename = f"upload_{secrets.token_hex(8)}"
+        
+        # Reconstruct safe filename
+        safe_filename = f"{safe_basename}.{file_ext}"
+        name = safe_basename  # Use sanitized name for entry
         
         # Create uploads directory if it doesn't exist
         upload_dir = Config.get('upload.directory', '/app/uploads')
         os.makedirs(upload_dir, exist_ok=True)
         
-        # Save file
-        file_path = os.path.join(upload_dir, filename)
+        # Construct file path safely
+        file_path = os.path.join(upload_dir, safe_filename)
+        
+        # Verify the final path is actually within the upload directory (prevent traversal)
+        file_path_resolved = os.path.abspath(file_path)
+        upload_dir_resolved = os.path.abspath(upload_dir)
+        
+        if not file_path_resolved.startswith(upload_dir_resolved + os.sep):
+            logger.error(f"Path traversal attempt detected: {filename} -> {file_path_resolved}")
+            return JSONResponse({"success": False, "error": "Invalid file path"}, status_code=400)
+        
+        # Check if file already exists and make unique if needed
+        counter = 1
+        original_path = file_path
+        while os.path.exists(file_path):
+            file_path = os.path.join(upload_dir, f"{safe_basename}_{counter}.{file_ext}")
+            counter += 1
         
         # Read and save file
         content = await file.read()
