@@ -667,3 +667,151 @@ async def admin_update_user_role(request: Request) -> Response:
     except Exception as e:
         logger.error(f"Error updating user role: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_api_keys(request: Request) -> Response:
+    """Admin page for managing all API keys"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get all API keys with user information
+    all_api_keys = await db.get_all_api_keys()
+    
+    # Enhance API keys with user information
+    for key in all_api_keys:
+        user = await db.get_user_by_id(key.get('user_id', ''))
+        if user:
+            key['username'] = user.get('username', 'Unknown')
+        else:
+            key['username'] = 'Unknown'
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/api_keys.html",
+        {
+            "title": "API Key Management",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "api_keys": all_api_keys,
+        }
+    )
+
+
+async def admin_revoke_api_key(request: Request) -> Response:
+    """Admin endpoint to revoke any API key"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form = await request.form()
+        key_id = form.get('key_id', '').strip()
+        
+        if not key_id:
+            return JSONResponse({"success": False, "error": "Key ID is required"}, status_code=400)
+        
+        # Revoke the key
+        success = await db.revoke_api_key(key_id)
+        
+        if success:
+            return JSONResponse({
+                "success": True,
+                "message": "API key revoked successfully"
+            })
+        else:
+            return JSONResponse({"success": False, "error": "Failed to revoke API key"}, status_code=500)
+    
+    except Exception as e:
+        logger.error(f"Error revoking API key: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_user_api_usage(request: Request) -> Response:
+    """Admin page for viewing user API usage statistics"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get user_id from query params if specified
+    user_id = request.query_params.get('user_id')
+    
+    if user_id:
+        # Get specific user's usage
+        user = await db.get_user_by_id(user_id)
+        if not user:
+            return templates.TemplateResponse(
+                request,
+                "error.html",
+                {
+                    "title": "User Not Found",
+                    "error": "The specified user was not found",
+                    "app_name": Config.get('app.name', 'Switch Game Repository')
+                },
+                status_code=404
+            )
+        
+        usage_stats = await db.get_api_usage_stats_by_user(user_id)
+        recent_usage = await db.get_api_usage_by_user(user_id, limit=100)
+        
+        return templates.TemplateResponse(
+            request,
+            "admin/user_api_usage.html",
+            {
+                "title": f"API Usage - {user.get('username')}",
+                "app_name": Config.get('app.name', 'Switch Game Repository'),
+                "user": user,
+                "usage_stats": usage_stats,
+                "recent_usage": recent_usage,
+            }
+        )
+    else:
+        # Get all users with their usage stats
+        all_users = await db.get_all_users()
+        user_usage_list = []
+        
+        for user in all_users:
+            user_id = user.get('_key')
+            stats = await db.get_api_usage_stats_by_user(user_id)
+            user_usage_list.append({
+                'user_id': user_id,
+                'username': user.get('username'),
+                'total_calls': stats.get('total_calls', 0),
+                'created_at': user.get('created_at')
+            })
+        
+        return templates.TemplateResponse(
+            request,
+            "admin/api_usage_overview.html",
+            {
+                "title": "API Usage Overview",
+                "app_name": Config.get('app.name', 'Switch Game Repository'),
+                "user_usage_list": user_usage_list,
+            }
+        )
