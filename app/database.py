@@ -290,7 +290,7 @@ class Database:
         """Update a user's password"""
         try:
             await self.users_collection.update(
-                {'_key': user_id},
+                user_id,
                 {'password_hash': new_password_hash}
             )
             logger.info(f"Updated password for user: {user_id}")
@@ -395,7 +395,7 @@ class Database:
         """Update request status"""
         try:
             await self.requests_collection.update(
-                {'_key': request_id},
+                request_id,
                 {
                     'status': status,
                     'reviewed_by': reviewed_by,
@@ -428,7 +428,7 @@ class Database:
         """Update a user's moderator status"""
         try:
             await self.users_collection.update(
-                {'_key': user_id},
+                user_id,
                 {'is_moderator': is_moderator}
             )
             logger.info(f"Updated user {user_id} moderator status to {is_moderator}")
@@ -441,7 +441,7 @@ class Database:
         """Update a user's admin status"""
         try:
             await self.users_collection.update(
-                {'_key': user_id},
+                user_id,
                 {'is_admin': is_admin}
             )
             logger.info(f"Updated user {user_id} admin status to {is_admin}")

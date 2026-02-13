@@ -33,7 +33,9 @@
                         <strong>{{ req.username }}</strong>
                     </div>
                     <div class="request-type">
-                        {% if req.request_type == 'moderator_access' %}
+                        {% if req.request_type == 'game_request' %}
+                            🎮 Game Request
+                        {% elif req.request_type == 'moderator_access' %}
                             🛡️ Moderator Access
                         {% elif req.request_type == 'upload_access' %}
                             📤 Upload Access
@@ -42,6 +44,12 @@
                         {% endif %}
                     </div>
                 </div>
+                
+                {% if req.game_name %}
+                <div class="game-name">
+                    <strong>Game:</strong> {{ req.game_name }}
+                </div>
+                {% endif %}
                 
                 <div class="request-message">
                     {{ req.message }}
@@ -228,6 +236,20 @@ async function rejectRequest(requestId) {
     color: #6c5ce7;
     font-size: 14px;
     font-weight: 600;
+}
+
+.game-name {
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #1a1a1a;
+    border-radius: 6px;
+    border-left: 3px solid #6c5ce7;
+}
+
+.game-name strong {
+    color: #6c5ce7;
 }
 
 .request-message {

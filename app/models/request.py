@@ -15,6 +15,7 @@ class RequestType(str, Enum):
     """Request type enum"""
     UPLOAD_ACCESS = "upload_access"
     MODERATOR_ACCESS = "moderator_access"
+    GAME_REQUEST = "game_request"
     OTHER = "other"
 
 
@@ -29,6 +30,7 @@ class Request:
     created_at: Optional[str] = None
     reviewed_by: Optional[str] = None
     reviewed_at: Optional[str] = None
+    game_name: Optional[str] = None
     _key: Optional[str] = None
     
     def to_dict(self) -> dict:
@@ -41,7 +43,8 @@ class Request:
             'status': self.status.value if isinstance(self.status, RequestStatus) else self.status,
             'created_at': self.created_at or datetime.utcnow().isoformat(),
             'reviewed_by': self.reviewed_by,
-            'reviewed_at': self.reviewed_at
+            'reviewed_at': self.reviewed_at,
+            'game_name': self.game_name
         }
         if self._key:
             data['_key'] = self._key
@@ -59,5 +62,6 @@ class Request:
             created_at=data.get('created_at'),
             reviewed_by=data.get('reviewed_by'),
             reviewed_at=data.get('reviewed_at'),
+            game_name=data.get('game_name'),
             _key=data.get('_key')
         )
