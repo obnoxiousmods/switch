@@ -275,34 +275,46 @@ async def uploader_upload_submit(request: Request) -> Response:
         if not file or not isinstance(file, UploadFile):
             return JSONResponse({"success": False, "error": "File is required"}, status_code=400)
         
-        # Get filename
+        # Get filename and sanitize it
         filename = file.filename
         if not filename:
             return JSONResponse({"success": False, "error": "Invalid filename"}, status_code=400)
         
-        # Auto-detect file type from extension
-        file_ext = filename.lower().split('.')[-1]
+        # Sanitize filename to prevent path traversal attacks
+        # Remove any path components and keep only the base filename
+        filename = os.path.basename(filename)
+        # Remove any remaining dangerous characters
+        filename = filename.replace('..', '').replace('/', '').replace('\\', '')
+        
+        if not filename:
+            return JSONResponse({"success": False, "error": "Invalid filename after sanitization"}, status_code=400)
+        
+        # Auto-detect file type from extension using os.path.splitext
+        name_without_ext, file_ext = os.path.splitext(filename)
+        file_ext = file_ext.lower().lstrip('.')  # Remove the leading dot
+        
         if file_ext not in ['nsp', 'nsz', 'xci']:
             return JSONResponse({"success": False, "error": "Invalid file type. Supported: NSP, NSZ, XCI"}, status_code=400)
         
-        file_type = file_ext
+        if not name_without_ext:
+            return JSONResponse({"success": False, "error": "Filename must have a name before the extension"}, status_code=400)
         
-        # Extract game name from filename (remove extension)
-        name = '.'.join(filename.split('.')[:-1])
+        file_type = file_ext
+        name = name_without_ext
         
         # Create uploads directory if it doesn't exist
         upload_dir = Config.get('upload.directory', '/app/uploads')
         os.makedirs(upload_dir, exist_ok=True)
         
-        # Save file
+        # Save file with sanitized filename
         file_path = os.path.join(upload_dir, filename)
         
-        # Read and save file
-        content = await file.read()
-        size = len(content)
-        
+        # Stream file to disk in chunks to avoid memory issues with large files
+        size = 0
         with open(file_path, 'wb') as f:
-            f.write(content)
+            while chunk := await file.read(8192):  # Read in 8KB chunks
+                f.write(chunk)
+                size += len(chunk)
         
         source = file_path
         logger.info(f"File saved to {file_path}, size: {size} bytes")
