@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="upload-stats-page">
+        <div class="page-header">
+            <h2>📊 Upload Statistics</h2>
+            <p class="page-subtitle">Track uploads and uploader performance</p>
+        </div>
+
+        <div class="stats-overview">
+            <div class="stat-card">
+                <div class="stat-icon">📤</div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ overall_stats.total_uploads }}</div>
+                    <div class="stat-label">Total Uploads</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">💾</div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ overall_stats.total_gb }} GB</div>
+                    <div class="stat-label">Total Data Uploaded</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ uploader_stats|length }}</div>
+                    <div class="stat-label">Active Uploaders</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="uploaders-section">
+            <h3>Uploader Breakdown</h3>
+            
+            {% if uploader_stats %}
+            <div class="uploaders-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Username</th>
+                            <th>Total Uploads</th>
+                            <th>Total Size</th>
+                            <th>Avg. File Size</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in uploader_stats %}
+                        <tr>
+                            <td class="rank-cell">
+                                {% if loop.index == 1 %}
+                                    🥇
+                                {% elif loop.index == 2 %}
+                                    🥈
+                                {% elif loop.index == 3 %}
+                                    🥉
+                                {% else %}
+                                    #{{ loop.index }}
+                                {% endif %}
+                            </td>
+                            <td class="username-cell">
+                                <strong>{{ stat.username }}</strong>
+                            </td>
+                            <td>{{ stat.total_uploads }}</td>
+                            <td>{{ stat.total_gb }} GB</td>
+                            <td>{{ (stat.total_gb / stat.total_uploads)|round(2) }} GB</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>No upload statistics available yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-stats-page {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.page-header h2 {
+    color: #fff;
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.page-subtitle {
+    color: #999;
+    font-size: 18px;
+}
+
+.stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #2a2a2a, #333);
+    border-radius: 12px;
+    padding: 30px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    font-size: 48px;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 36px;
+    font-weight: bold;
+    color: #5a9fd4;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #999;
+    margin-top: 5px;
+}
+
+.uploaders-section {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.uploaders-section h3 {
+    color: #fff;
+    font-size: 24px;
+    margin-bottom: 25px;
+}
+
+.uploaders-table {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead {
+    background: #1a1a1a;
+}
+
+th {
+    padding: 15px;
+    text-align: left;
+    color: #5a9fd4;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+tbody tr {
+    border-bottom: 1px solid #333;
+    transition: background 0.2s;
+}
+
+tbody tr:hover {
+    background: #333;
+}
+
+tbody tr:last-child {
+    border-bottom: none;
+}
+
+td {
+    padding: 15px;
+    color: #ccc;
+}
+
+.rank-cell {
+    font-size: 20px;
+    text-align: center;
+    width: 80px;
+}
+
+.username-cell {
+    color: #fff;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.empty-state p {
+    color: #999;
+    font-size: 18px;
+}
+
+@media (max-width: 768px) {
+    .uploaders-table {
+        font-size: 14px;
+    }
+    
+    th, td {
+        padding: 10px;
+    }
+}
+</style>
+{% endblock %}

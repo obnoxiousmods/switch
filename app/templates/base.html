@@ -22,6 +22,9 @@
                         {% if request.session.get('is_moderator') or request.session.get('is_admin') %}
                             <a href="/modcp" class="btn-mod">🛡️ Mod CP</a>
                         {% endif %}
+                        {% if request.session.get('is_uploader') or request.session.get('is_moderator') or request.session.get('is_admin') %}
+                            <a href="/uploadercp" class="btn-uploader">📤 Uploader</a>
+                        {% endif %}
                         <a href="/requests" class="btn-requests">📝 Requests</a>
                         <a href="/settings" class="btn-settings">⚙️ Settings</a>
                         <a href="/logout" class="btn-logout">Logout</a>

@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="upload-page">
+        <div class="page-header">
+            <h2>📤 Upload Game</h2>
+            <p class="page-subtitle">Upload a new game to the repository</p>
+        </div>
+
+        <div class="upload-form-container">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-section">
+                    <h3>Game Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="name">Game Name *</label>
+                        <input type="text" id="name" name="name" required 
+                               placeholder="e.g., The Legend of Zelda: Breath of the Wild">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="type">Upload Type *</label>
+                        <select id="type" name="type" required onchange="toggleUploadType()">
+                            <option value="">Select type...</option>
+                            <option value="filepath">File Upload</option>
+                            <option value="url">URL Link</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="fileGroup" style="display: none;">
+                        <label for="file">Game File *</label>
+                        <input type="file" id="file" name="file" 
+                               accept=".nsp,.nsz,.xci"
+                               onchange="updateFileInfo()">
+                        <small class="form-help">Supported formats: NSP, NSZ, XCI</small>
+                        <div id="fileInfo" class="file-info"></div>
+                    </div>
+
+                    <div class="form-group" id="urlGroup" style="display: none;">
+                        <label for="url">File URL *</label>
+                        <input type="url" id="url" name="url" 
+                               placeholder="https://example.com/game.nsp">
+                        <small class="form-help">Direct download link to the game file</small>
+                    </div>
+
+                    <div class="form-group" id="sizeGroup" style="display: none;">
+                        <label for="size">File Size (bytes) *</label>
+                        <input type="number" id="size" name="size" 
+                               placeholder="e.g., 14500000000">
+                        <small class="form-help">Required for URL uploads</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="file_type">File Type *</label>
+                        <select id="file_type" name="file_type" required>
+                            <option value="">Select file type...</option>
+                            <option value="nsp">NSP</option>
+                            <option value="nsz">NSZ (Compressed)</option>
+                            <option value="xci">XCI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Metadata (Optional)</h3>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="3"
+                                  placeholder="Brief description of the game"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="version">Version</label>
+                            <input type="text" id="version" name="version" 
+                                   placeholder="e.g., 1.6.0">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="publisher">Publisher</label>
+                            <input type="text" id="publisher" name="publisher" 
+                                   placeholder="e.g., Nintendo">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="release_date">Release Date</label>
+                        <input type="date" id="release_date" name="release_date">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="window.history.back()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-submit">
+                        <span id="submitText">📤 Upload Game</span>
+                        <span id="uploadingText" style="display: none;">⏳ Uploading...</span>
+                    </button>
+                </div>
+            </form>
+
+            <div id="uploadProgress" class="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p class="progress-text" id="progressText">Uploading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleUploadType() {
+    const type = document.getElementById('type').value;
+    const fileGroup = document.getElementById('fileGroup');
+    const urlGroup = document.getElementById('urlGroup');
+    const sizeGroup = document.getElementById('sizeGroup');
+    const fileInput = document.getElementById('file');
+    const urlInput = document.getElementById('url');
+    const sizeInput = document.getElementById('size');
+    
+    if (type === 'filepath') {
+        fileGroup.style.display = 'block';
+        urlGroup.style.display = 'none';
+        sizeGroup.style.display = 'none';
+        fileInput.required = true;
+        urlInput.required = false;
+        sizeInput.required = false;
+    } else if (type === 'url') {
+        fileGroup.style.display = 'none';
+        urlGroup.style.display = 'block';
+        sizeGroup.style.display = 'block';
+        fileInput.required = false;
+        urlInput.required = true;
+        sizeInput.required = true;
+    } else {
+        fileGroup.style.display = 'none';
+        urlGroup.style.display = 'none';
+        sizeGroup.style.display = 'none';
+        fileInput.required = false;
+        urlInput.required = false;
+        sizeInput.required = false;
+    }
+}
+
+function updateFileInfo() {
+    const fileInput = document.getElementById('file');
+    const fileInfo = document.getElementById('fileInfo');
+    
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+        
+        fileInfo.innerHTML = `
+            <strong>Selected:</strong> ${file.name}<br>
+            <strong>Size:</strong> ${sizeGB} GB (${sizeMB} MB)
+        `;
+        fileInfo.style.display = 'block';
+    } else {
+        fileInfo.style.display = 'none';
+    }
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const submitBtn = e.target.querySelector('.btn-submit');
+    const submitText = document.getElementById('submitText');
+    const uploadingText = document.getElementById('uploadingText');
+    const progressDiv = document.getElementById('uploadProgress');
+    
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitText.style.display = 'none';
+    uploadingText.style.display = 'inline';
+    progressDiv.style.display = 'block';
+    
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch('/uploadercp/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✓ ' + data.message);
+            window.location.href = '/uploadercp';
+        } else {
+            alert('✗ Error: ' + data.error);
+            submitBtn.disabled = false;
+            submitText.style.display = 'inline';
+            uploadingText.style.display = 'none';
+            progressDiv.style.display = 'none';
+        }
+    } catch (error) {
+        alert('✗ Error uploading game: ' + error);
+        submitBtn.disabled = false;
+        submitText.style.display = 'inline';
+        uploadingText.style.display = 'none';
+        progressDiv.style.display = 'none';
+    }
+});
+</script>
+
+<style>
+.upload-page {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.page-header h2 {
+    color: #fff;
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.page-subtitle {
+    color: #999;
+    font-size: 18px;
+}
+
+.upload-form-container {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.form-section {
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #333;
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.form-section h3 {
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: #ccc;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group input[type="date"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    background: #1a1a1a;
+    border: 2px dashed #444;
+    border-radius: 6px;
+    color: #999;
+    cursor: pointer;
+}
+
+.form-group input[type="file"]:hover {
+    border-color: #5a9fd4;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-help {
+    display: block;
+    color: #999;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.file-info {
+    margin-top: 10px;
+    padding: 10px;
+    background: #1a1a1a;
+    border-radius: 6px;
+    color: #5a9fd4;
+    font-size: 13px;
+    display: none;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    margin-top: 30px;
+}
+
+.btn-cancel, .btn-submit {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel {
+    background: #444;
+    color: #fff;
+}
+
+.btn-cancel:hover {
+    background: #555;
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    color: #fff;
+}
+
+.btn-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(90, 159, 212, 0.4);
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.upload-progress {
+    margin-top: 20px;
+    padding: 20px;
+    background: #1a1a1a;
+    border-radius: 8px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    width: 0%;
+    transition: width 0.3s;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.progress-text {
+    color: #5a9fd4;
+    text-align: center;
+    margin-top: 10px;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

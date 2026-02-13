@@ -61,6 +61,7 @@ async def login_submit(request: Request) -> Response:
         request.session['username'] = user.username
         request.session['is_admin'] = user.is_admin
         request.session['is_moderator'] = user.is_moderator
+        request.session['is_uploader'] = user.is_uploader
         
         # Log the login activity
         ip_address = request.client.host if request.client else 'unknown'
@@ -160,6 +161,7 @@ async def register_submit(request: Request) -> Response:
         request.session['username'] = username
         request.session['is_admin'] = False
         request.session['is_moderator'] = False
+        request.session['is_uploader'] = False
         
         # Log the registration activity
         ip_address = request.client.host if request.client else 'unknown'
