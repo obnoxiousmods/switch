@@ -100,6 +100,11 @@
         const card = document.createElement('div');
         card.className = 'result-card';
         
+        // Add click handler for download
+        card.addEventListener('click', () => {
+            handleDownload(entry);
+        });
+        
         const title = document.createElement('div');
         title.className = 'result-title';
         title.textContent = entry.name;
@@ -121,11 +126,6 @@
         sizeItem.className = 'meta-item';
         sizeItem.innerHTML = `📦 ${formatSize(entry.size)}`;
         
-        // Type (filepath or url)
-        const typeItem = document.createElement('div');
-        typeItem.className = 'meta-item';
-        typeItem.innerHTML = `📍 ${entry.type}`;
-        
         // Created at
         const dateItem = document.createElement('div');
         dateItem.className = 'meta-item';
@@ -133,13 +133,24 @@
         
         meta.appendChild(fileTypeItem);
         meta.appendChild(sizeItem);
-        meta.appendChild(typeItem);
         meta.appendChild(dateItem);
         
         card.appendChild(title);
         card.appendChild(meta);
         
         return card;
+    }
+    
+    // Handle download of an entry
+    function handleDownload(entry) {
+        // For URLs, open in a new window to trigger download
+        if (entry.type === 'url') {
+            window.open(entry.source, '_blank');
+        } else {
+            // For filepaths, use the download API endpoint
+            const downloadUrl = `/api/download/${encodeURIComponent(entry.id)}`;
+            window.location.href = downloadUrl;
+        }
     }
     
     // Format file size

@@ -7,7 +7,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.routes.pages import index
-from app.routes.api import list_entries
+from app.routes.api import list_entries, download_entry
 from app.routes.admin import (
     admin_init_page, admin_init_submit, admin_dashboard,
     admin_directories, admin_add_directory, admin_delete_directory,
@@ -31,6 +31,7 @@ templates = Jinja2Templates(directory="app/templates")
 routes = [
     Route("/", index),
     Route("/api/list", list_entries),
+    Route("/api/download/{entry_id}", download_entry),
     Route("/login", login_page, methods=["GET"]),
     Route("/login", login_submit, methods=["POST"]),
     Route("/register", register_page, methods=["GET"]),
