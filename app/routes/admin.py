@@ -902,3 +902,109 @@ async def admin_user_api_usage(request: Request) -> Response:
                 "user_usage_list": user_usage_list,
             }
         )
+
+
+async def admin_audit_logs(request: Request) -> Response:
+    """View audit logs"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get filters from query parameters
+    action_filter = request.query_params.get('action', None)
+    actor_filter = request.query_params.get('actor', None)
+    target_filter = request.query_params.get('target', None)
+    limit = min(int(request.query_params.get('limit', 100)), 500)  # Max 500
+    
+    # Fetch audit logs
+    logs = await db.get_audit_logs(
+        limit=limit,
+        action_filter=action_filter,
+        actor_id_filter=actor_filter,
+        target_id_filter=target_filter
+    )
+    
+    # Get unique actions for filter dropdown
+    all_logs_sample = await db.get_audit_logs(limit=1000)
+    unique_actions = sorted(list(set(log.get('action', '') for log in all_logs_sample if log.get('action'))))
+    
+    # Get statistics
+    stats = await db.get_audit_log_stats()
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/audit_logs.html",
+        {
+            "title": "Audit Logs",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "logs": logs,
+            "stats": stats,
+            "unique_actions": unique_actions,
+            "current_action": action_filter,
+            "limit": limit
+        }
+    )
+
+
+async def admin_activity_logs(request: Request) -> Response:
+    """View activity logs"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get filters from query parameters
+    event_type_filter = request.query_params.get('event_type', None)
+    user_filter = request.query_params.get('user', None)
+    limit = min(int(request.query_params.get('limit', 100)), 500)  # Max 500
+    
+    # Fetch activity logs
+    logs = await db.get_activity_logs(
+        limit=limit,
+        event_type_filter=event_type_filter,
+        user_id_filter=user_filter
+    )
+    
+    # Get unique event types for filter dropdown
+    all_logs_sample = await db.get_activity_logs(limit=1000)
+    unique_event_types = sorted(list(set(log.get('event_type', '') for log in all_logs_sample if log.get('event_type'))))
+    
+    # Get statistics
+    stats = await db.get_activity_log_stats()
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/activity_logs.html",
+        {
+            "title": "Activity Logs",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "logs": logs,
+            "stats": stats,
+            "unique_event_types": unique_event_types,
+            "current_event_type": event_type_filter,
+            "limit": limit
+        }
+    )
