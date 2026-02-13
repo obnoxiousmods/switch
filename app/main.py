@@ -1,57 +1,53 @@
+import logging
 from starlette.applications import Starlette
-from starlette.middleware import Middleware
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.routing import Mount, Route
+from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
-from app.routes import routes
+from app.routes.pages import index
+from app.routes.api import list_entries
+from app.database import db
 
-# Templates – autoescape + modern defaults
-templates = Jinja2Templates(
-    directory="app/templates",
-    # You can pass autoescape=True, extensions=["jinja2.ext.i18n"], etc.
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
 
-# Optional: context processor (available in all templates)
-@templates.context_processor
-def add_global_vars(request):
-    return {
-        "app_name": "My Starlette App",
-        "flash": request.session.pop("flash", None),   # one-time flash message
-        "user": request.session.get("user"),           # example
-    }
+# Templates
+templates = Jinja2Templates(directory="app/templates")
 
-middleware = [
-    Middleware(
-        SessionMiddleware,
-        secret_key="change-this-to-a-very-long-random-secret-2026!",
-        max_age=3600 * 24 * 14,     # 2 weeks
-        same_site="lax",
-        https_only=False,           # ← set True in prod + HTTPS
-    ),
-    # Add more: CORSMiddleware, GZipMiddleware, etc.
+# Routes
+routes = [
+    Route("/", index),
+    Route("/api/list", list_entries),
+    Mount("/static", StaticFiles(directory="static"), name="static"),
 ]
 
+# Create Starlette application
 app = Starlette(
     debug=True,
     routes=routes,
-    middleware=middleware,
-    template_engine=templates,   # optional but nice
-    
 )
 
-
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-
-# Optional startup / shutdown
+# Startup event
 @app.on_event("startup")
 async def startup():
-    print("→ App starting...")
+    logger.info("→ App starting...")
+    try:
+        await db.connect()
+        logger.info("→ Database connected successfully")
+    except Exception as e:
+        logger.error(f"→ Failed to connect to database: {e}")
+        logger.warning("→ App will continue but database features won't work")
 
-
+# Shutdown event
 @app.on_event("shutdown")
 async def shutdown():
-    print("→ App shutting down...")
+    logger.info("→ App shutting down...")
+    try:
+        await db.disconnect()
+        logger.info("→ Database disconnected")
+    except Exception as e:
+        logger.error(f"→ Error disconnecting from database: {e}")

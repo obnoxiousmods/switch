@@ -1,5 +1,8 @@
 starlette
-uvicorn
+uvicorn[standard]
 jinja2
 itsdangerous
 python-multipart
+python-arango
+aiofiles
+python-dotenv
