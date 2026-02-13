@@ -25,19 +25,19 @@ class Database:
             self.client = ArangoClient(hosts=Config.get_arangodb_url())
             
             # Create auth object
-            auth = Auth(username=Config.ARANGODB_USERNAME, password=Config.ARANGODB_PASSWORD)
+            auth = Auth(username=Config.ARANGODB_USERNAME(), password=Config.ARANGODB_PASSWORD())
             
             # Connect to _system database to check if our database exists
             sys_db = await self.client.db('_system', auth=auth)
             
             # Create database if it doesn't exist
-            if not await sys_db.has_database(Config.ARANGODB_DATABASE):
-                await sys_db.create_database(Config.ARANGODB_DATABASE)
-                logger.info(f"Created database: {Config.ARANGODB_DATABASE}")
+            if not await sys_db.has_database(Config.ARANGODB_DATABASE()):
+                await sys_db.create_database(Config.ARANGODB_DATABASE())
+                logger.info(f"Created database: {Config.ARANGODB_DATABASE()}")
             
             # Connect to the application database
             self.db = await self.client.db(
-                Config.ARANGODB_DATABASE,
+                Config.ARANGODB_DATABASE(),
                 auth=auth
             )
             
