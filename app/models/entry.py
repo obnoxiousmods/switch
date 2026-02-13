@@ -26,6 +26,8 @@ class Entry:
         created_by: str = "",
         metadata: Optional[Dict[str, Any]] = None,
         created_at: Optional[str] = None,
+        file_created_at: Optional[str] = None,
+        file_modified_at: Optional[str] = None,
     ):
         self.name = name
         self.source = source
@@ -35,10 +37,12 @@ class Entry:
         self.created_by = created_by
         self.metadata = metadata or {}
         self.created_at = created_at or datetime.utcnow().isoformat()
+        self.file_created_at = file_created_at
+        self.file_modified_at = file_modified_at
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert entry to dictionary for database storage"""
-        return {
+        data = {
             "name": self.name,
             "source": self.source,
             "type": self.type.value if isinstance(self.type, EntryType) else self.type,
@@ -48,6 +52,11 @@ class Entry:
             "metadata": self.metadata,
             "created_at": self.created_at,
         }
+        if self.file_created_at:
+            data["file_created_at"] = self.file_created_at
+        if self.file_modified_at:
+            data["file_modified_at"] = self.file_modified_at
+        return data
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Entry":
@@ -61,4 +70,6 @@ class Entry:
             created_by=data.get("created_by", ""),
             metadata=data.get("metadata", {}),
             created_at=data.get("created_at"),
+            file_created_at=data.get("file_created_at"),
+            file_modified_at=data.get("file_modified_at"),
         )

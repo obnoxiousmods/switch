@@ -554,13 +554,21 @@ async def scan_directory_for_files(directory_path: str, username: str, max_depth
                 skipped_count += 1
                 continue
             
-            # Get file size
-            file_size = os.path.getsize(file_path)
+            # Get file stats
+            file_stat = os.stat(file_path)
+            file_size = file_stat.st_size
+            
+            # Get file timestamps
+            file_created = datetime.fromtimestamp(file_stat.st_ctime).isoformat()
+            file_modified = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
             
             # Get file name without extension
             file_name = os.path.splitext(os.path.basename(file_path))[0]
             
-            # Create entry
+            # Get file extension
+            file_extension = os.path.splitext(file_path)[1].lower()
+            
+            # Create entry with enhanced metadata
             entry_data = {
                 'name': file_name,
                 'source': file_path,
@@ -569,7 +577,13 @@ async def scan_directory_for_files(directory_path: str, username: str, max_depth
                 'size': file_size,
                 'created_by': username,
                 'created_at': datetime.utcnow().isoformat(),
-                'metadata': {}
+                'file_created_at': file_created,
+                'file_modified_at': file_modified,
+                'metadata': {
+                    'extension': file_extension,
+                    'directory': os.path.dirname(file_path),
+                    'original_filename': os.path.basename(file_path)
+                }
             }
             
             result = await db.add_entry(entry_data)

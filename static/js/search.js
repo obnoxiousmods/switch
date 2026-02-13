@@ -318,10 +318,12 @@
         sizeItem.className = 'meta-item';
         sizeItem.innerHTML = `📦 ${formatSize(entry.size)}`;
         
-        // Created at
+        // File modified date (use file_modified_at if available, otherwise created_at)
         const dateItem = document.createElement('div');
         dateItem.className = 'meta-item';
-        dateItem.innerHTML = `📅 ${formatDate(entry.created_at)}`;
+        const dateToShow = entry.file_modified_at || entry.created_at;
+        dateItem.innerHTML = `📅 ${formatDate(dateToShow)}`;
+        dateItem.title = entry.file_modified_at ? `File modified: ${dateToShow}` : `Added: ${dateToShow}`;
         
         // Download count
         const downloadItem = document.createElement('div');
@@ -356,6 +358,16 @@
             handleDownload(entry);
         });
         
+        // Info button
+        const infoBtn = document.createElement('button');
+        infoBtn.className = 'btn-info';
+        infoBtn.textContent = 'ℹ️ Info';
+        infoBtn.title = 'View detailed information';
+        infoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showFileInfo(entry);
+        });
+        
         // Report button
         const reportBtn = document.createElement('button');
         reportBtn.className = 'btn-report';
@@ -367,6 +379,7 @@
         });
         
         actions.appendChild(downloadBtn);
+        actions.appendChild(infoBtn);
         actions.appendChild(reportBtn);
         
         card.appendChild(title);
@@ -385,6 +398,132 @@
             // For filepaths, use the download API endpoint
             const downloadUrl = `/api/download/${encodeURIComponent(entry.id)}`;
             window.location.href = downloadUrl;
+        }
+    }
+    
+    // Show detailed file information
+    function showFileInfo(entry) {
+        const modal = document.createElement('div');
+        modal.className = 'info-modal-overlay';
+        
+        // Format dates
+        const addedDate = entry.created_at ? formatFullDate(entry.created_at) : 'N/A';
+        const fileCreated = entry.file_created_at ? formatFullDate(entry.file_created_at) : 'N/A';
+        const fileModified = entry.file_modified_at ? formatFullDate(entry.file_modified_at) : 'N/A';
+        
+        modal.innerHTML = `
+            <div class="info-modal">
+                <div class="info-modal-header">
+                    <h3>📋 File Information</h3>
+                    <button class="modal-close" onclick="this.closest('.info-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="info-modal-body">
+                    <h4 class="info-file-name">${entry.name}</h4>
+                    
+                    <div class="info-section">
+                        <div class="info-row">
+                            <span class="info-label">File Type:</span>
+                            <span class="info-value">
+                                <span class="file-type-badge file-type-${entry.file_type}">${entry.file_type.toUpperCase()}</span>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">File Size:</span>
+                            <span class="info-value">${formatSize(entry.size)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Downloads:</span>
+                            <span class="info-value">${entry.download_count || 0} times</span>
+                        </div>
+                        ${entry.report_count > 0 ? `
+                        <div class="info-row warning">
+                            <span class="info-label">⚠️ Reports:</span>
+                            <span class="info-value">${entry.report_count} open report${entry.report_count !== 1 ? 's' : ''}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="info-section">
+                        <h5>📅 Dates</h5>
+                        <div class="info-row">
+                            <span class="info-label">Added to Library:</span>
+                            <span class="info-value">${addedDate}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">File Created:</span>
+                            <span class="info-value">${fileCreated}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Last Modified:</span>
+                            <span class="info-value">${fileModified}</span>
+                        </div>
+                    </div>
+                    
+                    ${entry.created_by ? `
+                    <div class="info-section">
+                        <h5>👤 Uploader</h5>
+                        <div class="info-row">
+                            <span class="info-label">Added By:</span>
+                            <span class="info-value">${entry.created_by}</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${entry.metadata && Object.keys(entry.metadata).length > 0 ? `
+                    <div class="info-section">
+                        <h5>🔧 Additional Details</h5>
+                        ${entry.metadata.original_filename ? `
+                        <div class="info-row">
+                            <span class="info-label">Filename:</span>
+                            <span class="info-value small">${entry.metadata.original_filename}</span>
+                        </div>
+                        ` : ''}
+                        ${entry.metadata.directory ? `
+                        <div class="info-row">
+                            <span class="info-label">Directory:</span>
+                            <span class="info-value small">${entry.metadata.directory}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+                    
+                    <div class="info-actions">
+                        <button class="btn-download-full" onclick="document.getElementById('download-${entry.id}').click()">
+                            ⬇️ Download This File
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add hidden download trigger
+        const downloadTrigger = document.createElement('a');
+        downloadTrigger.id = `download-${entry.id}`;
+        downloadTrigger.style.display = 'none';
+        downloadTrigger.onclick = () => {
+            handleDownload(entry);
+            modal.remove();
+        };
+        document.body.appendChild(downloadTrigger);
+    }
+    
+    // Format full date
+    function formatFullDate(dateString) {
+        if (!dateString) return 'N/A';
+        
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return dateString;
         }
     }
     
