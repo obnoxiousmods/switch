@@ -18,6 +18,7 @@
                         <th>Admin</th>
                         <th>Moderator</th>
                         <th>Uploader</th>
+                        <th>Statistics</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -48,6 +49,17 @@
                                 <span class="badge badge-uploader">Uploader</span>
                             {% else %}
                                 <span class="badge badge-user">User</span>
+                            {% endif %}
+                        </td>
+                        <td class="stats-cell">
+                            {% if user.statistics %}
+                            <div class="user-stats">
+                                <div class="stat-mini">⬆️ {{ user.statistics.total_uploaded_gb }} GB</div>
+                                <div class="stat-mini">⬇️ {{ user.statistics.total_downloaded_gb }} GB</div>
+                                <div class="stat-mini">📈 Ratio: {{ user.statistics.ratio }}</div>
+                            </div>
+                            {% else %}
+                            <span class="no-stats">No activity</span>
                             {% endif %}
                         </td>
                         <td class="actions-cell">
@@ -386,6 +398,28 @@ function showNotification(message, type) {
 
 .badge-user {
     background: #444;
+    color: #999;
+}
+
+.stats-cell {
+    font-size: 12px;
+}
+
+.user-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-mini {
+    color: #aaa;
+    white-space: nowrap;
+}
+
+.no-stats {
+    color: #666;
+    font-style: italic;
+}
     color: #999;
 }
 

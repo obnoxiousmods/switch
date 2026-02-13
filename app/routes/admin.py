@@ -554,13 +554,21 @@ async def scan_directory_for_files(directory_path: str, username: str, max_depth
                 skipped_count += 1
                 continue
             
-            # Get file size
-            file_size = os.path.getsize(file_path)
+            # Get file stats
+            file_stat = os.stat(file_path)
+            file_size = file_stat.st_size
+            
+            # Get file timestamps
+            file_created = datetime.fromtimestamp(file_stat.st_ctime).isoformat()
+            file_modified = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
             
             # Get file name without extension
             file_name = os.path.splitext(os.path.basename(file_path))[0]
             
-            # Create entry
+            # Get file extension
+            file_extension = os.path.splitext(file_path)[1].lower()
+            
+            # Create entry with enhanced metadata
             entry_data = {
                 'name': file_name,
                 'source': file_path,
@@ -569,7 +577,13 @@ async def scan_directory_for_files(directory_path: str, username: str, max_depth
                 'size': file_size,
                 'created_by': username,
                 'created_at': datetime.utcnow().isoformat(),
-                'metadata': {}
+                'file_created_at': file_created,
+                'file_modified_at': file_modified,
+                'metadata': {
+                    'extension': file_extension,
+                    'directory': os.path.dirname(file_path),
+                    'original_filename': os.path.basename(file_path)
+                }
             }
             
             result = await db.add_entry(entry_data)
@@ -606,8 +620,14 @@ async def admin_users(request: Request) -> Response:
     # Get all users
     users = await db.get_all_users()
     
-    # Don't show password hashes in the template
+    # Get statistics for each user
     for user in users:
+        user_id = user.get('_key')
+        if user_id:
+            user_stats = await db.get_user_statistics(user_id)
+            user['statistics'] = user_stats
+        
+        # Don't show password hashes in the template
         user.pop('password_hash', None)
     
     return templates.TemplateResponse(
@@ -1167,6 +1187,122 @@ async def admin_upload_statistics(request: Request) -> Response:
             "overall_stats": overall_stats
         }
     )
+
+
+async def admin_reports(request: Request) -> Response:
+    """View and manage file reports (for admins, mods, and uploaders)"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and has permission (admin, mod, or uploader)
+    if not request.session.get('user_id'):
+        return RedirectResponse(url="/login", status_code=303)
+    
+    is_admin = request.session.get('is_admin', False)
+    is_moderator = request.session.get('is_moderator', False)
+    is_uploader = request.session.get('is_uploader', False)
+    
+    if not (is_admin or is_moderator or is_uploader):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Access Denied",
+                "error_message": "You do not have permission to access this page.",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get status filter from query params (default to open)
+    status = request.query_params.get('status', 'open')
+    
+    # Get all reports
+    reports = await db.get_all_reports(status=status if status != 'all' else None)
+    
+    # Get count of open reports
+    open_count = await db.count_reports(status='open')
+    resolved_count = await db.count_reports(status='resolved')
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/reports.html",
+        {
+            "title": "File Reports",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "reports": reports,
+            "current_status": status,
+            "open_count": open_count,
+            "resolved_count": resolved_count,
+            "is_admin": is_admin,
+            "is_moderator": is_moderator,
+            "is_uploader": is_uploader
+        }
+    )
+
+
+async def admin_resolve_report(request: Request) -> Response:
+    """Mark a report as resolved"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and has permission (admin, mod, or uploader)
+    if not request.session.get('user_id'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    is_admin = request.session.get('is_admin', False)
+    is_moderator = request.session.get('is_moderator', False)
+    is_uploader = request.session.get('is_uploader', False)
+    
+    if not (is_admin or is_moderator or is_uploader):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        report_id = form_data.get('report_id', '').strip()
+        
+        if not report_id:
+            return JSONResponse({"success": False, "error": "Missing report ID"}, status_code=400)
+        
+        # Resolve the report
+        user_id = request.session.get('user_id')
+        username = request.session.get('username', 'Unknown')
+        
+        success = await db.resolve_report(report_id, user_id, username)
+        
+        if not success:
+            return JSONResponse({"success": False, "error": "Failed to resolve report"}, status_code=500)
+        
+        # Log the action
+        ip_info = get_ip_info(request)
+        activity_data = {
+            'event_type': 'report_resolved',
+            'user_id': user_id,
+            'username': username,
+            'details': {
+                'report_id': report_id
+            },
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
+        
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"Report {report_id} resolved by {username} from {format_ip_for_log(request)}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": "Report marked as resolved"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error resolving report: {e}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": "An error occurred while resolving the report"
+        }, status_code=500)
 
 
 async def admin_migrate_passwords(request: Request) -> Response:

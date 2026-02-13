@@ -5,6 +5,38 @@
     <div class="settings-container">
         <h2>⚙️ User Settings</h2>
         
+        {% if user_stats %}
+        <div class="settings-section">
+            <h3>📊 Your Statistics</h3>
+            <div class="stats-overview">
+                <div class="stat-item">
+                    <div class="stat-icon">⬆️</div>
+                    <div class="stat-details">
+                        <div class="stat-label">Total Uploaded</div>
+                        <div class="stat-value">{{ user_stats.total_uploaded_gb }} GB</div>
+                        <div class="stat-subtext">{{ user_stats.total_uploaded }} files</div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">⬇️</div>
+                    <div class="stat-details">
+                        <div class="stat-label">Total Downloaded</div>
+                        <div class="stat-value">{{ user_stats.total_downloaded_gb }} GB</div>
+                        <div class="stat-subtext">{{ user_stats.total_downloaded }} files</div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-details">
+                        <div class="stat-label">Upload/Download Ratio</div>
+                        <div class="stat-value">{{ user_stats.ratio }}</div>
+                        <div class="stat-subtext">{% if user_stats.ratio == "∞" %}Perfect ratio!{% else %}Keep sharing!{% endif %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="settings-section">
             <h3>Change Password</h3>
             <form id="password-form" class="settings-form">
@@ -199,6 +231,50 @@
     
     .btn-secondary:hover {
         background: #555;
+    }
+    
+    /* Statistics Styles */
+    .stats-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 20px;
+        background: #2a2a2a;
+        border-radius: 8px;
+        border: 2px solid #444;
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        flex-shrink: 0;
+    }
+    
+    .stat-details {
+        flex-grow: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        color: #888;
+        margin-bottom: 5px;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #5a9fd4;
+        margin-bottom: 3px;
+    }
+    
+    .stat-subtext {
+        font-size: 0.8rem;
+        color: #aaa;
     }
 </style>
 

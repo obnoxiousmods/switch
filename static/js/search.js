@@ -6,6 +6,7 @@
     let filteredEntries = [];
     let currentPage = 1;
     let itemsPerPage = 10;
+    let sortBy = 'name'; // 'name' or 'downloads'
     
     // DOM Elements
     const searchInput = document.getElementById('search-input');
@@ -13,6 +14,7 @@
     const resultsCount = document.getElementById('results-count');
     const loadingState = document.getElementById('loading-state');
     const emptyState = document.getElementById('empty-state');
+    const sortSelect = document.getElementById('sort-select');
     
     // Initialize the application
     async function init() {
@@ -28,6 +30,10 @@
         if (searchInput) {
             searchInput.addEventListener('input', handleSearch);
         }
+        
+        if (sortSelect) {
+            sortSelect.addEventListener('change', handleSortChange);
+        }
     }
     
     // Load all entries from the API
@@ -35,7 +41,9 @@
         try {
             showLoading();
             
-            const response = await fetch('/api/list');
+            // Include sort_by parameter if sorting by downloads
+            const sortParam = sortBy === 'downloads' ? '?sort_by=downloads' : '';
+            const response = await fetch(`/api/list${sortParam}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch entries');
             }
@@ -71,6 +79,13 @@
         // Reset to first page when search changes
         currentPage = 1;
         renderResults();
+    }
+    
+    // Handle sort change
+    function handleSortChange(event) {
+        sortBy = event.target.value;
+        currentPage = 1;
+        loadEntries();
     }
     
     // Render the results
@@ -282,11 +297,6 @@
         const card = document.createElement('div');
         card.className = 'result-card';
         
-        // Add click handler for download
-        card.addEventListener('click', () => {
-            handleDownload(entry);
-        });
-        
         const title = document.createElement('div');
         title.className = 'result-title';
         title.textContent = entry.name;
@@ -308,17 +318,73 @@
         sizeItem.className = 'meta-item';
         sizeItem.innerHTML = `📦 ${formatSize(entry.size)}`;
         
-        // Created at
+        // File modified date (use file_modified_at if available, otherwise created_at)
         const dateItem = document.createElement('div');
         dateItem.className = 'meta-item';
-        dateItem.innerHTML = `📅 ${formatDate(entry.created_at)}`;
+        const dateToShow = entry.file_modified_at || entry.created_at;
+        dateItem.innerHTML = `📅 ${formatDate(dateToShow)}`;
+        dateItem.title = entry.file_modified_at ? `File modified: ${dateToShow}` : `Added: ${dateToShow}`;
+        
+        // Download count
+        const downloadItem = document.createElement('div');
+        downloadItem.className = 'meta-item';
+        const downloadCount = entry.download_count || 0;
+        downloadItem.innerHTML = `⬇️ ${downloadCount} download${downloadCount !== 1 ? 's' : ''}`;
         
         meta.appendChild(fileTypeItem);
         meta.appendChild(sizeItem);
         meta.appendChild(dateItem);
+        meta.appendChild(downloadItem);
+        
+        // Report warning badge if there are open reports
+        if (entry.report_count && entry.report_count > 0) {
+            const reportBadge = document.createElement('div');
+            reportBadge.className = 'report-warning-badge';
+            reportBadge.innerHTML = `⚠️ ${entry.report_count} report${entry.report_count !== 1 ? 's' : ''}`;
+            reportBadge.title = 'This file has been reported as broken or corrupted';
+            card.appendChild(reportBadge);
+        }
+        
+        // Action buttons container
+        const actions = document.createElement('div');
+        actions.className = 'result-actions';
+        
+        // Download button
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'btn-download';
+        downloadBtn.textContent = '⬇️ Download';
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleDownload(entry);
+        });
+        
+        // Info button
+        const infoBtn = document.createElement('button');
+        infoBtn.className = 'btn-info';
+        infoBtn.textContent = 'ℹ️ Info';
+        infoBtn.title = 'View detailed information';
+        infoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showFileInfo(entry);
+        });
+        
+        // Report button
+        const reportBtn = document.createElement('button');
+        reportBtn.className = 'btn-report';
+        reportBtn.textContent = '⚠️ Report';
+        reportBtn.title = 'Report this file as broken or corrupted';
+        reportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleReport(entry);
+        });
+        
+        actions.appendChild(downloadBtn);
+        actions.appendChild(infoBtn);
+        actions.appendChild(reportBtn);
         
         card.appendChild(title);
         card.appendChild(meta);
+        card.appendChild(actions);
         
         return card;
     }
@@ -333,6 +399,214 @@
             const downloadUrl = `/api/download/${encodeURIComponent(entry.id)}`;
             window.location.href = downloadUrl;
         }
+    }
+    
+    // Show detailed file information
+    function showFileInfo(entry) {
+        const modal = document.createElement('div');
+        modal.className = 'info-modal-overlay';
+        
+        // Format dates
+        const addedDate = entry.created_at ? formatFullDate(entry.created_at) : 'N/A';
+        const fileCreated = entry.file_created_at ? formatFullDate(entry.file_created_at) : 'N/A';
+        const fileModified = entry.file_modified_at ? formatFullDate(entry.file_modified_at) : 'N/A';
+        
+        modal.innerHTML = `
+            <div class="info-modal">
+                <div class="info-modal-header">
+                    <h3>📋 File Information</h3>
+                    <button class="modal-close" onclick="this.closest('.info-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="info-modal-body">
+                    <h4 class="info-file-name">${entry.name}</h4>
+                    
+                    <div class="info-section">
+                        <div class="info-row">
+                            <span class="info-label">File Type:</span>
+                            <span class="info-value">
+                                <span class="file-type-badge file-type-${entry.file_type}">${entry.file_type.toUpperCase()}</span>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">File Size:</span>
+                            <span class="info-value">${formatSize(entry.size)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Downloads:</span>
+                            <span class="info-value">${entry.download_count || 0} times</span>
+                        </div>
+                        ${entry.report_count > 0 ? `
+                        <div class="info-row warning">
+                            <span class="info-label">⚠️ Reports:</span>
+                            <span class="info-value">${entry.report_count} open report${entry.report_count !== 1 ? 's' : ''}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="info-section">
+                        <h5>📅 Dates</h5>
+                        <div class="info-row">
+                            <span class="info-label">Added to Library:</span>
+                            <span class="info-value">${addedDate}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">File Created:</span>
+                            <span class="info-value">${fileCreated}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Last Modified:</span>
+                            <span class="info-value">${fileModified}</span>
+                        </div>
+                    </div>
+                    
+                    ${entry.created_by ? `
+                    <div class="info-section">
+                        <h5>👤 Uploader</h5>
+                        <div class="info-row">
+                            <span class="info-label">Added By:</span>
+                            <span class="info-value">${entry.created_by}</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${entry.metadata && Object.keys(entry.metadata).length > 0 ? `
+                    <div class="info-section">
+                        <h5>🔧 Additional Details</h5>
+                        ${entry.metadata.original_filename ? `
+                        <div class="info-row">
+                            <span class="info-label">Filename:</span>
+                            <span class="info-value small">${entry.metadata.original_filename}</span>
+                        </div>
+                        ` : ''}
+                        ${entry.metadata.directory ? `
+                        <div class="info-row">
+                            <span class="info-label">Directory:</span>
+                            <span class="info-value small">${entry.metadata.directory}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+                    
+                    <div class="info-actions">
+                        <button class="btn-download-full" onclick="document.getElementById('download-${entry.id}').click()">
+                            ⬇️ Download This File
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add hidden download trigger
+        const downloadTrigger = document.createElement('a');
+        downloadTrigger.id = `download-${entry.id}`;
+        downloadTrigger.style.display = 'none';
+        downloadTrigger.onclick = () => {
+            handleDownload(entry);
+            modal.remove();
+        };
+        document.body.appendChild(downloadTrigger);
+    }
+    
+    // Format full date
+    function formatFullDate(dateString) {
+        if (!dateString) return 'N/A';
+        
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return dateString;
+        }
+    }
+    
+    // Handle report of an entry
+    function handleReport(entry) {
+        // Create modal for report submission
+        const modal = document.createElement('div');
+        modal.className = 'report-modal-overlay';
+        modal.innerHTML = `
+            <div class="report-modal">
+                <div class="report-modal-header">
+                    <h3>Report File Issue</h3>
+                    <button class="modal-close" onclick="this.closest('.report-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="report-modal-body">
+                    <p><strong>File:</strong> ${entry.name}</p>
+                    <form id="report-form">
+                        <div class="form-group">
+                            <label for="report-reason">Reason:</label>
+                            <select id="report-reason" name="reason" required class="form-select">
+                                <option value="">Select a reason...</option>
+                                <option value="not_working">File Not Working</option>
+                                <option value="corrupted">File Corrupted</option>
+                                <option value="wrong_file">Wrong File</option>
+                                <option value="missing_updates">Missing Updates/DLC</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="report-description">Additional Details (Optional):</label>
+                            <textarea id="report-description" name="description" rows="4" 
+                                class="form-textarea" placeholder="Describe the issue..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="this.closest('.report-modal-overlay').remove()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn-submit">Submit Report</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle form submission
+        const form = modal.querySelector('#report-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            formData.append('entry_id', entry.id);
+            formData.append('entry_name', entry.name);
+            
+            const submitBtn = form.querySelector('.btn-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
+            try {
+                const response = await fetch('/api/reports/submit', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Report submitted successfully. Thank you for helping improve our collection!');
+                    modal.remove();
+                    // Reload entries to update report counts
+                    loadEntries();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to submit report'));
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Report';
+                }
+            } catch (error) {
+                alert('Error submitting report. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Report';
+            }
+        });
     }
     
     // Format file size
