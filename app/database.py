@@ -13,7 +13,7 @@ from app.config import Config
 logger = logging.getLogger(__name__)
 
 # Constants
-BYTES_PER_GB = 1024 ** 3  # 1073741824 bytes per GB
+BYTES_PER_GB = 1024**3  # 1073741824 bytes per GB
 
 
 class Database:
@@ -112,24 +112,32 @@ class Database:
 
             # Create audit_logs collection if it doesn't exist
             if not await self.db.has_collection("audit_logs"):
-                self.audit_logs_collection = await self.db.create_collection("audit_logs")
+                self.audit_logs_collection = await self.db.create_collection(
+                    "audit_logs"
+                )
                 logger.info("Created collection: audit_logs")
             else:
                 self.audit_logs_collection = self.db.collection("audit_logs")
 
             # Create activity_logs collection if it doesn't exist
             if not await self.db.has_collection("activity_logs"):
-                self.activity_logs_collection = await self.db.create_collection("activity_logs")
+                self.activity_logs_collection = await self.db.create_collection(
+                    "activity_logs"
+                )
                 logger.info("Created collection: activity_logs")
             else:
                 self.activity_logs_collection = self.db.collection("activity_logs")
 
             # Create upload_statistics collection if it doesn't exist
             if not await self.db.has_collection("upload_statistics"):
-                self.upload_statistics_collection = await self.db.create_collection("upload_statistics")
+                self.upload_statistics_collection = await self.db.create_collection(
+                    "upload_statistics"
+                )
                 logger.info("Created collection: upload_statistics")
             else:
-                self.upload_statistics_collection = self.db.collection("upload_statistics")
+                self.upload_statistics_collection = self.db.collection(
+                    "upload_statistics"
+                )
 
             logger.info("Successfully connected to ArangoDB")
 
@@ -341,7 +349,7 @@ class Database:
         """Update a user's password"""
         try:
             await self.users_collection.update(
-                {"_key": user_id}, {"password_hash": new_password_hash}
+                {"_key": user_id, "password_hash": new_password_hash}
             )
             logger.info(f"Updated password for user: {user_id}")
             return True
@@ -349,11 +357,17 @@ class Database:
             logger.error(f"Error updating password: {e}")
             return False
 
-    async def update_user_totp(self, user_id: str, totp_secret: Optional[str], totp_enabled: bool) -> bool:
+    async def update_user_totp(
+        self, user_id: str, totp_secret: Optional[str], totp_enabled: bool
+    ) -> bool:
         """Update a user's TOTP settings"""
         try:
             await self.users_collection.update(
-                {"_key": user_id}, {"totp_secret": totp_secret, "totp_enabled": totp_enabled}
+                {
+                    "_key": user_id,
+                    "totp_secret": totp_secret,
+                    "totp_enabled": totp_enabled,
+                }
             )
             logger.info(f"Updated TOTP settings for user: {user_id}")
             return True
@@ -488,8 +502,8 @@ class Database:
         """Update request status"""
         try:
             await self.requests_collection.update(
-                {"_key": request_id},
                 {
+                    "_key": request_id,
                     "status": status,
                     "reviewed_by": reviewed_by,
                     "reviewed_at": datetime.utcnow().isoformat(),
@@ -534,16 +548,16 @@ class Database:
     async def update_user_admin_status(self, user_id: str, is_admin: bool) -> bool:
         """Update a user's admin status"""
         try:
-            await self.users_collection.update(
-                {"_key": user_id, "is_admin": is_admin}
-            )
+            await self.users_collection.update({"_key": user_id, "is_admin": is_admin})
             logger.info(f"Updated user {user_id} admin status to {is_admin}")
             return True
         except Exception as e:
             logger.error(f"Error updating admin status: {e}")
             return False
 
-    async def update_user_uploader_status(self, user_id: str, is_uploader: bool) -> bool:
+    async def update_user_uploader_status(
+        self, user_id: str, is_uploader: bool
+    ) -> bool:
         """Update a user's uploader status"""
         try:
             await self.users_collection.update(
@@ -633,9 +647,7 @@ class Database:
     async def revoke_api_key(self, key_id: str) -> bool:
         """Revoke (deactivate) an API key"""
         try:
-            await self.api_keys_collection.update(
-                {"_key": key_id}, {"is_active": False}
-            )
+            await self.api_keys_collection.update({"_key": key_id, "is_active": False})
             logger.info(f"Revoked API key: {key_id}")
             return True
         except Exception as e:
@@ -646,7 +658,10 @@ class Database:
         """Update the last used timestamp for an API key"""
         try:
             await self.api_keys_collection.update(
-                {"_key": key_id}, {"last_used_at": datetime.utcnow().isoformat()}
+                {
+                    "_key": key_id,
+                    "last_used_at": datetime.now(datetime.timezone.utc).isoformat(),
+                }
             )
             return True
         except Exception as e:
@@ -657,7 +672,9 @@ class Database:
         """Log API usage"""
         try:
             if "timestamp" not in usage_data:
-                usage_data["timestamp"] = datetime.utcnow().isoformat()
+                usage_data["timestamp"] = datetime.now(
+                    datetime.timezone.utc
+                ).isoformat()
 
             result = await self.api_usage_collection.insert(usage_data)
             return result["_key"]
@@ -735,41 +752,46 @@ class Database:
         try:
             if "timestamp" not in log_data:
                 log_data["timestamp"] = datetime.utcnow().isoformat()
-            
+
             result = await self.audit_logs_collection.insert(log_data)
-            logger.info(f"Added audit log: {log_data['action']} by {log_data.get('actor_username', 'unknown')}")
+            logger.info(
+                f"Added audit log: {log_data['action']} by {log_data.get('actor_username', 'unknown')}"
+            )
             return result["_key"]
         except Exception as e:
             logger.error(f"Error adding audit log: {e}")
             return None
 
     async def get_audit_logs(
-        self, limit: int = 100, action_filter: Optional[str] = None, 
-        actor_id_filter: Optional[str] = None, target_id_filter: Optional[str] = None
+        self,
+        limit: int = 100,
+        action_filter: Optional[str] = None,
+        actor_id_filter: Optional[str] = None,
+        target_id_filter: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get audit logs with optional filtering"""
         try:
             query = "FOR doc IN audit_logs"
             filters = []
             bind_vars = {"limit": limit}
-            
+
             if action_filter:
                 filters.append("doc.action == @action")
                 bind_vars["action"] = action_filter
-            
+
             if actor_id_filter:
                 filters.append("doc.actor_id == @actor_id")
                 bind_vars["actor_id"] = actor_id_filter
-            
+
             if target_id_filter:
                 filters.append("doc.target_id == @target_id")
                 bind_vars["target_id"] = target_id_filter
-            
+
             if filters:
                 query += " FILTER " + " AND ".join(filters)
-            
+
             query += " SORT doc.timestamp DESC LIMIT @limit RETURN doc"
-            
+
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             logs = []
             async with cursor:
@@ -784,14 +806,12 @@ class Database:
         """Get audit log statistics"""
         try:
             # Total count
-            cursor = await self.db.aql.execute(
-                "RETURN LENGTH(audit_logs)"
-            )
+            cursor = await self.db.aql.execute("RETURN LENGTH(audit_logs)")
             total_count = 0
             async with cursor:
                 async for count in cursor:
                     total_count = count
-            
+
             # Count by action
             cursor = await self.db.aql.execute(
                 "FOR doc IN audit_logs COLLECT action = doc.action WITH COUNT INTO count RETURN {action, count}"
@@ -800,7 +820,7 @@ class Database:
             async with cursor:
                 async for item in cursor:
                     by_action.append(item)
-            
+
             return {"total_logs": total_count, "by_action": by_action}
         except Exception as e:
             logger.error(f"Error fetching audit log stats: {e}")
@@ -812,7 +832,7 @@ class Database:
         try:
             if "timestamp" not in log_data:
                 log_data["timestamp"] = datetime.utcnow().isoformat()
-            
+
             result = await self.activity_logs_collection.insert(log_data)
             return result["_key"]
         except Exception as e:
@@ -820,28 +840,30 @@ class Database:
             return None
 
     async def get_activity_logs(
-        self, limit: int = 100, event_type_filter: Optional[str] = None,
-        user_id_filter: Optional[str] = None
+        self,
+        limit: int = 100,
+        event_type_filter: Optional[str] = None,
+        user_id_filter: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get activity logs with optional filtering"""
         try:
             query = "FOR doc IN activity_logs"
             filters = []
             bind_vars = {"limit": limit}
-            
+
             if event_type_filter:
                 filters.append("doc.event_type == @event_type")
                 bind_vars["event_type"] = event_type_filter
-            
+
             if user_id_filter:
                 filters.append("doc.user_id == @user_id")
                 bind_vars["user_id"] = user_id_filter
-            
+
             if filters:
                 query += " FILTER " + " AND ".join(filters)
-            
+
             query += " SORT doc.timestamp DESC LIMIT @limit RETURN doc"
-            
+
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             logs = []
             async with cursor:
@@ -856,14 +878,12 @@ class Database:
         """Get activity log statistics"""
         try:
             # Total count
-            cursor = await self.db.aql.execute(
-                "RETURN LENGTH(activity_logs)"
-            )
+            cursor = await self.db.aql.execute("RETURN LENGTH(activity_logs)")
             total_count = 0
             async with cursor:
                 async for count in cursor:
                     total_count = count
-            
+
             # Count by event type
             cursor = await self.db.aql.execute(
                 "FOR doc IN activity_logs COLLECT event_type = doc.event_type WITH COUNT INTO count RETURN {event_type, count}"
@@ -872,15 +892,16 @@ class Database:
             async with cursor:
                 async for item in cursor:
                     by_event_type.append(item)
-            
+
             return {"total_logs": total_count, "by_event_type": by_event_type}
         except Exception as e:
             logger.error(f"Error fetching activity log stats: {e}")
             return {"total_logs": 0, "by_event_type": []}
 
     # Upload statistics methods
-    async def record_upload(self, user_id: str, username: str, entry_id: str, 
-                           size_bytes: int) -> Optional[str]:
+    async def record_upload(
+        self, user_id: str, username: str, entry_id: str, size_bytes: int
+    ) -> Optional[str]:
         """Record an upload in the statistics"""
         try:
             upload_data = {
@@ -888,7 +909,7 @@ class Database:
                 "username": username,
                 "entry_id": entry_id,
                 "size_bytes": size_bytes,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
             result = await self.upload_statistics_collection.insert(upload_data)
             logger.info(f"Recorded upload by {username}: {size_bytes} bytes")
@@ -897,7 +918,9 @@ class Database:
             logger.error(f"Error recording upload: {e}")
             return None
 
-    async def get_upload_statistics(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_upload_statistics(
+        self, user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Get upload statistics for a user or all users"""
         try:
             if user_id:
@@ -921,7 +944,7 @@ class Database:
                 RETURN {total_uploads, total_bytes}
                 """
                 bind_vars = {}
-            
+
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             async with cursor:
                 async for result in cursor:
@@ -929,7 +952,7 @@ class Database:
                     return {
                         "total_uploads": result.get("total_uploads", 0) or 0,
                         "total_bytes": result.get("total_bytes", 0) or 0,
-                        "total_gb": round(total_gb, 2)
+                        "total_gb": round(total_gb, 2),
                     }
             return {"total_uploads": 0, "total_bytes": 0, "total_gb": 0}
         except Exception as e:
@@ -958,8 +981,8 @@ class Database:
             async with cursor:
                 async for doc in cursor:
                     # Calculate total_gb in Python instead of AQL
-                    total_bytes = doc.get('total_bytes', 0) or 0
-                    doc['total_gb'] = round(total_bytes / BYTES_PER_GB, 2)
+                    total_bytes = doc.get("total_bytes", 0) or 0
+                    doc["total_gb"] = round(total_bytes / BYTES_PER_GB, 2)
                     stats.append(doc)
             return stats
         except Exception as e:
@@ -976,15 +999,15 @@ class Database:
             async with cursor:
                 async for count in cursor:
                     total_games = count
-            
+
             # Get all directories
             directories = await self.get_all_directories()
-            
+
             # Fetch game counts and sizes for all directories at once
             # This avoids N+1 query pattern
-            dir_paths = [d.get('path', '') for d in directories]
+            dir_paths = [d.get("path", "") for d in directories]
             games_by_dir = {}
-            
+
             if dir_paths:
                 # Single aggregation query to get counts and sizes per directory
                 query = """
@@ -1007,65 +1030,75 @@ class Database:
                     total_size
                 }
                 """
-                cursor = await self.db.aql.execute(query, bind_vars={"paths": dir_paths})
+                cursor = await self.db.aql.execute(
+                    query, bind_vars={"paths": dir_paths}
+                )
                 async with cursor:
                     async for result in cursor:
-                        games_by_dir[result['dir_path']] = {
-                            'game_count': result['game_count'] or 0,
-                            'total_size': result['total_size'] or 0
+                        games_by_dir[result["dir_path"]] = {
+                            "game_count": result["game_count"] or 0,
+                            "total_size": result["total_size"] or 0,
                         }
-            
+
             # Calculate storage info for each directory
             directory_stats = []
             total_size_bytes = 0
             total_available_bytes = 0
             total_capacity_bytes = 0
-            
+
             for directory in directories:
-                dir_path = directory.get('path', '')
-                dir_info = games_by_dir.get(dir_path, {'game_count': 0, 'total_size': 0})
-                
+                dir_path = directory.get("path", "")
+                dir_info = games_by_dir.get(
+                    dir_path, {"game_count": 0, "total_size": 0}
+                )
+
                 dir_stat = {
-                    'path': dir_path,
-                    'exists': False,
-                    'game_count': dir_info['game_count'],
-                    'size_gb': round(dir_info['total_size'] / BYTES_PER_GB, 2),
-                    'available_gb': 0,
-                    'capacity_gb': 0
+                    "path": dir_path,
+                    "exists": False,
+                    "game_count": dir_info["game_count"],
+                    "size_gb": round(dir_info["total_size"] / BYTES_PER_GB, 2),
+                    "available_gb": 0,
+                    "capacity_gb": 0,
                 }
-                
+
                 if os.path.exists(dir_path):
                     try:
                         # Get disk usage
                         disk_usage = shutil.disk_usage(dir_path)
-                        dir_stat['exists'] = True
-                        dir_stat['available_gb'] = round(disk_usage.free / BYTES_PER_GB, 2)
-                        dir_stat['capacity_gb'] = round(disk_usage.total / BYTES_PER_GB, 2)
-                        
+                        dir_stat["exists"] = True
+                        dir_stat["available_gb"] = round(
+                            disk_usage.free / BYTES_PER_GB, 2
+                        )
+                        dir_stat["capacity_gb"] = round(
+                            disk_usage.total / BYTES_PER_GB, 2
+                        )
+
                         total_available_bytes += disk_usage.free
                         total_capacity_bytes += disk_usage.total
-                        total_size_bytes += dir_info['total_size']
-                        
+                        total_size_bytes += dir_info["total_size"]
+
                     except Exception as e:
-                        logger.error(f"Error getting stats for directory {dir_path}: {e}")
-                
+                        logger.error(
+                            f"Error getting stats for directory {dir_path}: {e}"
+                        )
+
                 directory_stats.append(dir_stat)
-            
+
             return {
-                'total_games': total_games,
-                'total_size_gb': round(total_size_bytes / BYTES_PER_GB, 2),
-                'total_available_gb': round(total_available_bytes / BYTES_PER_GB, 2),
-                'total_capacity_gb': round(total_capacity_bytes / BYTES_PER_GB, 2),
-                'directories': directory_stats
+                "total_games": total_games,
+                "total_size_gb": round(total_size_bytes / BYTES_PER_GB, 2),
+                "total_available_gb": round(total_available_bytes / BYTES_PER_GB, 2),
+                "total_capacity_gb": round(total_capacity_bytes / BYTES_PER_GB, 2),
+                "directories": directory_stats,
             }
         except Exception as e:
             logger.error(f"Error fetching system statistics: {e}")
             return {
-                'total_games': 0,
-                'total_size_gb': 0,
-                'total_available_gb': 0,
-                'total_capacity_gb': 0,
-                'directories': []
+                "total_games": 0,
+                "total_size_gb": 0,
+                "total_available_gb": 0,
+                "total_capacity_gb": 0,
+                "directories": [],
             }
 
 
