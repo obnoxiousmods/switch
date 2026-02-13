@@ -264,83 +264,48 @@ async def uploader_upload_submit(request: Request) -> Response:
         form_data = await request.form()
         
         # Get form fields
-        name = form_data.get('name', '').strip()
         entry_type = form_data.get('type', '').strip()
-        file_type = form_data.get('file_type', '').strip()
-        
-        # Metadata fields
-        description = form_data.get('description', '').strip()
-        version = form_data.get('version', '').strip()
-        publisher = form_data.get('publisher', '').strip()
-        release_date = form_data.get('release_date', '').strip()
         
         # Validate required fields
-        if not name:
-            return JSONResponse({"success": False, "error": "Game name is required"}, status_code=400)
+        if not entry_type or entry_type != 'filepath':
+            return JSONResponse({"success": False, "error": "Only file upload is supported"}, status_code=400)
         
-        if not entry_type or entry_type not in ['filepath', 'url']:
-            return JSONResponse({"success": False, "error": "Invalid entry type"}, status_code=400)
+        # File upload
+        file = form_data.get('file')
+        if not file or not isinstance(file, UploadFile):
+            return JSONResponse({"success": False, "error": "File is required"}, status_code=400)
         
-        if not file_type or file_type not in ['nsp', 'nsz', 'xci']:
-            return JSONResponse({"success": False, "error": "Invalid file type"}, status_code=400)
+        # Get filename
+        filename = file.filename
+        if not filename:
+            return JSONResponse({"success": False, "error": "Invalid filename"}, status_code=400)
         
-        # Handle based on entry type
-        source = ""
-        size = 0
+        # Auto-detect file type from extension
+        file_ext = filename.lower().split('.')[-1]
+        if file_ext not in ['nsp', 'nsz', 'xci']:
+            return JSONResponse({"success": False, "error": "Invalid file type. Supported: NSP, NSZ, XCI"}, status_code=400)
         
-        if entry_type == 'url':
-            # URL upload
-            url = form_data.get('url', '').strip()
-            if not url:
-                return JSONResponse({"success": False, "error": "URL is required"}, status_code=400)
-            
-            source = url
-            # For URL, size is required from user input
-            try:
-                size = int(form_data.get('size', 0))
-                if size <= 0:
-                    return JSONResponse({"success": False, "error": "Size must be greater than 0"}, status_code=400)
-            except ValueError:
-                return JSONResponse({"success": False, "error": "Invalid size value"}, status_code=400)
+        file_type = file_ext
         
-        elif entry_type == 'filepath':
-            # File upload
-            file = form_data.get('file')
-            if not file or not isinstance(file, UploadFile):
-                return JSONResponse({"success": False, "error": "File is required"}, status_code=400)
-            
-            # Create uploads directory if it doesn't exist
-            upload_dir = Config.get('upload.directory', '/app/uploads')
-            os.makedirs(upload_dir, exist_ok=True)
-            
-            # Generate safe filename
-            filename = file.filename
-            if not filename:
-                return JSONResponse({"success": False, "error": "Invalid filename"}, status_code=400)
-            
-            # Save file
-            file_path = os.path.join(upload_dir, filename)
-            
-            # Read and save file
-            content = await file.read()
-            size = len(content)
-            
-            with open(file_path, 'wb') as f:
-                f.write(content)
-            
-            source = file_path
-            logger.info(f"File saved to {file_path}, size: {size} bytes")
+        # Extract game name from filename (remove extension)
+        name = '.'.join(filename.split('.')[:-1])
         
-        # Build metadata
-        metadata = {}
-        if description:
-            metadata['description'] = description
-        if version:
-            metadata['version'] = version
-        if publisher:
-            metadata['publisher'] = publisher
-        if release_date:
-            metadata['release_date'] = release_date
+        # Create uploads directory if it doesn't exist
+        upload_dir = Config.get('upload.directory', '/app/uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Save file
+        file_path = os.path.join(upload_dir, filename)
+        
+        # Read and save file
+        content = await file.read()
+        size = len(content)
+        
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        source = file_path
+        logger.info(f"File saved to {file_path}, size: {size} bytes")
         
         # Create entry
         entry = Entry(
@@ -350,7 +315,7 @@ async def uploader_upload_submit(request: Request) -> Response:
             file_type=FileType(file_type),
             size=size,
             created_by=username,
-            metadata=metadata
+            metadata={}
         )
         
         # Add to database
