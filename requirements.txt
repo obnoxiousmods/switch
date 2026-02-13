@@ -3,6 +3,6 @@ uvicorn[standard]
 jinja2
 itsdangerous
 python-multipart
-python-arango
+python-arango-async
 aiofiles
 pyyaml
