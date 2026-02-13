@@ -659,6 +659,29 @@ async def admin_update_user_role(request: Request) -> Response:
         if not success:
             return JSONResponse({"success": False, "error": "Failed to update user role"}, status_code=500)
         
+        # Get target user info for logging
+        target_user = await db.get_user_by_id(user_id)
+        target_username = target_user.get('username', 'unknown') if target_user else 'unknown'
+        
+        # Log the action to audit log
+        actor_id = request.session.get('user_id')
+        actor_username = request.session.get('username', 'unknown')
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': f'role_{action}ed',
+            'actor_id': actor_id,
+            'actor_username': actor_username,
+            'target_id': user_id,
+            'target_username': target_username,
+            'details': {
+                'role': role,
+                'action': action,
+                'new_status': new_status
+            },
+            'ip_address': ip_address
+        })
+        
         return JSONResponse({
             "success": True,
             "message": f"Successfully {action}ed {role} status"
@@ -666,6 +689,70 @@ async def admin_update_user_role(request: Request) -> Response:
     
     except Exception as e:
         logger.error(f"Error updating user role: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_force_password_change(request: Request) -> Response:
+    """Force change a user's password"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        user_id = form_data.get('user_id', '').strip()
+        new_password = form_data.get('new_password', '').strip()
+        
+        if not user_id or not new_password:
+            return JSONResponse({"success": False, "error": "Missing required fields"}, status_code=400)
+        
+        # Validate password length (minimum 6 characters to match registration)
+        if len(new_password) < 6:
+            return JSONResponse({"success": False, "error": "Password must be at least 6 characters"}, status_code=400)
+        
+        # Get target user info for logging
+        target_user = await db.get_user_by_id(user_id)
+        if not target_user:
+            return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+        
+        # Update the password
+        new_password_hash = User.hash_password(new_password)
+        success = await db.update_user_password(user_id, new_password_hash)
+        
+        if not success:
+            return JSONResponse({"success": False, "error": "Failed to update password"}, status_code=500)
+        
+        # Log the action to audit log
+        actor_id = request.session.get('user_id')
+        actor_username = request.session.get('username', 'unknown')
+        target_username = target_user.get('username', 'unknown')
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': 'password_force_changed',
+            'actor_id': actor_id,
+            'actor_username': actor_username,
+            'target_id': user_id,
+            'target_username': target_username,
+            'details': {
+                'changed_by': 'admin',
+                'reason': 'Force password change from admin panel'
+            },
+            'ip_address': ip_address
+        })
+        
+        logger.info(f"Admin {actor_username} force-changed password for user {target_username}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Successfully changed password for user {target_username}"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error force-changing password: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 
@@ -815,3 +902,217 @@ async def admin_user_api_usage(request: Request) -> Response:
                 "user_usage_list": user_usage_list,
             }
         )
+
+
+async def admin_audit_logs(request: Request) -> Response:
+    """View audit logs"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get filters from query parameters
+    action_filter = request.query_params.get('action', None)
+    actor_filter = request.query_params.get('actor', None)
+    target_filter = request.query_params.get('target', None)
+    limit = min(int(request.query_params.get('limit', 100)), 500)  # Max 500
+    
+    # Fetch audit logs
+    logs = await db.get_audit_logs(
+        limit=limit,
+        action_filter=action_filter,
+        actor_id_filter=actor_filter,
+        target_id_filter=target_filter
+    )
+    
+    # Get unique actions for filter dropdown
+    all_logs_sample = await db.get_audit_logs(limit=1000)
+    unique_actions = sorted(list(set(log.get('action', '') for log in all_logs_sample if log.get('action'))))
+    
+    # Get statistics
+    stats = await db.get_audit_log_stats()
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/audit_logs.html",
+        {
+            "title": "Audit Logs",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "logs": logs,
+            "stats": stats,
+            "unique_actions": unique_actions,
+            "current_action": action_filter,
+            "limit": limit
+        }
+    )
+
+
+async def admin_activity_logs(request: Request) -> Response:
+    """View activity logs"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get filters from query parameters
+    event_type_filter = request.query_params.get('event_type', None)
+    user_filter = request.query_params.get('user', None)
+    limit = min(int(request.query_params.get('limit', 100)), 500)  # Max 500
+    
+    # Fetch activity logs
+    logs = await db.get_activity_logs(
+        limit=limit,
+        event_type_filter=event_type_filter,
+        user_id_filter=user_filter
+    )
+    
+    # Get unique event types for filter dropdown
+    all_logs_sample = await db.get_activity_logs(limit=1000)
+    unique_event_types = sorted(list(set(log.get('event_type', '') for log in all_logs_sample if log.get('event_type'))))
+    
+    # Get statistics
+    stats = await db.get_activity_log_stats()
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/activity_logs.html",
+        {
+            "title": "Activity Logs",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "logs": logs,
+            "stats": stats,
+            "unique_event_types": unique_event_types,
+            "current_event_type": event_type_filter,
+            "limit": limit
+        }
+    )
+
+
+async def admin_storage_info(request: Request) -> Response:
+    """View storage and game statistics"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get all directories
+    directories = await db.get_all_directories()
+    
+    # Get storage info for each directory
+    storage_data = []
+    total_games = 0
+    total_size_bytes = 0
+    
+    for directory in directories:
+        dir_path = directory.get('path', '')
+        if not os.path.exists(dir_path):
+            storage_data.append({
+                'path': dir_path,
+                'exists': False,
+                'game_count': 0,
+                'total_size': 0,
+                'available_space': 0,
+                'total_space': 0,
+                'used_space': 0,
+                'usage_percent': 0
+            })
+            continue
+        
+        try:
+            # Get disk usage info
+            stat = shutil.disk_usage(dir_path)
+            total_space = stat.total
+            used_space = stat.used
+            available_space = stat.free
+            usage_percent = (used_space / total_space * 100) if total_space > 0 else 0
+            
+            # Count games in this directory (from entries collection)
+            cursor = await db.db.aql.execute(
+                "FOR doc IN entries FILTER doc.type == 'filepath' && STARTS_WITH(doc.source, @path) RETURN doc",
+                bind_vars={"path": dir_path}
+            )
+            
+            dir_games = []
+            dir_size = 0
+            async with cursor:
+                async for doc in cursor:
+                    dir_games.append(doc)
+                    dir_size += doc.get('size', 0)
+            
+            game_count = len(dir_games)
+            total_games += game_count
+            total_size_bytes += dir_size
+            
+            storage_data.append({
+                'path': dir_path,
+                'exists': True,
+                'game_count': game_count,
+                'total_size': dir_size,
+                'available_space': available_space,
+                'total_space': total_space,
+                'used_space': used_space,
+                'usage_percent': usage_percent
+            })
+        except Exception as e:
+            logger.error(f"Error getting storage info for {dir_path}: {e}")
+            storage_data.append({
+                'path': dir_path,
+                'exists': False,
+                'error': str(e),
+                'game_count': 0,
+                'total_size': 0,
+                'available_space': 0,
+                'total_space': 0,
+                'used_space': 0,
+                'usage_percent': 0
+            })
+    
+    # Get total game count from database (including URLs)
+    all_entries = await db.get_all_entries()
+    total_entries = len(all_entries)
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/storage_info.html",
+        {
+            "title": "Storage Information",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "storage_data": storage_data,
+            "total_games": total_games,
+            "total_entries": total_entries,
+            "total_size_bytes": total_size_bytes
+        }
+    )

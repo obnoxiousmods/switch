@@ -31,12 +31,29 @@ async def download_entry(request: Request):
         
         # Track download if user is logged in
         user_id = request.session.get('user_id')
+        username = request.session.get('username')
+        ip_address = request.client.host if request.client else 'unknown'
+        
         if user_id:
             await db.add_download_history(
                 user_id=user_id,
                 entry_id=entry_id,
                 entry_name=entry.get('name', 'Unknown')
             )
+            
+            # Log the download activity
+            await db.add_activity_log({
+                'event_type': 'download',
+                'user_id': user_id,
+                'username': username,
+                'details': {
+                    'entry_id': entry_id,
+                    'entry_name': entry.get('name', 'Unknown'),
+                    'file_type': entry.get('file_type', 'unknown'),
+                    'source_type': entry.get('type', 'unknown')
+                },
+                'ip_address': ip_address
+            })
         
         # If it's a URL, redirect to it
         if entry.get('type') == 'url':

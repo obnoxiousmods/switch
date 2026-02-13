@@ -24,6 +24,8 @@ class Database:
         self.requests_collection: Optional[StandardCollection] = None
         self.api_keys_collection: Optional[StandardCollection] = None
         self.api_usage_collection: Optional[StandardCollection] = None
+        self.audit_logs_collection: Optional[StandardCollection] = None
+        self.activity_logs_collection: Optional[StandardCollection] = None
 
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -101,6 +103,20 @@ class Database:
                 logger.info("Created collection: api_usage")
             else:
                 self.api_usage_collection = self.db.collection("api_usage")
+
+            # Create audit_logs collection if it doesn't exist
+            if not await self.db.has_collection("audit_logs"):
+                self.audit_logs_collection = await self.db.create_collection("audit_logs")
+                logger.info("Created collection: audit_logs")
+            else:
+                self.audit_logs_collection = self.db.collection("audit_logs")
+
+            # Create activity_logs collection if it doesn't exist
+            if not await self.db.has_collection("activity_logs"):
+                self.activity_logs_collection = await self.db.create_collection("activity_logs")
+                logger.info("Created collection: activity_logs")
+            else:
+                self.activity_logs_collection = self.db.collection("activity_logs")
 
             logger.info("Successfully connected to ArangoDB")
 
@@ -675,6 +691,155 @@ class Database:
         except Exception as e:
             logger.error(f"Error fetching API usage stats: {e}")
             return {"total_calls": 0, "by_endpoint": []}
+
+    # Audit log methods
+    async def add_audit_log(self, log_data: Dict[str, Any]) -> Optional[str]:
+        """Add an audit log entry"""
+        try:
+            if "timestamp" not in log_data:
+                log_data["timestamp"] = datetime.utcnow().isoformat()
+            
+            result = await self.audit_logs_collection.insert(log_data)
+            logger.info(f"Added audit log: {log_data['action']} by {log_data.get('actor_username', 'unknown')}")
+            return result["_key"]
+        except Exception as e:
+            logger.error(f"Error adding audit log: {e}")
+            return None
+
+    async def get_audit_logs(
+        self, limit: int = 100, action_filter: Optional[str] = None, 
+        actor_id_filter: Optional[str] = None, target_id_filter: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get audit logs with optional filtering"""
+        try:
+            query = "FOR doc IN audit_logs"
+            filters = []
+            bind_vars = {"limit": limit}
+            
+            if action_filter:
+                filters.append("doc.action == @action")
+                bind_vars["action"] = action_filter
+            
+            if actor_id_filter:
+                filters.append("doc.actor_id == @actor_id")
+                bind_vars["actor_id"] = actor_id_filter
+            
+            if target_id_filter:
+                filters.append("doc.target_id == @target_id")
+                bind_vars["target_id"] = target_id_filter
+            
+            if filters:
+                query += " FILTER " + " AND ".join(filters)
+            
+            query += " SORT doc.timestamp DESC LIMIT @limit RETURN doc"
+            
+            cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
+            logs = []
+            async with cursor:
+                async for doc in cursor:
+                    logs.append(doc)
+            return logs
+        except Exception as e:
+            logger.error(f"Error fetching audit logs: {e}")
+            return []
+
+    async def get_audit_log_stats(self) -> Dict[str, Any]:
+        """Get audit log statistics"""
+        try:
+            # Total count
+            cursor = await self.db.aql.execute(
+                "RETURN LENGTH(audit_logs)"
+            )
+            total_count = 0
+            async with cursor:
+                async for count in cursor:
+                    total_count = count
+            
+            # Count by action
+            cursor = await self.db.aql.execute(
+                "FOR doc IN audit_logs COLLECT action = doc.action WITH COUNT INTO count RETURN {action, count}"
+            )
+            by_action = []
+            async with cursor:
+                async for item in cursor:
+                    by_action.append(item)
+            
+            return {"total_logs": total_count, "by_action": by_action}
+        except Exception as e:
+            logger.error(f"Error fetching audit log stats: {e}")
+            return {"total_logs": 0, "by_action": []}
+
+    # Activity log methods
+    async def add_activity_log(self, log_data: Dict[str, Any]) -> Optional[str]:
+        """Add an activity log entry"""
+        try:
+            if "timestamp" not in log_data:
+                log_data["timestamp"] = datetime.utcnow().isoformat()
+            
+            result = await self.activity_logs_collection.insert(log_data)
+            return result["_key"]
+        except Exception as e:
+            logger.error(f"Error adding activity log: {e}")
+            return None
+
+    async def get_activity_logs(
+        self, limit: int = 100, event_type_filter: Optional[str] = None,
+        user_id_filter: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get activity logs with optional filtering"""
+        try:
+            query = "FOR doc IN activity_logs"
+            filters = []
+            bind_vars = {"limit": limit}
+            
+            if event_type_filter:
+                filters.append("doc.event_type == @event_type")
+                bind_vars["event_type"] = event_type_filter
+            
+            if user_id_filter:
+                filters.append("doc.user_id == @user_id")
+                bind_vars["user_id"] = user_id_filter
+            
+            if filters:
+                query += " FILTER " + " AND ".join(filters)
+            
+            query += " SORT doc.timestamp DESC LIMIT @limit RETURN doc"
+            
+            cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
+            logs = []
+            async with cursor:
+                async for doc in cursor:
+                    logs.append(doc)
+            return logs
+        except Exception as e:
+            logger.error(f"Error fetching activity logs: {e}")
+            return []
+
+    async def get_activity_log_stats(self) -> Dict[str, Any]:
+        """Get activity log statistics"""
+        try:
+            # Total count
+            cursor = await self.db.aql.execute(
+                "RETURN LENGTH(activity_logs)"
+            )
+            total_count = 0
+            async with cursor:
+                async for count in cursor:
+                    total_count = count
+            
+            # Count by event type
+            cursor = await self.db.aql.execute(
+                "FOR doc IN activity_logs COLLECT event_type = doc.event_type WITH COUNT INTO count RETURN {event_type, count}"
+            )
+            by_event_type = []
+            async with cursor:
+                async for item in cursor:
+                    by_event_type.append(item)
+            
+            return {"total_logs": total_count, "by_event_type": by_event_type}
+        except Exception as e:
+            logger.error(f"Error fetching activity log stats: {e}")
+            return {"total_logs": 0, "by_event_type": []}
 
 
 # Global database instance
