@@ -1,4 +1,6 @@
 import logging
+import os
+import shutil
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from arangoasync import ArangoClient
@@ -933,19 +935,102 @@ class Database:
                 user_id,
                 username,
                 total_uploads,
-                total_bytes,
-                total_gb: ROUND(total_bytes / 1073741824, 2)
+                total_bytes
             }
             """
             cursor = await self.db.aql.execute(query)
             stats = []
             async with cursor:
                 async for doc in cursor:
+                    # Calculate total_gb in Python instead of AQL
+                    total_bytes = doc.get('total_bytes', 0) or 0
+                    doc['total_gb'] = round(total_bytes / 1073741824, 2)
                     stats.append(doc)
             return stats
         except Exception as e:
             logger.error(f"Error fetching all uploader statistics: {e}")
             return []
+
+    async def get_system_statistics(self) -> Dict[str, Any]:
+        """Get system-wide statistics including directories, storage, and game count"""
+        try:
+            # Get total game count
+            query = "RETURN LENGTH(entries)"
+            cursor = await self.db.aql.execute(query)
+            total_games = 0
+            async with cursor:
+                async for count in cursor:
+                    total_games = count
+            
+            # Get all directories
+            directories = await self.get_all_directories()
+            
+            # Calculate storage info for each directory
+            directory_stats = []
+            total_size_bytes = 0
+            total_available_bytes = 0
+            total_capacity_bytes = 0
+            
+            for directory in directories:
+                dir_path = directory.get('path', '')
+                dir_stat = {
+                    'path': dir_path,
+                    'exists': False,
+                    'game_count': 0,
+                    'size_gb': 0,
+                    'available_gb': 0,
+                    'capacity_gb': 0
+                }
+                
+                if os.path.exists(dir_path):
+                    try:
+                        # Get disk usage
+                        disk_usage = shutil.disk_usage(dir_path)
+                        dir_stat['exists'] = True
+                        dir_stat['available_gb'] = round(disk_usage.free / (1024 ** 3), 2)
+                        dir_stat['capacity_gb'] = round(disk_usage.total / (1024 ** 3), 2)
+                        
+                        total_available_bytes += disk_usage.free
+                        total_capacity_bytes += disk_usage.total
+                        
+                        # Count games in this directory
+                        cursor = await self.db.aql.execute(
+                            "FOR doc IN entries FILTER doc.type == 'filepath' && STARTS_WITH(doc.source, @path) RETURN doc",
+                            bind_vars={"path": dir_path}
+                        )
+                        
+                        dir_game_count = 0
+                        dir_size = 0
+                        async with cursor:
+                            async for doc in cursor:
+                                dir_game_count += 1
+                                dir_size += doc.get('size', 0)
+                        
+                        dir_stat['game_count'] = dir_game_count
+                        dir_stat['size_gb'] = round(dir_size / (1024 ** 3), 2)
+                        total_size_bytes += dir_size
+                        
+                    except Exception as e:
+                        logger.error(f"Error getting stats for directory {dir_path}: {e}")
+                
+                directory_stats.append(dir_stat)
+            
+            return {
+                'total_games': total_games,
+                'total_size_gb': round(total_size_bytes / (1024 ** 3), 2),
+                'total_available_gb': round(total_available_bytes / (1024 ** 3), 2),
+                'total_capacity_gb': round(total_capacity_bytes / (1024 ** 3), 2),
+                'directories': directory_stats
+            }
+        except Exception as e:
+            logger.error(f"Error fetching system statistics: {e}")
+            return {
+                'total_games': 0,
+                'total_size_gb': 0,
+                'total_available_gb': 0,
+                'total_capacity_gb': 0,
+                'directories': []
+            }
 
 
 # Global database instance
