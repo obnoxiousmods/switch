@@ -87,7 +87,7 @@
                 <div class="secret-container" id="secret-container" style="display: none;">
                     <p><strong>Or enter this secret key manually:</strong></p>
                     <div class="secret-code" id="secret-code"></div>
-                    <button onclick="copySecret()" class="btn-copy">Copy Secret</button>
+                    <button onclick="copySecret(event)" class="btn-copy">Copy Secret</button>
                 </div>
                 
                 <h3>Step 2: Enter Verification Code</h3>
@@ -421,7 +421,7 @@ function cancelSetup() {
     document.getElementById('enable-btn').textContent = 'Enable 2FA';
 }
 
-function copySecret() {
+function copySecret(event) {
     const secretText = document.getElementById('secret-code').textContent;
     navigator.clipboard.writeText(secretText).then(() => {
         const btn = event.target;
