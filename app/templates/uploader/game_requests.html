@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="requests-page">
+        <div class="page-header">
+            <h2>📋 Game Requests</h2>
+            <p class="page-subtitle">Review and approve game upload requests</p>
+        </div>
+
+        <div class="filter-tabs">
+            <a href="/uploadercp/game-requests?status=pending" class="tab {% if status_filter == 'pending' %}active{% endif %}">
+                Pending
+            </a>
+            <a href="/uploadercp/game-requests?status=approved" class="tab {% if status_filter == 'approved' %}active{% endif %}">
+                Approved
+            </a>
+            <a href="/uploadercp/game-requests?status=rejected" class="tab {% if status_filter == 'rejected' %}active{% endif %}">
+                Rejected
+            </a>
+            <a href="/uploadercp/game-requests?status=all" class="tab {% if status_filter == 'all' %}active{% endif %}">
+                All
+            </a>
+        </div>
+
+        {% if requests %}
+        <div class="requests-list">
+            {% for req in requests %}
+            <div class="request-card status-{{ req.status }}">
+                <div class="request-header">
+                    <div class="request-user">
+                        <span class="user-icon">👤</span>
+                        <strong>{{ req.username }}</strong>
+                    </div>
+                    <div class="request-type">
+                        🎮 Game Request
+                    </div>
+                </div>
+                
+                {% if req.game_name %}
+                <div class="game-name">
+                    <strong>Game:</strong> {{ req.game_name }}
+                </div>
+                {% endif %}
+                
+                <div class="request-message">
+                    {{ req.message }}
+                </div>
+                
+                <div class="request-footer">
+                    <div class="request-meta">
+                        <span class="request-date">📅 {{ req.created_at[:10] }}</span>
+                        <span class="request-status badge-{{ req.status }}">{{ req.status|upper }}</span>
+                        {% if req.reviewed_by %}
+                            <span class="reviewed-by">Reviewed by: {{ req.reviewed_by }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if req.status == 'pending' %}
+                    <div class="request-actions">
+                        <button class="btn-approve" onclick="approveRequest('{{ req._key }}')">
+                            ✓ Approve
+                        </button>
+                        <button class="btn-reject" onclick="rejectRequest('{{ req._key }}')">
+                            ✗ Reject
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>No game requests found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+async function approveRequest(requestId) {
+    if (!confirm('Are you sure you want to approve this game request?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('request_id', requestId);
+    
+    try {
+        const response = await fetch('/uploadercp/game-requests/approve', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error approving request: ' + error);
+    }
+}
+
+async function rejectRequest(requestId) {
+    if (!confirm('Are you sure you want to reject this game request?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('request_id', requestId);
+    
+    try {
+        const response = await fetch('/uploadercp/game-requests/reject', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error rejecting request: ' + error);
+    }
+}
+</script>
+
+<style>
+.requests-page {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.page-header h2 {
+    color: #fff;
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.page-subtitle {
+    color: #999;
+    font-size: 18px;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #333;
+}
+
+.tab {
+    padding: 12px 24px;
+    color: #999;
+    text-decoration: none;
+    transition: all 0.2s;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+}
+
+.tab:hover {
+    color: #fff;
+}
+
+.tab.active {
+    color: #5a9fd4;
+    border-bottom-color: #5a9fd4;
+}
+
+.requests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.request-card {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.request-card.status-pending {
+    border-left: 4px solid #f39c12;
+}
+
+.request-card.status-approved {
+    border-left: 4px solid #27ae60;
+}
+
+.request-card.status-rejected {
+    border-left: 4px solid #e74c3c;
+}
+
+.request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.request-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 18px;
+}
+
+.user-icon {
+    font-size: 24px;
+}
+
+.request-type {
+    background: #333;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #5a9fd4;
+}
+
+.game-name {
+    background: #333;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    color: #fff;
+}
+
+.request-message {
+    color: #ccc;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #1a1a1a;
+    border-radius: 8px;
+}
+
+.request-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.request-meta {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 14px;
+}
+
+.request-date {
+    color: #999;
+}
+
+.request-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-pending {
+    background: #f39c12;
+    color: #000;
+}
+
+.badge-approved {
+    background: #27ae60;
+    color: #fff;
+}
+
+.badge-rejected {
+    background: #e74c3c;
+    color: #fff;
+}
+
+.reviewed-by {
+    color: #999;
+    font-style: italic;
+}
+
+.request-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-approve, .btn-reject {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-approve {
+    background: #27ae60;
+    color: #fff;
+}
+
+.btn-approve:hover {
+    transform: translateY(-2px);
+    background: #229954;
+}
+
+.btn-reject {
+    background: #e74c3c;
+    color: #fff;
+}
+
+.btn-reject:hover {
+    transform: translateY(-2px);
+    background: #c0392b;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.empty-state p {
+    color: #999;
+    font-size: 18px;
+}
+</style>
+{% endblock %}
