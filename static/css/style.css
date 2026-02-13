@@ -332,6 +332,10 @@ footer {
 .chat-section {
     text-align: center;
     margin-bottom: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .btn-chat-hero {
@@ -350,6 +354,24 @@ footer {
 .btn-chat-hero:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.btn-api-docs {
+    display: inline-block;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    color: white;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1.125rem;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(90, 159, 212, 0.2);
+}
+
+.btn-api-docs:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(90, 159, 212, 0.4);
 }
 
 /* Utilities */

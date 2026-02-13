@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="api-docs-container">
+        <div class="docs-header">
+            <h1>📖 API Documentation</h1>
+            <p class="docs-subtitle">Integrate {{ app_name|default('Switch Game Repository') }} into your applications</p>
+        </div>
+
+        <!-- Getting Started -->
+        <section class="docs-section">
+            <h2>Getting Started</h2>
+            <p>The {{ app_name|default('Switch Game Repository') }} API allows you to programmatically access game entries and download information. To use the API, you'll need an API key.</p>
+            
+            <div class="info-box">
+                <h4>🔑 Obtaining an API Key</h4>
+                <ol>
+                    <li><a href="/register">Create an account</a> or <a href="/login">log in</a></li>
+                    <li>Go to your <a href="/settings/api-keys">API Keys settings</a></li>
+                    <li>Generate a new API key with a descriptive name</li>
+                    <li>Copy and store your API key securely</li>
+                </ol>
+                <p class="warning">⚠️ Keep your API key secure and never share it publicly!</p>
+            </div>
+        </section>
+
+        <!-- Authentication -->
+        <section class="docs-section">
+            <h2>Authentication</h2>
+            <p>There are two ways to authenticate API requests:</p>
+            
+            <h3>1. Using API Key in Header (Recommended)</h3>
+            <div class="code-block">
+                <code>Authorization: Bearer YOUR_API_KEY_HERE</code>
+            </div>
+            
+            <h3>2. Using API Key as Query Parameter</h3>
+            <div class="code-block">
+                <code>?api_key=YOUR_API_KEY_HERE</code>
+            </div>
+        </section>
+
+        <!-- Base URL -->
+        <section class="docs-section">
+            <h2>Base URL</h2>
+            <div class="code-block">
+                <code>{{ request.url.scheme }}://{{ request.url.netloc }}/api</code>
+            </div>
+        </section>
+
+        <!-- Endpoints -->
+        <section class="docs-section">
+            <h2>Endpoints</h2>
+
+            <!-- List Entries -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method-badge get">GET</span>
+                    <span class="endpoint-path">/api/list</span>
+                </div>
+                <p class="endpoint-description">Retrieve all game entries from the database.</p>
+                
+                <h4>Request Example</h4>
+                <div class="code-block">
+                    <pre><code>curl -H "Authorization: Bearer YOUR_API_KEY" \
+  {{ request.url.scheme }}://{{ request.url.netloc }}/api/list</code></pre>
+                </div>
+                
+                <h4>Response Example</h4>
+                <div class="code-block">
+                    <pre><code>{
+  "entries": [
+    {
+      "id": "123456",
+      "name": "Super Mario Odyssey",
+      "source": "/games/super_mario_odyssey.nsp",
+      "type": "filepath",
+      "file_type": "nsp",
+      "size": 5800000000,
+      "created_at": "2026-02-13T12:00:00",
+      "created_by": "admin",
+      "metadata": {
+        "description": "A 3D platform game",
+        "version": "1.3.0"
+      }
+    }
+  ]
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- Download Entry -->
+            <div class="endpoint-card">
+                <div class="endpoint-header">
+                    <span class="method-badge get">GET</span>
+                    <span class="endpoint-path">/api/download/{entry_id}</span>
+                </div>
+                <p class="endpoint-description">Download a specific game entry by its ID.</p>
+                
+                <h4>Parameters</h4>
+                <ul class="param-list">
+                    <li><code>entry_id</code> (path parameter) - The unique ID of the entry</li>
+                </ul>
+                
+                <h4>Request Example</h4>
+                <div class="code-block">
+                    <pre><code>curl -H "Authorization: Bearer YOUR_API_KEY" \
+  {{ request.url.scheme }}://{{ request.url.netloc }}/api/download/123456</code></pre>
+                </div>
+                
+                <h4>Response</h4>
+                <p>If the entry is a URL, the API will redirect to it. If it's a local file, the API will serve the file for download.</p>
+            </div>
+        </section>
+
+        <!-- Code Examples -->
+        <section class="docs-section">
+            <h2>Code Examples</h2>
+
+            <!-- Python -->
+            <div class="example-card">
+                <h3>🐍 Python</h3>
+                <div class="code-block">
+                    <pre><code>import requests
+
+API_KEY = "YOUR_API_KEY_HERE"
+BASE_URL = "{{ request.url.scheme }}://{{ request.url.netloc }}/api"
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+
+# List all entries
+response = requests.get(f"{BASE_URL}/list", headers=headers)
+entries = response.json()["entries"]
+
+for entry in entries:
+    print(f"{entry['name']} - {entry['file_type']}")
+
+# Download an entry
+entry_id = entries[0]["id"]
+download_response = requests.get(
+    f"{BASE_URL}/download/{entry_id}",
+    headers=headers,
+    allow_redirects=True
+)
+
+# Save file
+with open(f"{entries[0]['name']}.{entries[0]['file_type']}", "wb") as f:
+    f.write(download_response.content)</code></pre>
+                </div>
+            </div>
+
+            <!-- JavaScript -->
+            <div class="example-card">
+                <h3>📜 JavaScript (Node.js)</h3>
+                <div class="code-block">
+                    <pre><code>const axios = require('axios');
+
+const API_KEY = 'YOUR_API_KEY_HERE';
+const BASE_URL = '{{ request.url.scheme }}://{{ request.url.netloc }}/api';
+
+const headers = {
+    'Authorization': `Bearer ${API_KEY}`
+};
+
+// List all entries
+async function listEntries() {
+    const response = await axios.get(`${BASE_URL}/list`, { headers });
+    return response.data.entries;
+}
+
+// Download an entry
+async function downloadEntry(entryId) {
+    const response = await axios.get(
+        `${BASE_URL}/download/${entryId}`,
+        { 
+            headers,
+            responseType: 'stream'
+        }
+    );
+    return response.data;
+}
+
+// Usage
+listEntries().then(entries => {
+    console.log(`Found ${entries.length} entries`);
+    entries.forEach(entry => {
+        console.log(`${entry.name} - ${entry.file_type}`);
+    });
+});</code></pre>
+                </div>
+            </div>
+
+            <!-- cURL -->
+            <div class="example-card">
+                <h3>🔧 cURL</h3>
+                <div class="code-block">
+                    <pre><code># List all entries
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  {{ request.url.scheme }}://{{ request.url.netloc }}/api/list
+
+# Download an entry
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  -L -o game.nsp \
+  {{ request.url.scheme }}://{{ request.url.netloc }}/api/download/123456</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Rate Limits -->
+        <section class="docs-section">
+            <h2>Rate Limits</h2>
+            <p>Currently, there are no enforced rate limits, but please be respectful and avoid making excessive requests. We monitor API usage and may implement rate limits in the future if necessary.</p>
+        </section>
+
+        <!-- Error Codes -->
+        <section class="docs-section">
+            <h2>Error Codes</h2>
+            <table class="error-table">
+                <thead>
+                    <tr>
+                        <th>Status Code</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>200</code></td>
+                        <td>Success</td>
+                    </tr>
+                    <tr>
+                        <td><code>401</code></td>
+                        <td>Unauthorized - Invalid or missing API key</td>
+                    </tr>
+                    <tr>
+                        <td><code>404</code></td>
+                        <td>Not Found - Entry doesn't exist</td>
+                    </tr>
+                    <tr>
+                        <td><code>500</code></td>
+                        <td>Internal Server Error</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Support -->
+        <section class="docs-section">
+            <h2>Support</h2>
+            <p>If you need help or have questions about the API:</p>
+            <ul>
+                <li>Join our <a href="https://chat.obnoxious.lol" target="_blank">Chat/IRC</a></li>
+                <li>Check your <a href="/settings/api-usage">API usage statistics</a></li>
+                <li>Report issues on <a href="https://github.com/obnoxiousmods/switch" target="_blank">GitHub</a></li>
+            </ul>
+        </section>
+    </div>
+</div>
+
+<style>
+    .api-docs-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .docs-header {
+        text-align: center;
+        margin-bottom: 50px;
+    }
+    
+    .docs-header h1 {
+        font-size: 42px;
+        color: #fff;
+        margin-bottom: 15px;
+    }
+    
+    .docs-subtitle {
+        font-size: 18px;
+        color: #888;
+    }
+    
+    .docs-section {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .docs-section h2 {
+        font-size: 28px;
+        color: #5a9fd4;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #2a2a2a;
+        padding-bottom: 10px;
+    }
+    
+    .docs-section h3 {
+        font-size: 20px;
+        color: #fff;
+        margin: 25px 0 15px;
+    }
+    
+    .docs-section h4 {
+        font-size: 16px;
+        color: #ccc;
+        margin: 20px 0 10px;
+    }
+    
+    .docs-section p {
+        color: #ccc;
+        line-height: 1.8;
+        margin-bottom: 15px;
+    }
+    
+    .docs-section a {
+        color: #5a9fd4;
+        text-decoration: none;
+    }
+    
+    .docs-section a:hover {
+        text-decoration: underline;
+    }
+    
+    .info-box {
+        background: #2a2a2a;
+        border-left: 4px solid #5a9fd4;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+    }
+    
+    .info-box h4 {
+        color: #5a9fd4;
+        margin-top: 0;
+    }
+    
+    .info-box ol {
+        margin-left: 20px;
+        color: #ccc;
+    }
+    
+    .info-box ol li {
+        margin: 8px 0;
+    }
+    
+    .warning {
+        color: #ffcc00;
+        font-weight: 600;
+        margin-top: 15px;
+    }
+    
+    .code-block {
+        background: #0a0a0a;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        overflow-x: auto;
+    }
+    
+    .code-block code,
+    .code-block pre {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        color: #7cfc00;
+        line-height: 1.6;
+    }
+    
+    .code-block pre {
+        margin: 0;
+        white-space: pre-wrap;
+    }
+    
+    .endpoint-card {
+        background: #2a2a2a;
+        border-radius: 8px;
+        padding: 25px;
+        margin: 25px 0;
+        border: 1px solid #444;
+    }
+    
+    .endpoint-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .method-badge {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+    
+    .method-badge.get {
+        background: #10b981;
+        color: #fff;
+    }
+    
+    .method-badge.post {
+        background: #3b82f6;
+        color: #fff;
+    }
+    
+    .endpoint-path {
+        font-family: 'Courier New', monospace;
+        font-size: 16px;
+        color: #fff;
+        font-weight: 600;
+    }
+    
+    .endpoint-description {
+        color: #ccc;
+        margin-bottom: 20px;
+    }
+    
+    .param-list {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .param-list li {
+        padding: 8px 15px;
+        background: #1e1e1e;
+        margin: 8px 0;
+        border-radius: 6px;
+        color: #ccc;
+    }
+    
+    .param-list code {
+        color: #5a9fd4;
+        font-weight: 600;
+    }
+    
+    .example-card {
+        margin: 25px 0;
+    }
+    
+    .example-card h3 {
+        color: #5a9fd4;
+        margin-bottom: 15px;
+    }
+    
+    .error-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+    
+    .error-table th {
+        background: #2a2a2a;
+        padding: 12px;
+        text-align: left;
+        color: #5a9fd4;
+        font-weight: 600;
+        border-bottom: 2px solid #444;
+    }
+    
+    .error-table td {
+        padding: 12px;
+        color: #ccc;
+        border-bottom: 1px solid #333;
+    }
+    
+    .error-table code {
+        color: #7cfc00;
+        font-weight: 600;
+    }
+    
+    ul {
+        margin-left: 20px;
+    }
+    
+    ul li {
+        color: #ccc;
+        margin: 8px 0;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-container">
+        <div class="admin-header">
+            <h2>📊 API Usage Overview</h2>
+            <a href="/admincp" class="btn-back">← Back to Admin Dashboard</a>
+        </div>
+        
+        <div class="admin-section">
+            <div class="section-header">
+                <h3>Usage by User</h3>
+                <span class="count-badge">{{ user_usage_list|length }} users</span>
+            </div>
+            
+            {% if user_usage_list %}
+                <div class="usage-table-container">
+                    <table class="usage-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Total API Calls</th>
+                                <th>Member Since</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user_usage in user_usage_list|sort(attribute='total_calls', reverse=True) %}
+                                <tr>
+                                    <td class="username-cell">{{ user_usage.username }}</td>
+                                    <td class="calls-cell">
+                                        <span class="calls-badge">{{ user_usage.total_calls }}</span>
+                                    </td>
+                                    <td>{{ user_usage.created_at[:10] if user_usage.created_at else 'N/A' }}</td>
+                                    <td>
+                                        <a href="/admincp/api-usage?user_id={{ user_usage.user_id }}" class="btn-view">
+                                            View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="no-data">No API usage data available.</p>
+            {% endif %}
+        </div>
+        
+        <div class="admin-section">
+            <h3>Quick Links</h3>
+            <div class="quick-links">
+                <a href="/admincp/api-keys" class="btn-secondary">🔑 Manage API Keys</a>
+                <a href="/admincp/users" class="btn-secondary">👥 Manage Users</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-container {
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .admin-header h2 {
+        font-size: 32px;
+        color: #fff;
+        margin: 0;
+    }
+    
+    .btn-back {
+        padding: 10px 20px;
+        background: #444;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .btn-back:hover {
+        background: #555;
+    }
+    
+    .admin-section {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .admin-section h3 {
+        font-size: 24px;
+        color: #5a9fd4;
+        margin: 0;
+    }
+    
+    .count-badge {
+        background: #2a2a2a;
+        color: #5a9fd4;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .usage-table-container {
+        overflow-x: auto;
+    }
+    
+    .usage-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .usage-table thead {
+        background: #2a2a2a;
+    }
+    
+    .usage-table th {
+        padding: 12px 16px;
+        text-align: left;
+        color: #5a9fd4;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .usage-table td {
+        padding: 12px 16px;
+        color: #ccc;
+        font-size: 14px;
+        border-top: 1px solid #333;
+    }
+    
+    .usage-table tbody tr:hover {
+        background: #2a2a2a;
+    }
+    
+    .username-cell {
+        font-weight: 600;
+        color: #fff;
+    }
+    
+    .calls-cell {
+        text-align: left;
+    }
+    
+    .calls-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .btn-view {
+        padding: 6px 12px;
+        background: #5a9fd4;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+    
+    .btn-view:hover {
+        background: #4a7fb4;
+    }
+    
+    .no-data {
+        color: #888;
+        font-style: italic;
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .quick-links {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .btn-secondary {
+        padding: 12px 24px;
+        background: #444;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+    
+    .btn-secondary:hover {
+        background: #555;
+    }
+</style>
+{% endblock %}

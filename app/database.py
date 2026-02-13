@@ -22,6 +22,8 @@ class Database:
         self.directories_collection: Optional[StandardCollection] = None
         self.download_history_collection: Optional[StandardCollection] = None
         self.requests_collection: Optional[StandardCollection] = None
+        self.api_keys_collection: Optional[StandardCollection] = None
+        self.api_usage_collection: Optional[StandardCollection] = None
 
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -85,6 +87,20 @@ class Database:
                 logger.info("Created collection: requests")
             else:
                 self.requests_collection = self.db.collection("requests")
+
+            # Create api_keys collection if it doesn't exist
+            if not await self.db.has_collection("api_keys"):
+                self.api_keys_collection = await self.db.create_collection("api_keys")
+                logger.info("Created collection: api_keys")
+            else:
+                self.api_keys_collection = self.db.collection("api_keys")
+
+            # Create api_usage collection if it doesn't exist
+            if not await self.db.has_collection("api_usage"):
+                self.api_usage_collection = await self.db.create_collection("api_usage")
+                logger.info("Created collection: api_usage")
+            else:
+                self.api_usage_collection = self.db.collection("api_usage")
 
             logger.info("Successfully connected to ArangoDB")
 
@@ -500,6 +516,165 @@ class Database:
         except Exception as e:
             logger.error(f"Error fetching all users: {e}")
             return []
+
+    # API Key management methods
+    async def create_api_key(self, api_key_data: Dict[str, Any]) -> Optional[str]:
+        """Create a new API key"""
+        try:
+            if "created_at" not in api_key_data:
+                api_key_data["created_at"] = datetime.utcnow().isoformat()
+
+            result = await self.api_keys_collection.insert(api_key_data)
+            logger.info(f"Created API key with key: {result['_key']}")
+            return result["_key"]
+        except Exception as e:
+            logger.error(f"Error creating API key: {e}")
+            return None
+
+    async def get_api_key_by_hash(self, key_hash: str) -> Optional[Dict[str, Any]]:
+        """Get an API key by its hash"""
+        try:
+            cursor = await self.db.aql.execute(
+                "FOR doc IN api_keys FILTER doc.key_hash == @key_hash AND doc.is_active == true LIMIT 1 RETURN doc",
+                bind_vars={"key_hash": key_hash},
+            )
+            async with cursor:
+                async for doc in cursor:
+                    return doc
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching API key: {e}")
+            return None
+
+    async def get_user_api_keys(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all API keys for a user"""
+        try:
+            cursor = await self.db.aql.execute(
+                "FOR doc IN api_keys FILTER doc.user_id == @user_id SORT doc.created_at DESC RETURN doc",
+                bind_vars={"user_id": user_id},
+            )
+            api_keys = []
+            async with cursor:
+                async for doc in cursor:
+                    api_keys.append(doc)
+            return api_keys
+        except Exception as e:
+            logger.error(f"Error fetching user API keys: {e}")
+            return []
+
+    async def get_all_api_keys(self) -> List[Dict[str, Any]]:
+        """Get all API keys (admin)"""
+        try:
+            cursor = await self.db.aql.execute(
+                "FOR doc IN api_keys SORT doc.created_at DESC RETURN doc"
+            )
+            api_keys = []
+            async with cursor:
+                async for doc in cursor:
+                    api_keys.append(doc)
+            return api_keys
+        except Exception as e:
+            logger.error(f"Error fetching all API keys: {e}")
+            return []
+
+    async def revoke_api_key(self, key_id: str) -> bool:
+        """Revoke (deactivate) an API key"""
+        try:
+            await self.api_keys_collection.update(
+                {"_key": key_id}, {"is_active": False}
+            )
+            logger.info(f"Revoked API key: {key_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error revoking API key: {e}")
+            return False
+
+    async def update_api_key_last_used(self, key_id: str) -> bool:
+        """Update the last used timestamp for an API key"""
+        try:
+            await self.api_keys_collection.update(
+                {"_key": key_id}, {"last_used_at": datetime.utcnow().isoformat()}
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error updating API key last used: {e}")
+            return False
+
+    async def log_api_usage(self, usage_data: Dict[str, Any]) -> Optional[str]:
+        """Log API usage"""
+        try:
+            if "timestamp" not in usage_data:
+                usage_data["timestamp"] = datetime.utcnow().isoformat()
+
+            result = await self.api_usage_collection.insert(usage_data)
+            return result["_key"]
+        except Exception as e:
+            logger.error(f"Error logging API usage: {e}")
+            return None
+
+    async def get_api_usage_by_key(
+        self, key_id: str, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get API usage logs for a specific key"""
+        try:
+            cursor = await self.db.aql.execute(
+                "FOR doc IN api_usage FILTER doc.api_key_id == @key_id SORT doc.timestamp DESC LIMIT @limit RETURN doc",
+                bind_vars={"key_id": key_id, "limit": limit},
+            )
+            usage = []
+            async with cursor:
+                async for doc in cursor:
+                    usage.append(doc)
+            return usage
+        except Exception as e:
+            logger.error(f"Error fetching API usage: {e}")
+            return []
+
+    async def get_api_usage_by_user(
+        self, user_id: str, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get API usage logs for a specific user"""
+        try:
+            cursor = await self.db.aql.execute(
+                "FOR doc IN api_usage FILTER doc.user_id == @user_id SORT doc.timestamp DESC LIMIT @limit RETURN doc",
+                bind_vars={"user_id": user_id, "limit": limit},
+            )
+            usage = []
+            async with cursor:
+                async for doc in cursor:
+                    usage.append(doc)
+            return usage
+        except Exception as e:
+            logger.error(f"Error fetching API usage by user: {e}")
+            return []
+
+    async def get_api_usage_stats_by_user(self, user_id: str) -> Dict[str, Any]:
+        """Get API usage statistics for a user"""
+        try:
+            # Get total count
+            cursor = await self.db.aql.execute(
+                "FOR doc IN api_usage FILTER doc.user_id == @user_id COLLECT WITH COUNT INTO length RETURN length",
+                bind_vars={"user_id": user_id},
+            )
+            total_calls = 0
+            async with cursor:
+                async for count in cursor:
+                    total_calls = count
+
+            # Get count by endpoint
+            cursor = await self.db.aql.execute(
+                "FOR doc IN api_usage FILTER doc.user_id == @user_id COLLECT endpoint = doc.endpoint WITH COUNT INTO count RETURN {endpoint, count}",
+                bind_vars={"user_id": user_id},
+            )
+            by_endpoint = []
+            async with cursor:
+                async for item in cursor:
+                    by_endpoint.append(item)
+
+            return {"total_calls": total_calls, "by_endpoint": by_endpoint}
+        except Exception as e:
+            logger.error(f"Error fetching API usage stats: {e}")
+            return {"total_calls": 0, "by_endpoint": []}
 
 
 # Global database instance

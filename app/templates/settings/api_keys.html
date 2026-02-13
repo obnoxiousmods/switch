@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="settings-container">
+        <h2>🔑 API Keys</h2>
+        
+        <div class="info-box">
+            <p><strong>API keys allow you to access the API programmatically.</strong></p>
+            <p>Keep your API keys secure and never share them publicly. You can revoke keys at any time if they are compromised.</p>
+            <p><a href="/api-docs" class="link-docs">📖 View API Documentation</a></p>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Generate New API Key</h3>
+            <form id="generate-key-form" class="settings-form">
+                <div class="form-group">
+                    <label for="key_name">Key Name</label>
+                    <input 
+                        type="text" 
+                        id="key_name" 
+                        name="key_name" 
+                        required 
+                        class="form-input"
+                        placeholder="e.g., My App, Production Server"
+                    >
+                    <small class="form-hint">Choose a descriptive name to help you remember what this key is for</small>
+                </div>
+                
+                <div id="generate-message" class="message"></div>
+                
+                <button type="submit" class="btn-primary">Generate API Key</button>
+            </form>
+            
+            <!-- Display generated key -->
+            <div id="new-key-display" class="key-display hidden">
+                <h4>⚠️ Your new API key:</h4>
+                <div class="key-value-container">
+                    <code id="new-key-value" class="key-value"></code>
+                    <button type="button" onclick="copyKey()" class="btn-copy">📋 Copy</button>
+                </div>
+                <p class="warning-text">Make sure to copy your API key now. You won't be able to see it again!</p>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Your API Keys</h3>
+            
+            {% if api_keys %}
+                <div class="keys-list">
+                    {% for key in api_keys %}
+                        <div class="key-item {% if not key.is_active %}revoked{% endif %}">
+                            <div class="key-info">
+                                <div class="key-name">{{ key.key_name }}</div>
+                                <div class="key-details">
+                                    <span class="key-created">Created: {{ key.created_at[:10] }}</span>
+                                    {% if key.last_used_at %}
+                                        <span class="key-used">Last used: {{ key.last_used_at[:10] }}</span>
+                                    {% else %}
+                                        <span class="key-used">Never used</span>
+                                    {% endif %}
+                                    {% if not key.is_active %}
+                                        <span class="key-status revoked">Revoked</span>
+                                    {% else %}
+                                        <span class="key-status active">Active</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if key.is_active %}
+                                <button 
+                                    type="button" 
+                                    class="btn-revoke" 
+                                    onclick="revokeKey('{{ key._key }}', '{{ key.key_name }}')"
+                                >
+                                    Revoke
+                                </button>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="no-keys">You haven't generated any API keys yet.</p>
+            {% endif %}
+        </div>
+        
+        <div class="settings-section">
+            <h3>API Usage Statistics</h3>
+            <p>View your API usage history and statistics.</p>
+            <a href="/settings/api-usage" class="btn-secondary">View API Usage</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .settings-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .settings-container h2 {
+        font-size: 32px;
+        margin-bottom: 30px;
+        color: #fff;
+    }
+    
+    .info-box {
+        background: #2a2a2a;
+        border-left: 4px solid #5a9fd4;
+        padding: 20px;
+        margin-bottom: 30px;
+        border-radius: 8px;
+    }
+    
+    .info-box p {
+        color: #ccc;
+        margin-bottom: 10px;
+    }
+    
+    .info-box p:last-child {
+        margin-bottom: 0;
+    }
+    
+    .link-docs {
+        color: #5a9fd4;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .link-docs:hover {
+        text-decoration: underline;
+    }
+    
+    .settings-section {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .settings-section h3 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #5a9fd4;
+    }
+    
+    .settings-section p {
+        color: #ccc;
+        margin-bottom: 20px;
+    }
+    
+    .settings-form {
+        max-width: 500px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: #2a2a2a;
+        border: 2px solid #444;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 14px;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #5a9fd4;
+    }
+    
+    .form-hint {
+        display: block;
+        margin-top: 6px;
+        color: #888;
+        font-size: 12px;
+    }
+    
+    .message {
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        display: none;
+    }
+    
+    .message.success {
+        background: #1a4d2e;
+        color: #7cfc00;
+        border: 1px solid #2d7a4b;
+        display: block;
+    }
+    
+    .message.error {
+        background: #4d1a1a;
+        color: #ff6b6b;
+        border: 1px solid #7a2d2d;
+        display: block;
+    }
+    
+    .key-display {
+        margin-top: 30px;
+        padding: 20px;
+        background: #2a2a2a;
+        border: 2px solid #5a9fd4;
+        border-radius: 8px;
+    }
+    
+    .key-display.hidden {
+        display: none;
+    }
+    
+    .key-display h4 {
+        color: #ffcc00;
+        margin-bottom: 15px;
+    }
+    
+    .key-value-container {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .key-value {
+        flex: 1;
+        background: #1e1e1e;
+        padding: 12px;
+        border-radius: 6px;
+        color: #7cfc00;
+        font-family: monospace;
+        font-size: 14px;
+        word-break: break-all;
+    }
+    
+    .btn-copy {
+        padding: 10px 16px;
+        background: #5a9fd4;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    
+    .btn-copy:hover {
+        background: #4a7fb4;
+    }
+    
+    .warning-text {
+        color: #ffcc00;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .keys-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .key-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background: #2a2a2a;
+        border-radius: 8px;
+        border: 2px solid #444;
+    }
+    
+    .key-item.revoked {
+        opacity: 0.6;
+        border-color: #666;
+    }
+    
+    .key-info {
+        flex: 1;
+    }
+    
+    .key-name {
+        color: #fff;
+        font-weight: 600;
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+    
+    .key-details {
+        display: flex;
+        gap: 20px;
+        font-size: 13px;
+        color: #888;
+    }
+    
+    .key-status {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+    
+    .key-status.active {
+        background: #1a4d2e;
+        color: #7cfc00;
+    }
+    
+    .key-status.revoked {
+        background: #4d1a1a;
+        color: #ff6b6b;
+    }
+    
+    .no-keys {
+        color: #888;
+        font-style: italic;
+    }
+    
+    .btn-primary, .btn-secondary, .btn-revoke {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+        color: #fff;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(90, 159, 212, 0.4);
+    }
+    
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-secondary {
+        background: #444;
+        color: #fff;
+    }
+    
+    .btn-secondary:hover {
+        background: #555;
+    }
+    
+    .btn-revoke {
+        background: #d9534f;
+        color: #fff;
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+    
+    .btn-revoke:hover {
+        background: #c9302c;
+    }
+</style>
+
+<script>
+    document.getElementById('generate-key-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const form = e.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const messageDiv = document.getElementById('generate-message');
+        const keyDisplay = document.getElementById('new-key-display');
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Generating...';
+        
+        // Hide previous messages
+        messageDiv.className = 'message';
+        messageDiv.textContent = '';
+        keyDisplay.classList.add('hidden');
+        
+        try {
+            const formData = new FormData(form);
+            const response = await fetch('/settings/api-keys/generate', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show the new API key
+                document.getElementById('new-key-value').textContent = data.api_key;
+                keyDisplay.classList.remove('hidden');
+                form.reset();
+                
+                // Reload page after 10 seconds to show the new key in the list
+                setTimeout(() => {
+                    location.reload();
+                }, 10000);
+            } else {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = data.error || 'Failed to generate API key';
+            }
+        } catch (error) {
+            messageDiv.className = 'message error';
+            messageDiv.textContent = 'An error occurred. Please try again.';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Generate API Key';
+        }
+    });
+    
+    function copyKey() {
+        const keyValue = document.getElementById('new-key-value').textContent;
+        navigator.clipboard.writeText(keyValue).then(() => {
+            const copyBtn = event.target;
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✓ Copied!';
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 2000);
+        });
+    }
+    
+    async function revokeKey(keyId, keyName) {
+        if (!confirm(`Are you sure you want to revoke the API key "${keyName}"? This action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('key_id', keyId);
+            
+            const response = await fetch('/settings/api-keys/revoke', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to revoke API key: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('An error occurred. Please try again.');
+        }
+    }
+</script>
+{% endblock %}

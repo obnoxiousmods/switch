@@ -32,3 +32,19 @@ async def index(request: Request) -> Response:
             "pending_count": pending_count
         }
     )
+
+
+async def api_docs_page(request: Request) -> Response:
+    """API documentation page"""
+    # Check if system is initialized
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    return templates.TemplateResponse(
+        request,
+        "api_docs.html",
+        {
+            "title": "API Documentation",
+            "app_name": Config.get('app.name', 'Switch Game Repository')
+        }
+    )
