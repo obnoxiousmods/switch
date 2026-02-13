@@ -1154,3 +1154,81 @@ async def admin_upload_statistics(request: Request) -> Response:
             "overall_stats": overall_stats
         }
     )
+
+
+async def admin_migrate_passwords(request: Request) -> Response:
+    """Migrate all user passwords from SHA-256 to Argon2"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        # Get all users
+        users = await db.get_all_users()
+        
+        migrated_count = 0
+        already_migrated_count = 0
+        failed_count = 0
+        
+        for user_data in users:
+            user = User.from_dict(user_data)
+            password_hash = user.password_hash
+            
+            # Check if password needs migration (not Argon2)
+            if User.needs_rehash(password_hash):
+                # We can't migrate without the plain password, so we skip
+                # Migration will happen automatically when users log in
+                logger.info(f"User {user.username} password marked for migration on next login")
+                failed_count += 1
+            else:
+                already_migrated_count += 1
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Password migration status checked. {already_migrated_count} already using Argon2, {failed_count} will be migrated on next login.",
+            "already_migrated": already_migrated_count,
+            "pending_migration": failed_count
+        })
+    
+    except Exception as e:
+        logger.error(f"Error checking password migration status: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_password_migration_status(request: Request) -> Response:
+    """Get password migration status"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        users = await db.get_all_users()
+        
+        total_users = len(users)
+        argon2_count = 0
+        sha256_count = 0
+        
+        for user_data in users:
+            password_hash = user_data.get('password_hash', '')
+            if password_hash.startswith('$argon2'):
+                argon2_count += 1
+            else:
+                sha256_count += 1
+        
+        return JSONResponse({
+            "success": True,
+            "total_users": total_users,
+            "argon2_count": argon2_count,
+            "sha256_count": sha256_count,
+            "migration_percentage": round((argon2_count / total_users * 100) if total_users > 0 else 0, 2)
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting password migration status: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)

@@ -6,3 +6,6 @@ python-multipart
 python-arango-async
 aiofiles
 pyyaml
+argon2-cffi
+pyotp
+qrcode[pil]

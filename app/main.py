@@ -15,10 +15,10 @@ from app.routes.admin import (
     admin_users, admin_update_user_role, admin_force_password_change,
     admin_api_keys, admin_revoke_api_key, admin_user_api_usage,
     admin_audit_logs, admin_activity_logs, admin_storage_info,
-    admin_upload_statistics
+    admin_upload_statistics, admin_migrate_passwords, admin_password_migration_status
 )
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
-from app.routes.settings import settings_page, change_password, download_history_page
+from app.routes.settings import settings_page, change_password, download_history_page, totp_setup_page, totp_enable, totp_verify_and_enable, totp_disable
 from app.routes.api_keys import api_keys_page, generate_api_key, revoke_api_key, api_usage_page
 from app.routes.mod import (
     mod_dashboard, mod_requests, mod_approve_request, mod_reject_request,
@@ -56,6 +56,10 @@ routes = [
     Route("/settings", settings_page, methods=["GET"]),
     Route("/settings/change-password", change_password, methods=["POST"]),
     Route("/settings/download-history", download_history_page, methods=["GET"]),
+    Route("/settings/totp", totp_setup_page, methods=["GET"]),
+    Route("/settings/totp/enable", totp_enable, methods=["POST"]),
+    Route("/settings/totp/verify", totp_verify_and_enable, methods=["POST"]),
+    Route("/settings/totp/disable", totp_disable, methods=["POST"]),
     Route("/settings/api-keys", api_keys_page, methods=["GET"]),
     Route("/settings/api-keys/generate", generate_api_key, methods=["POST"]),
     Route("/settings/api-keys/revoke", revoke_api_key, methods=["POST"]),
@@ -92,6 +96,8 @@ routes = [
     Route("/admincp/activity-logs", admin_activity_logs, methods=["GET"]),
     Route("/admincp/storage-info", admin_storage_info, methods=["GET"]),
     Route("/admincp/upload-statistics", admin_upload_statistics, methods=["GET"]),
+    Route("/admincp/password-migration/status", admin_password_migration_status, methods=["GET"]),
+    Route("/admincp/password-migration/migrate", admin_migrate_passwords, methods=["POST"]),
     Mount("/static", StaticFiles(directory="static"), name="static"),
 ]
 

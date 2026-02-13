@@ -349,6 +349,18 @@ class Database:
             logger.error(f"Error updating password: {e}")
             return False
 
+    async def update_user_totp(self, user_id: str, totp_secret: Optional[str], totp_enabled: bool) -> bool:
+        """Update a user's TOTP settings"""
+        try:
+            await self.users_collection.update(
+                {"_key": user_id}, {"totp_secret": totp_secret, "totp_enabled": totp_enabled}
+            )
+            logger.info(f"Updated TOTP settings for user: {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating TOTP settings: {e}")
+            return False
+
     async def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get a user by ID"""
         try:
