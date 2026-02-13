@@ -6,6 +6,15 @@ from app.database import db
 
 async def list_entries(request: Request):
     """API endpoint to list all entries"""
+    # Require authentication - either session or API key
+    has_session = request.session.get('user_id') is not None
+    has_api_auth = getattr(request.state, 'authenticated', False)
+    
+    if not has_session and not has_api_auth:
+        return JSONResponse({
+            "error": "Authentication required. Please log in or use an API key."
+        }, status_code=401)
+    
     try:
         entries = await db.get_all_entries()
         return JSONResponse({
@@ -18,6 +27,15 @@ async def list_entries(request: Request):
 
 async def download_entry(request: Request):
     """API endpoint to download an entry"""
+    # Require authentication - either session or API key
+    has_session = request.session.get('user_id') is not None
+    has_api_auth = getattr(request.state, 'authenticated', False)
+    
+    if not has_session and not has_api_auth:
+        return JSONResponse({
+            "error": "Authentication required. Please log in or use an API key."
+        }, status_code=401)
+    
     try:
         entry_id = request.path_params.get('entry_id')
         
@@ -29,10 +47,18 @@ async def download_entry(request: Request):
                 "error": "Entry not found"
             }, status_code=404)
         
-        # Track download if user is logged in
+        # Track download if user is logged in (session-based)
         user_id = request.session.get('user_id')
         username = request.session.get('username')
         ip_address = request.client.host if request.client else 'unknown'
+        
+        # For API key authentication, use the authenticated user_id
+        if not user_id and has_api_auth:
+            user_id = request.state.user_id
+            # Get username from database for API key users
+            user_doc = await db.get_user_by_id(user_id)
+            if user_doc:
+                username = user_doc.get('username', 'api_user')
         
         if user_id:
             await db.add_download_history(

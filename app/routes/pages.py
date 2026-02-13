@@ -22,7 +22,7 @@ async def index(request: Request) -> Response:
         # Get pending requests count for mods (efficient count query)
         pending_count = await db.count_requests(status='pending')
     
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "index.html",
         {
@@ -32,6 +32,13 @@ async def index(request: Request) -> Response:
             "pending_count": pending_count
         }
     )
+    
+    # Add header to deter automated API usage of the homepage
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    
+    return response
 
 
 async def api_docs_page(request: Request) -> Response:
