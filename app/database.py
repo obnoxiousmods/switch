@@ -395,6 +395,27 @@ class Database:
             logger.error(f"Error fetching requests: {e}")
             return []
 
+    async def count_requests(self, status: Optional[str] = None) -> int:
+        """Count requests, optionally filtered by status"""
+        try:
+            if status:
+                cursor = await self.db.aql.execute(
+                    "FOR doc IN requests FILTER doc.status == @status COLLECT WITH COUNT INTO length RETURN length",
+                    bind_vars={"status": status},
+                )
+            else:
+                cursor = await self.db.aql.execute(
+                    "FOR doc IN requests COLLECT WITH COUNT INTO length RETURN length"
+                )
+
+            async with cursor:
+                async for count in cursor:
+                    return count
+            return 0
+        except Exception as e:
+            logger.error(f"Error counting requests: {e}")
+            return 0
+
     async def get_request_by_id(self, request_id: str) -> Optional[Dict[str, Any]]:
         """Get a single request by ID"""
         try:
