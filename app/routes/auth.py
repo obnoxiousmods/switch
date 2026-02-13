@@ -60,6 +60,7 @@ async def login_submit(request: Request) -> Response:
         request.session['user_id'] = user._key
         request.session['username'] = user.username
         request.session['is_admin'] = user.is_admin
+        request.session['is_moderator'] = user.is_moderator
         
         logger.info(f"User logged in: {username}")
         return JSONResponse({"success": True, "redirect": "/"})
@@ -146,6 +147,7 @@ async def register_submit(request: Request) -> Response:
         request.session['user_id'] = user_id
         request.session['username'] = username
         request.session['is_admin'] = False
+        request.session['is_moderator'] = False
         
         logger.info(f"New user registered: {username}")
         return JSONResponse({"success": True, "redirect": "/"})

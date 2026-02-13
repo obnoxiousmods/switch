@@ -579,3 +579,91 @@ async def scan_directory_for_files(directory_path: str, username: str, max_depth
             logger.error(f"Error processing file {file_path}: {e}")
     
     return added_count, skipped_count
+
+
+async def admin_users(request: Request) -> Response:
+    """User management page"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id'):
+        return RedirectResponse(url="/login", status_code=303)
+    
+    if not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Access Denied",
+                "error_message": "You do not have permission to access the admin dashboard.",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get all users
+    users = await db.get_all_users()
+    
+    # Don't show password hashes in the template
+    for user in users:
+        user.pop('password_hash', None)
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/users.html",
+        {
+            "title": "User Management",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "users": users,
+        }
+    )
+
+
+async def admin_update_user_role(request: Request) -> Response:
+    """Update a user's role (admin or moderator status)"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        user_id = form_data.get('user_id', '').strip()
+        role = form_data.get('role', '').strip()
+        action = form_data.get('action', '').strip()  # 'grant' or 'revoke'
+        
+        if not user_id or not role or not action:
+            return JSONResponse({"success": False, "error": "Missing required fields"}, status_code=400)
+        
+        if role not in ['admin', 'moderator']:
+            return JSONResponse({"success": False, "error": "Invalid role"}, status_code=400)
+        
+        if action not in ['grant', 'revoke']:
+            return JSONResponse({"success": False, "error": "Invalid action"}, status_code=400)
+        
+        # Don't allow admin to remove their own admin status
+        current_user_id = request.session.get('user_id')
+        if user_id == current_user_id and role == 'admin' and action == 'revoke':
+            return JSONResponse({"success": False, "error": "You cannot revoke your own admin status"}, status_code=400)
+        
+        # Update the user's status
+        new_status = (action == 'grant')
+        if role == 'admin':
+            success = await db.update_user_admin_status(user_id, new_status)
+        else:  # moderator
+            success = await db.update_user_moderator_status(user_id, new_status)
+        
+        if not success:
+            return JSONResponse({"success": False, "error": "Failed to update user role"}, status_code=500)
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Successfully {action}ed {role} status"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error updating user role: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)

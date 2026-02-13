@@ -11,10 +11,15 @@ from app.routes.api import list_entries, download_entry
 from app.routes.admin import (
     admin_init_page, admin_init_submit, admin_dashboard,
     admin_directories, admin_add_directory, admin_delete_directory,
-    admin_scan_directory, admin_clear_entries, admin_rescan_all
+    admin_scan_directory, admin_clear_entries, admin_rescan_all,
+    admin_users, admin_update_user_role
 )
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
 from app.routes.settings import settings_page, change_password, download_history_page
+from app.routes.mod import (
+    mod_dashboard, mod_requests, mod_approve_request, mod_reject_request,
+    user_submit_request, user_requests_page
+)
 from app.database import db
 from app.config import Config
 
@@ -41,6 +46,12 @@ routes = [
     Route("/settings", settings_page, methods=["GET"]),
     Route("/settings/change-password", change_password, methods=["POST"]),
     Route("/settings/download-history", download_history_page, methods=["GET"]),
+    Route("/requests", user_requests_page, methods=["GET"]),
+    Route("/requests/submit", user_submit_request, methods=["POST"]),
+    Route("/modcp", mod_dashboard),
+    Route("/modcp/requests", mod_requests, methods=["GET"]),
+    Route("/modcp/requests/approve", mod_approve_request, methods=["POST"]),
+    Route("/modcp/requests/reject", mod_reject_request, methods=["POST"]),
     Route("/admincp/init", admin_init_page, methods=["GET"]),
     Route("/admincp/init", admin_init_submit, methods=["POST"]),
     Route("/admincp", admin_dashboard),
@@ -50,6 +61,8 @@ routes = [
     Route("/admincp/directories/scan", admin_scan_directory, methods=["POST"]),
     Route("/admincp/directories/clear", admin_clear_entries, methods=["POST"]),
     Route("/admincp/directories/rescan", admin_rescan_all, methods=["POST"]),
+    Route("/admincp/users", admin_users, methods=["GET"]),
+    Route("/admincp/users/update-role", admin_update_user_role, methods=["POST"]),
     Mount("/static", StaticFiles(directory="static"), name="static"),
 ]
 
