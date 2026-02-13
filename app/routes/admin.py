@@ -659,6 +659,29 @@ async def admin_update_user_role(request: Request) -> Response:
         if not success:
             return JSONResponse({"success": False, "error": "Failed to update user role"}, status_code=500)
         
+        # Get target user info for logging
+        target_user = await db.get_user_by_id(user_id)
+        target_username = target_user.get('username', 'unknown') if target_user else 'unknown'
+        
+        # Log the action to audit log
+        actor_id = request.session.get('user_id')
+        actor_username = request.session.get('username', 'unknown')
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': f'role_{action}ed',
+            'actor_id': actor_id,
+            'actor_username': actor_username,
+            'target_id': user_id,
+            'target_username': target_username,
+            'details': {
+                'role': role,
+                'action': action,
+                'new_status': new_status
+            },
+            'ip_address': ip_address
+        })
+        
         return JSONResponse({
             "success": True,
             "message": f"Successfully {action}ed {role} status"
@@ -666,6 +689,70 @@ async def admin_update_user_role(request: Request) -> Response:
     
     except Exception as e:
         logger.error(f"Error updating user role: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_force_password_change(request: Request) -> Response:
+    """Force change a user's password"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        user_id = form_data.get('user_id', '').strip()
+        new_password = form_data.get('new_password', '').strip()
+        
+        if not user_id or not new_password:
+            return JSONResponse({"success": False, "error": "Missing required fields"}, status_code=400)
+        
+        # Validate password length (minimum 6 characters to match registration)
+        if len(new_password) < 6:
+            return JSONResponse({"success": False, "error": "Password must be at least 6 characters"}, status_code=400)
+        
+        # Get target user info for logging
+        target_user = await db.get_user_by_id(user_id)
+        if not target_user:
+            return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+        
+        # Update the password
+        new_password_hash = User.hash_password(new_password)
+        success = await db.update_user_password(user_id, new_password_hash)
+        
+        if not success:
+            return JSONResponse({"success": False, "error": "Failed to update password"}, status_code=500)
+        
+        # Log the action to audit log
+        actor_id = request.session.get('user_id')
+        actor_username = request.session.get('username', 'unknown')
+        target_username = target_user.get('username', 'unknown')
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': 'password_force_changed',
+            'actor_id': actor_id,
+            'actor_username': actor_username,
+            'target_id': user_id,
+            'target_username': target_username,
+            'details': {
+                'changed_by': 'admin',
+                'reason': 'Force password change from admin panel'
+            },
+            'ip_address': ip_address
+        })
+        
+        logger.info(f"Admin {actor_username} force-changed password for user {target_username}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Successfully changed password for user {target_username}"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error force-changing password: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 

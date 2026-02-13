@@ -7,6 +7,7 @@ from starlette.templating import Jinja2Templates
 from app.config import Config
 from app.database import db
 from app.models.request import Request as UserRequest, RequestStatus, RequestType
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -183,6 +184,77 @@ async def mod_reject_request(request: Request) -> Response:
     
     except Exception as e:
         logger.error(f"Error rejecting request: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def mod_force_password_change(request: Request) -> Response:
+    """Force change a user's password (moderator version)"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is moderator or admin
+    user_id = request.session.get('user_id')
+    username = request.session.get('username')
+    is_mod = request.session.get('is_moderator', False)
+    is_admin = request.session.get('is_admin', False)
+    
+    if not user_id or not (is_mod or is_admin):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        target_user_id = form_data.get('user_id', '').strip()
+        new_password = form_data.get('new_password', '').strip()
+        
+        if not target_user_id or not new_password:
+            return JSONResponse({"success": False, "error": "Missing required fields"}, status_code=400)
+        
+        # Validate password length (minimum 6 characters to match registration)
+        if len(new_password) < 6:
+            return JSONResponse({"success": False, "error": "Password must be at least 6 characters"}, status_code=400)
+        
+        # Get target user info for logging
+        target_user = await db.get_user_by_id(target_user_id)
+        if not target_user:
+            return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+        
+        # Moderators cannot change admin passwords
+        if not is_admin and target_user.get('is_admin', False):
+            return JSONResponse({"success": False, "error": "Moderators cannot change admin passwords"}, status_code=403)
+        
+        # Update the password
+        new_password_hash = User.hash_password(new_password)
+        success = await db.update_user_password(target_user_id, new_password_hash)
+        
+        if not success:
+            return JSONResponse({"success": False, "error": "Failed to update password"}, status_code=500)
+        
+        # Log the action to audit log
+        target_username = target_user.get('username', 'unknown')
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': 'password_force_changed',
+            'actor_id': user_id,
+            'actor_username': username,
+            'target_id': target_user_id,
+            'target_username': target_username,
+            'details': {
+                'changed_by': 'admin' if is_admin else 'moderator',
+                'reason': 'Force password change from moderator panel'
+            },
+            'ip_address': ip_address
+        })
+        
+        logger.info(f"{'Admin' if is_admin else 'Moderator'} {username} force-changed password for user {target_username}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Successfully changed password for user {target_username}"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error force-changing password: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 

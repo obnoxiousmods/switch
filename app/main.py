@@ -12,7 +12,7 @@ from app.routes.admin import (
     admin_init_page, admin_init_submit, admin_dashboard,
     admin_directories, admin_add_directory, admin_delete_directory,
     admin_scan_directory, admin_clear_entries, admin_rescan_all,
-    admin_users, admin_update_user_role,
+    admin_users, admin_update_user_role, admin_force_password_change,
     admin_api_keys, admin_revoke_api_key, admin_user_api_usage
 )
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
@@ -20,7 +20,7 @@ from app.routes.settings import settings_page, change_password, download_history
 from app.routes.api_keys import api_keys_page, generate_api_key, revoke_api_key, api_usage_page
 from app.routes.mod import (
     mod_dashboard, mod_requests, mod_approve_request, mod_reject_request,
-    user_submit_request, user_requests_page
+    mod_force_password_change, user_submit_request, user_requests_page
 )
 from app.database import db
 from app.config import Config
@@ -60,6 +60,7 @@ routes = [
     Route("/modcp/requests", mod_requests, methods=["GET"]),
     Route("/modcp/requests/approve", mod_approve_request, methods=["POST"]),
     Route("/modcp/requests/reject", mod_reject_request, methods=["POST"]),
+    Route("/modcp/users/force-change-password", mod_force_password_change, methods=["POST"]),
     Route("/admincp/init", admin_init_page, methods=["GET"]),
     Route("/admincp/init", admin_init_submit, methods=["POST"]),
     Route("/admincp", admin_dashboard),
@@ -71,6 +72,7 @@ routes = [
     Route("/admincp/directories/rescan", admin_rescan_all, methods=["POST"]),
     Route("/admincp/users", admin_users, methods=["GET"]),
     Route("/admincp/users/update-role", admin_update_user_role, methods=["POST"]),
+    Route("/admincp/users/force-change-password", admin_force_password_change, methods=["POST"]),
     Route("/admincp/api-keys", admin_api_keys, methods=["GET"]),
     Route("/admincp/api-keys/revoke", admin_revoke_api_key, methods=["POST"]),
     Route("/admincp/api-usage", admin_user_api_usage, methods=["GET"]),

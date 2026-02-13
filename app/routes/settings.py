@@ -89,6 +89,23 @@ async def change_password(request: Request) -> Response:
                 status_code=500
             )
         
+        # Log the password change to audit log
+        username = request.session.get('username', user.username)
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': 'password_changed',
+            'actor_id': user_id,
+            'actor_username': username,
+            'target_id': user_id,
+            'target_username': username,
+            'details': {
+                'changed_by': 'self',
+                'reason': 'User changed own password'
+            },
+            'ip_address': ip_address
+        })
+        
         logger.info(f"Password changed for user: {user.username}")
         return JSONResponse({"success": True, "message": "Password changed successfully"})
         
