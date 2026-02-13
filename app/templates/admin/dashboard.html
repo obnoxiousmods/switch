@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-dashboard">
+        <div class="admin-header">
+            <h2>⚙️ Admin Control Panel</h2>
+            <p class="admin-subtitle">Manage your {{ app_name }} instance</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <div class="card-icon">🎮</div>
+                <h3>Go to Main Site</h3>
+                <p>View the public game repository interface</p>
+                <a href="/" class="card-link">Visit Site →</a>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-icon">💾</div>
+                <h3>Database Status</h3>
+                <p><strong>Host:</strong> {{ db_host }}</p>
+                <p><strong>Database:</strong> {{ db_name }}</p>
+                <div class="status-badge status-connected">Connected</div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-icon">📊</div>
+                <h3>System Info</h3>
+                <p><strong>Site Name:</strong> {{ app_name }}</p>
+                <p><strong>Status:</strong> Initialized</p>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-icon">📝</div>
+                <h3>Configuration</h3>
+                <p>Configuration is stored in config.yaml</p>
+                <p class="card-note">Edit the file directly to update settings</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-dashboard {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.admin-header {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.admin-header h2 {
+    color: #fff;
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.admin-subtitle {
+    color: #999;
+    font-size: 18px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin-top: 30px;
+}
+
+.dashboard-card {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.card-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.dashboard-card h3 {
+    color: #fff;
+    font-size: 22px;
+    margin-bottom: 15px;
+}
+
+.dashboard-card p {
+    color: #aaa;
+    font-size: 14px;
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+.dashboard-card p strong {
+    color: #ccc;
+}
+
+.card-link {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: transform 0.2s;
+}
+
+.card-link:hover {
+    transform: translateX(5px);
+}
+
+.card-note {
+    font-size: 12px;
+    color: #777;
+    font-style: italic;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+.status-connected {
+    background: #44ff44;
+    color: #000;
+}
+</style>
+{% endblock %}

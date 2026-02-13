@@ -157,6 +157,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Configuration file with sensitive data
+app/config.yaml
+
 # Spyder project settings
 .spyderproject
 .spyproject
