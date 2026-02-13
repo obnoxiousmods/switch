@@ -6,6 +6,7 @@ from starlette.templating import Jinja2Templates
 from app.config import Config
 from app.database import db
 from app.models.user import User
+from app.utils.ip_utils import get_ip_info, format_ip_for_log
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -89,11 +90,11 @@ async def change_password(request: Request) -> Response:
                 status_code=500
             )
         
-        # Log the password change to audit log
+        # Log the password change to audit log with IP information
         username = request.session.get('username', user.username)
-        ip_address = request.client.host if request.client else 'unknown'
+        ip_info = get_ip_info(request)
         
-        await db.add_audit_log({
+        audit_data = {
             'action': 'password_changed',
             'actor_id': user_id,
             'actor_username': username,
@@ -103,10 +104,15 @@ async def change_password(request: Request) -> Response:
                 'changed_by': 'self',
                 'reason': 'User changed own password'
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            audit_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"Password changed for user: {user.username}")
+        await db.add_audit_log(audit_data)
+        
+        logger.info(f"Password changed for user: {user.username} from {format_ip_for_log(request)}")
         return JSONResponse({"success": True, "message": "Password changed successfully"})
         
     except Exception as e:
@@ -305,11 +311,11 @@ async def totp_verify_and_enable(request: Request) -> Response:
         # Enable TOTP for the user
         await db.update_user_totp(user_id, user.totp_secret, True)
         
-        # Log the TOTP enablement
+        # Log the TOTP enablement with IP information
         username = request.session.get('username', user.username)
-        ip_address = request.client.host if request.client else 'unknown'
+        ip_info = get_ip_info(request)
         
-        await db.add_audit_log({
+        audit_data = {
             'action': 'totp_enabled',
             'actor_id': user_id,
             'actor_username': username,
@@ -318,10 +324,15 @@ async def totp_verify_and_enable(request: Request) -> Response:
             'details': {
                 'message': 'Two-factor authentication enabled'
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            audit_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"TOTP enabled for user: {user.username}")
+        await db.add_audit_log(audit_data)
+        
+        logger.info(f"TOTP enabled for user: {user.username} from {format_ip_for_log(request)}")
         return JSONResponse({"success": True, "message": "Two-factor authentication enabled successfully"})
         
     except Exception as e:
@@ -384,11 +395,11 @@ async def totp_disable(request: Request) -> Response:
         # Disable TOTP
         await db.update_user_totp(user_id, None, False)
         
-        # Log the TOTP disablement
+        # Log the TOTP disablement with IP information
         username = request.session.get('username', user.username)
-        ip_address = request.client.host if request.client else 'unknown'
+        ip_info = get_ip_info(request)
         
-        await db.add_audit_log({
+        audit_data = {
             'action': 'totp_disabled',
             'actor_id': user_id,
             'actor_username': username,
@@ -397,10 +408,15 @@ async def totp_disable(request: Request) -> Response:
             'details': {
                 'message': 'Two-factor authentication disabled'
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            audit_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"TOTP disabled for user: {user.username}")
+        await db.add_audit_log(audit_data)
+        
+        logger.info(f"TOTP disabled for user: {user.username} from {format_ip_for_log(request)}")
         return JSONResponse({"success": True, "message": "Two-factor authentication disabled successfully"})
         
     except Exception as e:

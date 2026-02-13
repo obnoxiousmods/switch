@@ -5,6 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import db
 from app.models.api_key import ApiKey
+from app.utils.ip_utils import get_ip_info, format_ip_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +85,8 @@ class APIAuthMiddleware(BaseHTTPMiddleware):
     async def log_api_usage(self, request: Request, response):
         """Log API usage to database"""
         try:
-            # Get IP address
-            ip_address = request.client.host if request.client else 'unknown'
+            # Get IP information (includes Cloudflare headers)
+            ip_info = get_ip_info(request)
             
             # Prepare usage data
             usage_data = {
@@ -94,11 +95,19 @@ class APIAuthMiddleware(BaseHTTPMiddleware):
                 'endpoint': request.url.path,
                 'method': request.method,
                 'status_code': response.status_code,
-                'ip_address': ip_address
+                'ip_address': ip_info['ip_address'],
+                'client_ip': ip_info['client_ip']
             }
+            
+            # Add forwarded IP if present
+            if 'forwarded_ip' in ip_info:
+                usage_data['forwarded_ip'] = ip_info['forwarded_ip']
             
             # Log to database (async, fire and forget)
             await db.log_api_usage(usage_data)
+            
+            # Log to application logs with formatted IP
+            logger.info(f"API usage: {request.method} {request.url.path} from {format_ip_for_log(request)} - Status: {response.status_code}")
             
         except Exception as e:
             logger.error(f"Error logging API usage: {e}")

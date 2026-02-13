@@ -11,6 +11,7 @@ from app.config import Config
 from app.database import db
 from app.models.user import User
 from app.models.entry import FileType
+from app.utils.ip_utils import get_ip_info, format_ip_for_log
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -665,12 +666,12 @@ async def admin_update_user_role(request: Request) -> Response:
         target_user = await db.get_user_by_id(user_id)
         target_username = target_user.get('username', 'unknown') if target_user else 'unknown'
         
-        # Log the action to audit log
+        # Log the action to audit log with IP information
         actor_id = request.session.get('user_id')
         actor_username = request.session.get('username', 'unknown')
-        ip_address = request.client.host if request.client else 'unknown'
+        ip_info = get_ip_info(request)
         
-        await db.add_audit_log({
+        audit_data = {
             'action': f'role_{action}ed',
             'actor_id': actor_id,
             'actor_username': actor_username,
@@ -681,8 +682,15 @@ async def admin_update_user_role(request: Request) -> Response:
                 'action': action,
                 'new_status': new_status
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            audit_data['forwarded_ip'] = ip_info['forwarded_ip']
+        
+        await db.add_audit_log(audit_data)
+        
+        logger.info(f"Role {action}ed for user {target_username}: {role} from {format_ip_for_log(request)}")
         
         return JSONResponse({
             "success": True,
@@ -727,13 +735,13 @@ async def admin_force_password_change(request: Request) -> Response:
         if not success:
             return JSONResponse({"success": False, "error": "Failed to update password"}, status_code=500)
         
-        # Log the action to audit log
+        # Log the action to audit log with IP information
         actor_id = request.session.get('user_id')
         actor_username = request.session.get('username', 'unknown')
         target_username = target_user.get('username', 'unknown')
-        ip_address = request.client.host if request.client else 'unknown'
+        ip_info = get_ip_info(request)
         
-        await db.add_audit_log({
+        audit_data = {
             'action': 'password_force_changed',
             'actor_id': actor_id,
             'actor_username': actor_username,
@@ -743,10 +751,15 @@ async def admin_force_password_change(request: Request) -> Response:
                 'changed_by': 'admin',
                 'reason': 'Force password change from admin panel'
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            audit_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"Admin {actor_username} force-changed password for user {target_username}")
+        await db.add_audit_log(audit_data)
+        
+        logger.info(f"Password force changed for user: {target_username} by {actor_username} from {format_ip_for_log(request)}")
         
         return JSONResponse({
             "success": True,

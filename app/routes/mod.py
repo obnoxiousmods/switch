@@ -8,6 +8,7 @@ from app.config import Config
 from app.database import db
 from app.models.request import Request as UserRequest, RequestStatus, RequestType
 from app.models.user import User
+from app.utils.ip_utils import get_ip_info, format_ip_for_log
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -229,11 +230,11 @@ async def mod_force_password_change(request: Request) -> Response:
         if not success:
             return JSONResponse({"success": False, "error": "Failed to update password"}, status_code=500)
         
-        # Log the action to audit log
+        # Log the action to audit log with IP information
         target_username = target_user.get('username', 'unknown')
-        ip_address = request.client.host if request.client else 'unknown'
+        ip_info = get_ip_info(request)
         
-        await db.add_audit_log({
+        audit_data = {
             'action': 'password_force_changed',
             'actor_id': user_id,
             'actor_username': username,
@@ -243,10 +244,15 @@ async def mod_force_password_change(request: Request) -> Response:
                 'changed_by': 'admin' if is_admin else 'moderator',
                 'reason': 'Force password change from moderator panel'
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            audit_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"{'Admin' if is_admin else 'Moderator'} {username} force-changed password for user {target_username}")
+        await db.add_audit_log(audit_data)
+        
+        logger.info(f"{'Admin' if is_admin else 'Moderator'} {username} force-changed password for user {target_username} from {format_ip_for_log(request)}")
         
         return JSONResponse({
             "success": True,
