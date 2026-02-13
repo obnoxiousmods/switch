@@ -83,7 +83,14 @@ This script will:
 - Create the `entries` collection
 - Populate the database with 10 sample game entries
 
-**Note:** The script uses `root:root` as default credentials. If your ArangoDB uses different credentials, edit the `init_db.py` file or set up environment variables.
+**Note:** The script uses `root:root` as default credentials. If your ArangoDB uses different credentials, you can override them using environment variables:
+
+```bash
+# Example with custom credentials
+export ARANGODB_USERNAME=myuser
+export ARANGODB_PASSWORD=mypassword
+python init_db.py
+```
 
 ### 6. Run the application
 

@@ -10,19 +10,27 @@ Usage:
 
 Default credentials: root:root
 Database name: switch_db
+
+Environment Variables (optional):
+    ARANGODB_HOST - ArangoDB host (default: localhost)
+    ARANGODB_PORT - ArangoDB port (default: 8529)
+    ARANGODB_USERNAME - Database username (default: root)
+    ARANGODB_PASSWORD - Database password (default: root)
+    ARANGODB_DATABASE - Database name (default: switch_db)
 """
 
 import sys
-from datetime import datetime, timedelta
+import os
+from datetime import datetime, timedelta, timezone
 from arango import ArangoClient
 from arango.exceptions import DatabaseCreateError, CollectionCreateError
 
-# Configuration
-ARANGODB_HOST = "localhost"
-ARANGODB_PORT = 8529
-ARANGODB_USERNAME = "root"
-ARANGODB_PASSWORD = "root"
-ARANGODB_DATABASE = "switch_db"
+# Configuration - can be overridden with environment variables
+ARANGODB_HOST = os.getenv("ARANGODB_HOST", "localhost")
+ARANGODB_PORT = int(os.getenv("ARANGODB_PORT", "8529"))
+ARANGODB_USERNAME = os.getenv("ARANGODB_USERNAME", "root")
+ARANGODB_PASSWORD = os.getenv("ARANGODB_PASSWORD", "root")
+ARANGODB_DATABASE = os.getenv("ARANGODB_DATABASE", "switch_db")
 
 # Sample game data to populate the database
 SAMPLE_GAMES = [
@@ -269,7 +277,7 @@ def init_database():
     print()
     
     inserted_count = 0
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     
     for i, game in enumerate(SAMPLE_GAMES):
         # Add timestamp (stagger the created_at times)
