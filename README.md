@@ -70,7 +70,22 @@ SECRET_KEY=your-secret-key-here
 DEBUG=true
 ```
 
-### 5. Run the application
+### 5. Initialize the database
+
+Run the database initialization script to create the database and populate it with sample data:
+
+```bash
+python init_db.py
+```
+
+This script will:
+- Create the `switch_db` database (default credentials: `root:root`)
+- Create the `entries` collection
+- Populate the database with 10 sample game entries
+
+**Note:** The script uses `root:root` as default credentials. If your ArangoDB uses different credentials, edit the `init_db.py` file or set up environment variables.
+
+### 6. Run the application
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -158,7 +173,19 @@ The `entries` collection in ArangoDB uses the following schema:
 
 ## Adding Sample Data
 
-You can add sample entries using the Python shell:
+### Quick Setup with init_db.py
+
+The easiest way to populate your database is to use the provided initialization script:
+
+```bash
+python init_db.py
+```
+
+This will automatically create the database and add 10 sample game entries.
+
+### Manual Entry via Python Shell
+
+Alternatively, you can add sample entries manually using the Python shell:
 
 ```python
 from app.database import db
