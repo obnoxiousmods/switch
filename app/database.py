@@ -19,6 +19,7 @@ class Database:
         self.entries_collection: Optional[StandardCollection] = None
         self.users_collection: Optional[StandardCollection] = None
         self.directories_collection: Optional[StandardCollection] = None
+        self.download_history_collection: Optional[StandardCollection] = None
     
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -63,6 +64,13 @@ class Database:
                 logger.info("Created collection: directories")
             else:
                 self.directories_collection = self.db.collection('directories')
+            
+            # Create download_history collection if it doesn't exist
+            if not await self.db.has_collection('download_history'):
+                self.download_history_collection = await self.db.create_collection('download_history')
+                logger.info("Created collection: download_history")
+            else:
+                self.download_history_collection = self.db.collection('download_history')
             
             logger.info("Successfully connected to ArangoDB")
             
@@ -268,6 +276,67 @@ class Database:
         except Exception as e:
             logger.error(f"Error checking entry existence: {e}")
             return False
+    
+    # User settings methods
+    async def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
+        """Update a user's password"""
+        try:
+            await self.users_collection.update(
+                {'_key': user_id},
+                {'password_hash': new_password_hash}
+            )
+            logger.info(f"Updated password for user: {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating password: {e}")
+            return False
+    
+    async def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get a user by ID"""
+        try:
+            doc = await self.users_collection.get(user_id)
+            return doc
+        except Exception as e:
+            logger.error(f"Error fetching user by ID: {e}")
+            return None
+    
+    # Download history methods
+    async def add_download_history(self, user_id: str, entry_id: str, entry_name: str) -> Optional[str]:
+        """Add a download history record"""
+        try:
+            download_data = {
+                'user_id': user_id,
+                'entry_id': entry_id,
+                'entry_name': entry_name,
+                'downloaded_at': datetime.utcnow().isoformat()
+            }
+            result = await self.download_history_collection.insert(download_data)
+            logger.info(f"Added download history for user {user_id}, entry {entry_id}")
+            return result['_key']
+        except Exception as e:
+            logger.error(f"Error adding download history: {e}")
+            return None
+    
+    async def get_user_download_history(self, user_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get download history for a user"""
+        try:
+            cursor = await self.db.aql.execute(
+                'FOR doc IN download_history FILTER doc.user_id == @user_id SORT doc.downloaded_at DESC LIMIT @limit RETURN doc',
+                bind_vars={'user_id': user_id, 'limit': limit}
+            )
+            history = []
+            async with cursor:
+                async for doc in cursor:
+                    history.append({
+                        'id': doc.get('_key'),
+                        'entry_id': doc.get('entry_id'),
+                        'entry_name': doc.get('entry_name'),
+                        'downloaded_at': doc.get('downloaded_at')
+                    })
+            return history
+        except Exception as e:
+            logger.error(f"Error fetching download history: {e}")
+            return []
 
 # Global database instance
 db = Database()

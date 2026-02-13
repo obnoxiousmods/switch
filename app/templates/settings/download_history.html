@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="history-container">
+        <div class="history-header">
+            <h2>📥 Download History</h2>
+            <a href="/settings" class="btn-back">← Back to Settings</a>
+        </div>
+        
+        {% if history %}
+            <div class="history-list">
+                {% for item in history %}
+                    <div class="history-item">
+                        <div class="history-info">
+                            <div class="history-name">{{ item.entry_name }}</div>
+                            <div class="history-date">
+                                Downloaded on {{ item.downloaded_at[:10] }} at {{ item.downloaded_at[11:19] }} UTC
+                            </div>
+                        </div>
+                        <div class="history-actions">
+                            <a href="/api/download/{{ item.entry_id }}" class="btn-download">Download Again</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-history">
+                <p>📭 No download history yet.</p>
+                <p>Your downloads will appear here once you start downloading files.</p>
+                <a href="/" class="btn-browse">Browse Games</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .history-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .history-header h2 {
+        font-size: 32px;
+        color: #fff;
+        margin: 0;
+    }
+    
+    .btn-back {
+        padding: 10px 20px;
+        background: #444;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .btn-back:hover {
+        background: #555;
+    }
+    
+    .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .history-item {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .history-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    }
+    
+    .history-info {
+        flex: 1;
+    }
+    
+    .history-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 8px;
+    }
+    
+    .history-date {
+        font-size: 14px;
+        color: #888;
+    }
+    
+    .history-actions {
+        margin-left: 20px;
+    }
+    
+    .btn-download {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+    
+    .btn-download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(90, 159, 212, 0.4);
+    }
+    
+    .no-history {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 60px 40px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .no-history p {
+        font-size: 18px;
+        color: #888;
+        margin-bottom: 12px;
+    }
+    
+    .no-history p:first-child {
+        font-size: 24px;
+        color: #fff;
+        margin-bottom: 16px;
+    }
+    
+    .btn-browse {
+        display: inline-block;
+        margin-top: 24px;
+        padding: 12px 32px;
+        background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.2s;
+    }
+    
+    .btn-browse:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(90, 159, 212, 0.4);
+    }
+    
+    @media (max-width: 768px) {
+        .history-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        
+        .history-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        
+        .history-actions {
+            margin-left: 0;
+            width: 100%;
+        }
+        
+        .btn-download {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}

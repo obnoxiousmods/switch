@@ -14,6 +14,7 @@ from app.routes.admin import (
     admin_scan_directory, admin_clear_entries, admin_rescan_all
 )
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
+from app.routes.settings import settings_page, change_password, download_history_page
 from app.database import db
 from app.config import Config
 
@@ -37,6 +38,9 @@ routes = [
     Route("/register", register_page, methods=["GET"]),
     Route("/register", register_submit, methods=["POST"]),
     Route("/logout", logout, methods=["GET"]),
+    Route("/settings", settings_page, methods=["GET"]),
+    Route("/settings/change-password", change_password, methods=["POST"]),
+    Route("/settings/download-history", download_history_page, methods=["GET"]),
     Route("/admincp/init", admin_init_page, methods=["GET"]),
     Route("/admincp/init", admin_init_submit, methods=["POST"]),
     Route("/admincp", admin_dashboard),
