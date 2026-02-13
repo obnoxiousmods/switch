@@ -47,14 +47,14 @@ class Database:
                 self.entries_collection = await self.db.create_collection('entries')
                 logger.info("Created collection: entries")
             else:
-                self.entries_collection = await self.db.collection('entries')
+                self.entries_collection = self.db.collection('entries')
             
             # Create users collection if it doesn't exist
             if not await self.db.has_collection('users'):
                 self.users_collection = await self.db.create_collection('users')
                 logger.info("Created collection: users")
             else:
-                self.users_collection = await self.db.collection('users')
+                self.users_collection = self.db.collection('users')
             
             logger.info("Successfully connected to ArangoDB")
             
@@ -153,10 +153,6 @@ class Database:
         """Check if a user exists"""
         user = await self.get_user_by_username(username)
         return user is not None
-            return True
-        except Exception as e:
-            logger.error(f"Error deleting entry: {e}")
-            return False
 
 # Global database instance
 db = Database()
