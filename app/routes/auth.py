@@ -56,6 +56,12 @@ async def login_submit(request: Request) -> Response:
                 status_code=401
             )
         
+        # If password is verified and needs rehashing, upgrade it to Argon2
+        if User.needs_rehash(user.password_hash):
+            new_hash = User.hash_password(password)
+            await db.update_user_password(user._key, new_hash)
+            logger.info(f"Upgraded password hash for user: {username}")
+        
         # Set session
         request.session['user_id'] = user._key
         request.session['username'] = user.username

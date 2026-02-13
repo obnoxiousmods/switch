@@ -72,6 +72,19 @@
                 <a href="/admincp/upload-statistics" class="card-link">View Upload Stats →</a>
             </div>
 
+            <div class="dashboard-card" id="password-migration-card">
+                <div class="card-icon">🔐</div>
+                <h3>Password Security</h3>
+                <p>Migrate passwords to Argon2 encryption</p>
+                <div id="migration-status" style="margin: 15px 0;">
+                    <p><span id="migration-info">Loading...</span></p>
+                    <div style="background: #444; border-radius: 8px; height: 20px; overflow: hidden; margin: 10px 0;">
+                        <div id="migration-progress" style="height: 100%; background: linear-gradient(135deg, #00b894, #00d9a5); width: 0%; transition: width 0.5s;"></div>
+                    </div>
+                </div>
+                <button onclick="checkMigrationStatus()" class="card-link" style="cursor: pointer; border: none;">Check Status →</button>
+            </div>
+
             <div class="dashboard-card">
                 <div class="card-icon">💾</div>
                 <h3>Database Status</h3>
@@ -198,4 +211,33 @@
     color: #000;
 }
 </style>
+
+<script>
+async function checkMigrationStatus() {
+    try {
+        const response = await fetch('/admincp/password-migration/status');
+        const data = await response.json();
+        
+        if (data.success) {
+            const percentage = data.migration_percentage;
+            document.getElementById('migration-progress').style.width = percentage + '%';
+            document.getElementById('migration-info').innerHTML = 
+                `<strong>${data.argon2_count}/${data.total_users}</strong> users on Argon2 (${percentage}%)<br>` +
+                `<span style="color: #ff9d1a;">${data.sha256_count} pending migration</span>`;
+            
+            if (data.sha256_count > 0) {
+                document.getElementById('migration-info').innerHTML += 
+                    '<br><small style="color: #aaa;">Users will auto-migrate on next login</small>';
+            }
+        }
+    } catch (error) {
+        document.getElementById('migration-info').textContent = 'Error loading status';
+        console.error('Migration status error:', error);
+    }
+}
+
+// Auto-load migration status on page load
+document.addEventListener('DOMContentLoaded', checkMigrationStatus);
+</script>
+
 {% endblock %}
