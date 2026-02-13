@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <h2>{{ error_message|default('An error occurred') }}</h2>
+        <p>
+            <a href="/" class="btn-back">← Go back home</a>
+        </p>
+    </div>
+</div>
+
+<style>
+.error-container {
+    max-width: 600px;
+    margin: 100px auto;
+    text-align: center;
+    padding: 40px;
+}
+
+.error-icon {
+    font-size: 72px;
+    margin-bottom: 20px;
+}
+
+.error-container h2 {
+    color: #fff;
+    font-size: 24px;
+    margin-bottom: 30px;
+}
+
+.btn-back {
+    display: inline-block;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: transform 0.2s;
+}
+
+.btn-back:hover {
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}

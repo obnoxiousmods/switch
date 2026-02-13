@@ -17,6 +17,7 @@ class Database:
         self.client: Optional[ArangoClient] = None
         self.db: Optional[StandardDatabase] = None
         self.entries_collection: Optional[StandardCollection] = None
+        self.users_collection: Optional[StandardCollection] = None
     
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -47,6 +48,13 @@ class Database:
                 logger.info("Created collection: entries")
             else:
                 self.entries_collection = await self.db.collection('entries')
+            
+            # Create users collection if it doesn't exist
+            if not await self.db.has_collection('users'):
+                self.users_collection = await self.db.create_collection('users')
+                logger.info("Created collection: users")
+            else:
+                self.users_collection = await self.db.collection('users')
             
             logger.info("Successfully connected to ArangoDB")
             
@@ -106,6 +114,45 @@ class Database:
         try:
             await self.entries_collection.delete(entry_id)
             logger.info(f"Deleted entry: {entry_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting entry: {e}")
+            return False
+    
+    # User management methods
+    async def create_user(self, user_data: Dict[str, Any]) -> Optional[str]:
+        """Create a new user"""
+        try:
+            # Add timestamp if not provided
+            if 'created_at' not in user_data:
+                user_data['created_at'] = datetime.utcnow().isoformat()
+            
+            result = await self.users_collection.insert(user_data)
+            logger.info(f"Created user: {user_data['username']}")
+            return result['_key']
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+            return None
+    
+    async def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        """Get a user by username"""
+        try:
+            cursor = await self.db.aql.execute(
+                'FOR doc IN users FILTER doc.username == @username LIMIT 1 RETURN doc',
+                bind_vars={'username': username}
+            )
+            async with cursor:
+                async for doc in cursor:
+                    return doc
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching user: {e}")
+            return None
+    
+    async def user_exists(self, username: str) -> bool:
+        """Check if a user exists"""
+        user = await self.get_user_by_username(username)
+        return user is not None
             return True
         except Exception as e:
             logger.error(f"Error deleting entry: {e}")

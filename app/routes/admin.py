@@ -6,6 +6,7 @@ from starlette.templating import Jinja2Templates
 
 from app.config import Config
 from app.database import db
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -185,7 +186,7 @@ async def admin_init_submit(request: Request) -> Response:
         validated_data = {}
         
         # Validate required fields
-        required_fields = ['website_name', 'db_host', 'db_port', 'db_username', 'db_password', 'db_name']
+        required_fields = ['website_name', 'admin_username', 'admin_password', 'db_host', 'db_port', 'db_username', 'db_password', 'db_name']
         for field in required_fields:
             if not form_data.get(field):
                 return JSONResponse(
@@ -219,6 +220,15 @@ async def admin_init_submit(request: Request) -> Response:
         try:
             await db.connect()
             
+            # Create admin user
+            admin_user = User(
+                username=validated_data['admin_username'],
+                password_hash=User.hash_password(validated_data['admin_password']),
+                is_admin=True
+            )
+            await db.create_user(admin_user.to_dict())
+            logger.info(f"Created admin user: {validated_data['admin_username']}")
+            
             # Add sample games
             base_time = datetime.now(timezone.utc)
             for i, game in enumerate(SAMPLE_GAMES):
@@ -251,6 +261,22 @@ async def admin_dashboard(request: Request) -> Response:
     """Admin control panel dashboard"""
     if not Config.is_initialized():
         return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id'):
+        return RedirectResponse(url="/login", status_code=303)
+    
+    if not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Access Denied",
+                "error_message": "You do not have permission to access the admin dashboard.",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
     
     return templates.TemplateResponse(
         request,
