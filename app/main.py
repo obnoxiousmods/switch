@@ -14,7 +14,7 @@ from app.routes.admin import (
     admin_scan_directory, admin_clear_entries, admin_rescan_all,
     admin_users, admin_update_user_role, admin_force_password_change,
     admin_api_keys, admin_revoke_api_key, admin_user_api_usage,
-    admin_audit_logs, admin_activity_logs
+    admin_audit_logs, admin_activity_logs, admin_storage_info
 )
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
 from app.routes.settings import settings_page, change_password, download_history_page
@@ -79,6 +79,7 @@ routes = [
     Route("/admincp/api-usage", admin_user_api_usage, methods=["GET"]),
     Route("/admincp/audit-logs", admin_audit_logs, methods=["GET"]),
     Route("/admincp/activity-logs", admin_activity_logs, methods=["GET"]),
+    Route("/admincp/storage-info", admin_storage_info, methods=["GET"]),
     Mount("/static", StaticFiles(directory="static"), name="static"),
 ]
 

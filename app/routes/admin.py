@@ -1008,3 +1008,111 @@ async def admin_activity_logs(request: Request) -> Response:
             "limit": limit
         }
     )
+
+
+async def admin_storage_info(request: Request) -> Response:
+    """View storage and game statistics"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Unauthorized",
+                "error": "You must be an administrator to access this page",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get all directories
+    directories = await db.get_all_directories()
+    
+    # Get storage info for each directory
+    storage_data = []
+    total_games = 0
+    total_size_bytes = 0
+    
+    for directory in directories:
+        dir_path = directory.get('path', '')
+        if not os.path.exists(dir_path):
+            storage_data.append({
+                'path': dir_path,
+                'exists': False,
+                'game_count': 0,
+                'total_size': 0,
+                'available_space': 0,
+                'total_space': 0,
+                'used_space': 0,
+                'usage_percent': 0
+            })
+            continue
+        
+        try:
+            # Get disk usage info
+            stat = shutil.disk_usage(dir_path)
+            total_space = stat.total
+            used_space = stat.used
+            available_space = stat.free
+            usage_percent = (used_space / total_space * 100) if total_space > 0 else 0
+            
+            # Count games in this directory (from entries collection)
+            cursor = await db.db.aql.execute(
+                "FOR doc IN entries FILTER doc.type == 'filepath' && STARTS_WITH(doc.source, @path) RETURN doc",
+                bind_vars={"path": dir_path}
+            )
+            
+            dir_games = []
+            dir_size = 0
+            async with cursor:
+                async for doc in cursor:
+                    dir_games.append(doc)
+                    dir_size += doc.get('size', 0)
+            
+            game_count = len(dir_games)
+            total_games += game_count
+            total_size_bytes += dir_size
+            
+            storage_data.append({
+                'path': dir_path,
+                'exists': True,
+                'game_count': game_count,
+                'total_size': dir_size,
+                'available_space': available_space,
+                'total_space': total_space,
+                'used_space': used_space,
+                'usage_percent': usage_percent
+            })
+        except Exception as e:
+            logger.error(f"Error getting storage info for {dir_path}: {e}")
+            storage_data.append({
+                'path': dir_path,
+                'exists': False,
+                'error': str(e),
+                'game_count': 0,
+                'total_size': 0,
+                'available_space': 0,
+                'total_space': 0,
+                'used_space': 0,
+                'usage_percent': 0
+            })
+    
+    # Get total game count from database (including URLs)
+    all_entries = await db.get_all_entries()
+    total_entries = len(all_entries)
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/storage_info.html",
+        {
+            "title": "Storage Information",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "storage_data": storage_data,
+            "total_games": total_games,
+            "total_entries": total_entries,
+            "total_size_bytes": total_size_bytes
+        }
+    )

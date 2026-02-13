@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="storage-page">
+        <div class="page-header">
+            <h2>💾 Storage & Game Statistics</h2>
+            <p class="page-subtitle">Drive space and game library overview</p>
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card card-primary">
+                <div class="card-icon">🎮</div>
+                <div class="card-value">{{ total_entries }}</div>
+                <div class="card-label">Total Entries</div>
+                <div class="card-sublabel">All games (files + URLs)</div>
+            </div>
+            
+            <div class="summary-card card-success">
+                <div class="card-icon">📁</div>
+                <div class="card-value">{{ total_games }}</div>
+                <div class="card-label">Local Games</div>
+                <div class="card-sublabel">Stored on disk</div>
+            </div>
+            
+            <div class="summary-card card-info">
+                <div class="card-icon">📦</div>
+                <div class="card-value">{{ (total_size_bytes / 1073741824) | round(2) }} GB</div>
+                <div class="card-label">Total Size</div>
+                <div class="card-sublabel">Combined game sizes</div>
+            </div>
+            
+            <div class="summary-card card-secondary">
+                <div class="card-icon">📂</div>
+                <div class="card-value">{{ storage_data | length }}</div>
+                <div class="card-label">Directories</div>
+                <div class="card-sublabel">Configured paths</div>
+            </div>
+        </div>
+
+        {% if storage_data %}
+        <div class="storage-section">
+            <h3>📊 Directory Storage Details</h3>
+            
+            {% for storage in storage_data %}
+            <div class="storage-card {% if not storage.exists %}storage-error{% endif %}">
+                <div class="storage-header">
+                    <div class="storage-path">
+                        <span class="path-icon">📁</span>
+                        <strong>{{ storage.path }}</strong>
+                    </div>
+                    {% if storage.exists %}
+                    <span class="status-badge badge-active">Active</span>
+                    {% else %}
+                    <span class="status-badge badge-error">Not Found</span>
+                    {% endif %}
+                </div>
+                
+                {% if storage.exists %}
+                <div class="storage-details">
+                    <div class="detail-row">
+                        <div class="detail-item">
+                            <span class="detail-label">Games:</span>
+                            <span class="detail-value">{{ storage.game_count }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Total Size:</span>
+                            <span class="detail-value">{{ (storage.total_size / 1073741824) | round(2) }} GB</span>
+                        </div>
+                    </div>
+                    
+                    <div class="disk-info">
+                        <h4>💿 Disk Space</h4>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: {{ storage.usage_percent }}%"></div>
+                        </div>
+                        <div class="disk-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total:</span>
+                                <span class="stat-value">{{ (storage.total_space / 1073741824) | round(2) }} GB</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Used:</span>
+                                <span class="stat-value">{{ (storage.used_space / 1073741824) | round(2) }} GB ({{ storage.usage_percent | round(1) }}%)</span>
+                            </div>
+                            <div class="stat-item stat-available">
+                                <span class="stat-label">Available:</span>
+                                <span class="stat-value">{{ (storage.available_space / 1073741824) | round(2) }} GB</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="storage-error-message">
+                    <p>⚠️ Directory not accessible or does not exist</p>
+                    {% if storage.error %}
+                    <p class="error-details">Error: {{ storage.error }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📂</div>
+            <p>No directories configured</p>
+            <p class="empty-hint">Add directories in the Directory Management section</p>
+            <a href="/admincp/directories" class="empty-link">Go to Directory Management →</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.storage-page {
+    max-width: 1400px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.page-header h2 {
+    color: #fff;
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.page-subtitle {
+    color: #999;
+    font-size: 18px;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.summary-card {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border-left: 4px solid;
+}
+
+.card-primary {
+    border-left-color: #5a9fd4;
+}
+
+.card-success {
+    border-left-color: #51cf66;
+}
+
+.card-info {
+    border-left-color: #4c9ee0;
+}
+
+.card-secondary {
+    border-left-color: #a29bfe;
+}
+
+.card-icon {
+    font-size: 40px;
+    margin-bottom: 15px;
+}
+
+.card-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.card-label {
+    color: #ccc;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.card-sublabel {
+    color: #666;
+    font-size: 12px;
+}
+
+.storage-section {
+    margin-bottom: 40px;
+}
+
+.storage-section h3 {
+    color: #fff;
+    font-size: 24px;
+    margin-bottom: 25px;
+}
+
+.storage-card {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s;
+}
+
+.storage-card:hover {
+    transform: translateY(-2px);
+}
+
+.storage-error {
+    border: 2px solid #ff6b6b;
+}
+
+.storage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #444;
+}
+
+.storage-path {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 16px;
+}
+
+.path-icon {
+    font-size: 24px;
+}
+
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-active {
+    background: #51cf66;
+    color: #000;
+}
+
+.badge-error {
+    background: #ff6b6b;
+    color: #fff;
+}
+
+.storage-details {
+    color: #ddd;
+}
+
+.detail-row {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 25px;
+}
+
+.detail-item {
+    flex: 1;
+}
+
+.detail-label {
+    color: #999;
+    font-size: 14px;
+    margin-right: 8px;
+}
+
+.detail-value {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.disk-info {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.disk-info h4 {
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 24px;
+    background: #333;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #51cf66, #4c9ee0);
+    transition: width 0.3s;
+}
+
+.disk-stats {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    flex: 1;
+    min-width: 150px;
+}
+
+.stat-label {
+    color: #999;
+    font-size: 13px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.stat-available {
+    background: #2a4a2a;
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.storage-error-message {
+    color: #ff6b6b;
+    text-align: center;
+    padding: 20px;
+}
+
+.storage-error-message p {
+    margin-bottom: 10px;
+}
+
+.error-details {
+    color: #999;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.empty-state p {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.empty-hint {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.empty-link {
+    display: inline-block;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.empty-link:hover {
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
