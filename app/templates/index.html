@@ -14,24 +14,8 @@
                 </div>
             </div>
         </div>
-        <div class="mod-actions-card">
-            <div class="mod-action-item">
-                <span class="mod-action-label">💬 Chat</span>
-                <div class="mod-action-content">
-                    <a href="https://chat.obnoxious.lol" target="_blank" rel="noopener noreferrer" class="btn-chat">Open Chat/IRC</a>
-                </div>
-            </div>
-        </div>
-        <div class="mod-actions-card">
-            <div class="mod-action-item">
-                <span class="mod-action-label"> 📖 API</span>
-                <div class="mod-action-content">
-                    <a href="/api-docs" target="_blank" rel="noopener noreferrer" class="btn-chat">Open API Documentation</a>
-                </div>
-            </div>
-        </div>
     </div>
-    {% else %}
+    {% endif %}
     <!-- Chat Button for Non-Moderators -->
     <div class="chat-section">
         <a href="https://chat.obnoxious.lol" target="_blank" rel="noopener noreferrer" class="btn-chat-hero">
@@ -41,7 +25,7 @@
             📖 API Documentation
         </a>
     </div>
-    {% endif %}
+    
 
     <!-- Search Section -->
     <div class="search-section">
