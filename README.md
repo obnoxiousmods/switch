@@ -68,7 +68,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 6069
 🌐 Open your browser and navigate to:
 
 ```
-http://localhost:6069/admincp/init
+http://127.0.0.1:6069/admincp/init
 ```
 
 Complete the setup form with:
@@ -76,7 +76,7 @@ Complete the setup form with:
 - **Admin Username** - Your admin login username
 - **Admin Password** - Secure password for admin account
 - **Database Settings** - ArangoDB connection details:
-  - Host: `localhost` (default)
+  - Host: `127.0.0.1` (default)
   - Port: `8529` (default)
   - Username: `root` (default)
   - Password: Your ArangoDB password
@@ -180,7 +180,7 @@ app:
   name: Switch Game Repository
   debug: true
 database:
-  host: localhost
+  host: 127.0.0.1
   port: 8529
   username: root
   password: your_password

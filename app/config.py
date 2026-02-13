@@ -82,7 +82,7 @@ class Config:
                 "debug": True,
             },
             "database": {
-                "host": data.get('db_host', 'localhost'),
+                "host": data.get('db_host', '127.0.0.1'),
                 "port": int(data.get('db_port', 8529)),
                 "username": data.get('db_username', 'root'),
                 "password": data.get('db_password', ''),
@@ -108,7 +108,7 @@ class Config:
     @classmethod
     def ARANGODB_HOST(cls) -> str:
         """Get ArangoDB host"""
-        return cls.get('database.host', 'localhost')
+        return cls.get('database.host', '127.0.0.1')
     
     @classmethod
     def ARANGODB_PORT(cls) -> int:

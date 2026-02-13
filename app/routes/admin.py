@@ -288,7 +288,7 @@ async def admin_dashboard(request: Request) -> Response:
         {
             "title": "Admin Dashboard",
             "app_name": Config.get('app.name', 'Switch Game Repository'),
-            "db_host": Config.get('database.host', 'localhost'),
+            "db_host": Config.get('database.host', '127.0.0.1'),
             "db_name": Config.get('database.database', 'switch_db'),
         }
     )
