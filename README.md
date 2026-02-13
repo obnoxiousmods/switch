@@ -19,7 +19,7 @@ A community website for managing and distributing Nintendo Switch game files (.n
 
 ## Requirements
 
-- Python 3.10 or higher
+- Python 3.10 or higher (tested with Python 3.10+)
 - ArangoDB 3.x or higher
 
 ## Installation
