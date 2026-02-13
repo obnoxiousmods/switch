@@ -319,6 +319,7 @@ async def uploader_upload_submit(request: Request) -> Response:
         file_path_resolved = os.path.abspath(file_path)
         upload_dir_resolved = os.path.abspath(upload_dir)
         
+        # Ensure file is within directory (not equal to directory or outside it)
         if not file_path_resolved.startswith(upload_dir_resolved + os.sep):
             logger.error(f"Path traversal attempt detected: {filename} -> {file_path_resolved}")
             return JSONResponse({"success": False, "error": "Invalid file path"}, status_code=400)
@@ -328,6 +329,11 @@ async def uploader_upload_submit(request: Request) -> Response:
         original_path = file_path
         while os.path.exists(file_path):
             file_path = os.path.join(upload_dir, f"{safe_basename}_{counter}.{file_ext}")
+            # Re-validate the new path
+            file_path_resolved = os.path.abspath(file_path)
+            if not file_path_resolved.startswith(upload_dir_resolved + os.sep):
+                logger.error(f"Path traversal in unique filename: {file_path_resolved}")
+                return JSONResponse({"success": False, "error": "Invalid file path"}, status_code=400)
             counter += 1
         
         # Read and save file

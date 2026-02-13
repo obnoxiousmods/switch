@@ -121,8 +121,8 @@ async def download_entry(request: Request):
             # Check if filepath is within any allowed directory
             is_allowed = False
             for allowed_dir in allowed_dirs:
-                # Ensure the file is within the allowed directory
-                if filepath_resolved.startswith(allowed_dir + os.sep) or filepath_resolved == allowed_dir:
+                # Ensure the file is within the allowed directory (not the directory itself)
+                if filepath_resolved.startswith(allowed_dir + os.sep):
                     is_allowed = True
                     break
             
