@@ -1,0 +1,550 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-directories">
+        <div class="admin-header">
+            <h2>📁 Directory Management</h2>
+            <p class="admin-subtitle">Manage scan directories for game library</p>
+            <a href="/admincp" class="back-link">← Back to Dashboard</a>
+        </div>
+
+        <div class="action-bar">
+            <button id="clearAllBtn" class="btn btn-danger">🗑️ Clear All Entries</button>
+            <button id="rescanAllBtn" class="btn btn-primary">🔄 Rescan All Directories</button>
+        </div>
+
+        <div class="add-directory-section">
+            <h3>Add New Directory</h3>
+            <form id="addDirectoryForm">
+                <div class="form-group">
+                    <input type="text" id="directoryPath" name="path" placeholder="/path/to/games" required>
+                    <button type="submit" class="btn btn-success">➕ Add Directory</button>
+                </div>
+            </form>
+            <p class="form-note">Enter the absolute path to a directory containing game files (.nsp, .nsz, .xci)</p>
+        </div>
+
+        <div class="directories-list">
+            <h3>Scan Directories ({{ directories|length }})</h3>
+            {% if directories %}
+                {% for directory in directories %}
+                <div class="directory-card" data-id="{{ directory._key }}">
+                    <div class="directory-info">
+                        <div class="directory-path">
+                            <strong>📂 {{ directory.path }}</strong>
+                            {% if not directory.exists %}
+                                <span class="badge badge-error">Not Found</span>
+                            {% else %}
+                                <span class="badge badge-success">Active</span>
+                            {% endif %}
+                        </div>
+                        {% if directory.exists %}
+                        <div class="directory-stats">
+                            <div class="stat">
+                                <span class="stat-label">Total Space:</span>
+                                <span class="stat-value">{{ (directory.total_space / 1024 / 1024 / 1024) | round(2) }} GB</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Used:</span>
+                                <span class="stat-value">{{ (directory.used_space / 1024 / 1024 / 1024) | round(2) }} GB</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Free:</span>
+                                <span class="stat-value">{{ (directory.free_space / 1024 / 1024 / 1024) | round(2) }} GB</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Usage:</span>
+                                <span class="stat-value">{{ ((directory.used_space / directory.total_space) * 100) | round(1) }}%</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ ((directory.used_space / directory.total_space) * 100) | round(1) }}%"></div>
+                        </div>
+                        {% endif %}
+                        <div class="directory-meta">
+                            <span>Added: {{ directory.added_at[:10] }}</span>
+                        </div>
+                    </div>
+                    <div class="directory-actions">
+                        {% if directory.exists %}
+                        <button class="btn btn-primary btn-scan" data-id="{{ directory._key }}">🔍 Scan</button>
+                        {% endif %}
+                        <button class="btn btn-danger btn-delete" data-id="{{ directory._key }}">🗑️ Delete</button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <p>No directories added yet. Add a directory above to start scanning for games.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div id="messageBox" class="message-box" style="display: none;"></div>
+    </div>
+</div>
+
+<style>
+.admin-directories {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.admin-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.admin-header h2 {
+    color: #fff;
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.admin-subtitle {
+    color: #999;
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+.back-link {
+    display: inline-block;
+    color: #5a9fd4;
+    text-decoration: none;
+    margin-top: 10px;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: #7ab5e0;
+}
+
+.action-bar {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.add-directory-section {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.add-directory-section h3 {
+    color: #fff;
+    font-size: 22px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    gap: 10px;
+}
+
+.form-group input {
+    flex: 1;
+    padding: 12px 15px;
+    background: #1a1a1a;
+    border: 2px solid #444;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #5a9fd4;
+}
+
+.form-note {
+    color: #888;
+    font-size: 13px;
+    margin-top: 10px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(90, 159, 212, 0.4);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #44ff44, #33cc33);
+    color: #000;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(68, 255, 68, 0.4);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff4444, #cc3333);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 68, 68, 0.4);
+}
+
+.directories-list {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.directories-list h3 {
+    color: #fff;
+    font-size: 22px;
+    margin-bottom: 20px;
+}
+
+.directory-card {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.directory-info {
+    flex: 1;
+}
+
+.directory-path {
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: #44ff44;
+    color: #000;
+}
+
+.badge-error {
+    background: #ff4444;
+    color: #fff;
+}
+
+.directory-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #44ff44, #5a9fd4);
+    transition: width 0.3s;
+}
+
+.directory-meta {
+    color: #666;
+    font-size: 12px;
+}
+
+.directory-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+
+.message-box {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    max-width: 400px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(450px);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+.message-box.success {
+    background: #44ff44;
+    color: #000;
+}
+
+.message-box.error {
+    background: #ff4444;
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .directory-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .directory-actions {
+        flex-direction: row;
+    }
+    
+    .action-bar {
+        flex-direction: column;
+    }
+    
+    .form-group {
+        flex-direction: column;
+    }
+}
+</style>
+
+<script>
+// Show message
+function showMessage(message, type = 'success') {
+    const messageBox = document.getElementById('messageBox');
+    messageBox.textContent = message;
+    messageBox.className = `message-box ${type}`;
+    messageBox.style.display = 'block';
+    
+    setTimeout(() => {
+        messageBox.style.display = 'none';
+    }, 5000);
+}
+
+// Add directory form
+document.getElementById('addDirectoryForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = '⏳ Adding...';
+    
+    try {
+        const response = await fetch('/admincp/directories/add', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showMessage(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showMessage(data.error || 'Failed to add directory', 'error');
+        }
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '➕ Add Directory';
+    }
+});
+
+// Delete directory
+document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        
+        if (!confirm('Are you sure you want to delete this directory? This will not delete files from disk, only remove it from the scan list.')) {
+            return;
+        }
+        
+        e.target.disabled = true;
+        e.target.textContent = '⏳ Deleting...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('id', id);
+            
+            const response = await fetch('/admincp/directories/delete', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showMessage(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showMessage(data.error || 'Failed to delete directory', 'error');
+                e.target.disabled = false;
+                e.target.textContent = '🗑️ Delete';
+            }
+        } catch (error) {
+            showMessage('Error: ' + error.message, 'error');
+            e.target.disabled = false;
+            e.target.textContent = '🗑️ Delete';
+        }
+    });
+});
+
+// Scan directory
+document.querySelectorAll('.btn-scan').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        
+        e.target.disabled = true;
+        e.target.textContent = '⏳ Scanning...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('id', id);
+            
+            const response = await fetch('/admincp/directories/scan', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showMessage(data.message, 'success');
+            } else {
+                showMessage(data.error || 'Failed to scan directory', 'error');
+            }
+        } catch (error) {
+            showMessage('Error: ' + error.message, 'error');
+        } finally {
+            e.target.disabled = false;
+            e.target.textContent = '🔍 Scan';
+        }
+    });
+});
+
+// Clear all entries
+document.getElementById('clearAllBtn').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to clear ALL entries from the database? This action cannot be undone!')) {
+        return;
+    }
+    
+    const btn = document.getElementById('clearAllBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Clearing...';
+    
+    try {
+        const response = await fetch('/admincp/directories/clear', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showMessage(data.message, 'success');
+        } else {
+            showMessage(data.error || 'Failed to clear entries', 'error');
+        }
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🗑️ Clear All Entries';
+    }
+});
+
+// Rescan all
+document.getElementById('rescanAllBtn').addEventListener('click', async () => {
+    if (!confirm('This will scan all directories for new files. Existing files will be skipped. Continue?')) {
+        return;
+    }
+    
+    const btn = document.getElementById('rescanAllBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Rescanning...';
+    
+    try {
+        const response = await fetch('/admincp/directories/rescan', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showMessage(data.message, 'success');
+        } else {
+            showMessage(data.error || 'Failed to rescan directories', 'error');
+        }
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 Rescan All Directories';
+    }
+});
+</script>
+{% endblock %}

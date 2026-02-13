@@ -18,6 +18,7 @@ class Database:
         self.db: Optional[StandardDatabase] = None
         self.entries_collection: Optional[StandardCollection] = None
         self.users_collection: Optional[StandardCollection] = None
+        self.directories_collection: Optional[StandardCollection] = None
     
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -55,6 +56,13 @@ class Database:
                 logger.info("Created collection: users")
             else:
                 self.users_collection = self.db.collection('users')
+            
+            # Create directories collection if it doesn't exist
+            if not await self.db.has_collection('directories'):
+                self.directories_collection = await self.db.create_collection('directories')
+                logger.info("Created collection: directories")
+            else:
+                self.directories_collection = self.db.collection('directories')
             
             logger.info("Successfully connected to ArangoDB")
             
@@ -153,6 +161,92 @@ class Database:
         """Check if a user exists"""
         user = await self.get_user_by_username(username)
         return user is not None
+    
+    # Directory management methods
+    async def add_directory(self, path: str) -> Optional[str]:
+        """Add a new directory to scan"""
+        try:
+            # Check if directory already exists
+            existing = await self.get_directory_by_path(path)
+            if existing:
+                logger.warning(f"Directory already exists: {path}")
+                return existing.get('_key')
+            
+            directory_data = {
+                'path': path,
+                'added_at': datetime.utcnow().isoformat(),
+            }
+            result = await self.directories_collection.insert(directory_data)
+            logger.info(f"Added directory: {path}")
+            return result['_key']
+        except Exception as e:
+            logger.error(f"Error adding directory: {e}")
+            return None
+    
+    async def get_directory_by_path(self, path: str) -> Optional[Dict[str, Any]]:
+        """Get a directory by path"""
+        try:
+            cursor = await self.db.aql.execute(
+                'FOR doc IN directories FILTER doc.path == @path LIMIT 1 RETURN doc',
+                bind_vars={'path': path}
+            )
+            async with cursor:
+                async for doc in cursor:
+                    return doc
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching directory: {e}")
+            return None
+    
+    async def get_all_directories(self) -> List[Dict[str, Any]]:
+        """Get all directories"""
+        try:
+            cursor = await self.db.aql.execute(
+                'FOR doc IN directories SORT doc.added_at DESC RETURN doc'
+            )
+            directories = []
+            async with cursor:
+                async for doc in cursor:
+                    directories.append(doc)
+            return directories
+        except Exception as e:
+            logger.error(f"Error fetching directories: {e}")
+            return []
+    
+    async def delete_directory(self, directory_id: str) -> bool:
+        """Delete a directory"""
+        try:
+            await self.directories_collection.delete(directory_id)
+            logger.info(f"Deleted directory: {directory_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting directory: {e}")
+            return False
+    
+    async def clear_all_entries(self) -> bool:
+        """Clear all entries from the database"""
+        try:
+            await self.db.aql.execute('FOR doc IN entries REMOVE doc IN entries')
+            logger.info("Cleared all entries")
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing entries: {e}")
+            return False
+    
+    async def entry_exists(self, source: str) -> bool:
+        """Check if an entry with this source already exists"""
+        try:
+            cursor = await self.db.aql.execute(
+                'FOR doc IN entries FILTER doc.source == @source LIMIT 1 RETURN doc',
+                bind_vars={'source': source}
+            )
+            async with cursor:
+                async for doc in cursor:
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error checking entry existence: {e}")
+            return False
 
 # Global database instance
 db = Database()

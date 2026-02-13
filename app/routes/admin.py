@@ -1,5 +1,8 @@
 import logging
+import os
+import shutil
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from starlette.requests import Request
 from starlette.responses import Response, RedirectResponse, JSONResponse
 from starlette.templating import Jinja2Templates
@@ -7,6 +10,7 @@ from starlette.templating import Jinja2Templates
 from app.config import Config
 from app.database import db
 from app.models.user import User
+from app.models.entry import FileType
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -288,3 +292,290 @@ async def admin_dashboard(request: Request) -> Response:
             "db_name": Config.get('database.database', 'switch_db'),
         }
     )
+
+
+async def admin_directories(request: Request) -> Response:
+    """Directory management page"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id'):
+        return RedirectResponse(url="/login", status_code=303)
+    
+    if not request.session.get('is_admin'):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Access Denied",
+                "error_message": "You do not have permission to access the admin dashboard.",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get all directories
+    directories = await db.get_all_directories()
+    
+    # Check space available for each directory
+    for directory in directories:
+        dir_path = directory.get('path', '')
+        if os.path.exists(dir_path):
+            try:
+                stat = shutil.disk_usage(dir_path)
+                directory['total_space'] = stat.total
+                directory['used_space'] = stat.used
+                directory['free_space'] = stat.free
+                directory['exists'] = True
+            except Exception as e:
+                logger.error(f"Error getting disk usage for {dir_path}: {e}")
+                directory['exists'] = False
+        else:
+            directory['exists'] = False
+    
+    return templates.TemplateResponse(
+        request,
+        "admin/directories.html",
+        {
+            "title": "Directory Management",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "directories": directories,
+        }
+    )
+
+
+async def admin_add_directory(request: Request) -> Response:
+    """Add a new directory to scan"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        directory_path = form_data.get('path', '').strip()
+        
+        if not directory_path:
+            return JSONResponse({"success": False, "error": "Directory path is required"}, status_code=400)
+        
+        # Check if directory exists
+        if not os.path.exists(directory_path):
+            return JSONResponse({"success": False, "error": "Directory does not exist"}, status_code=400)
+        
+        if not os.path.isdir(directory_path):
+            return JSONResponse({"success": False, "error": "Path is not a directory"}, status_code=400)
+        
+        # Add directory to database
+        result = await db.add_directory(directory_path)
+        if result:
+            return JSONResponse({"success": True, "message": "Directory added successfully"})
+        else:
+            return JSONResponse({"success": False, "error": "Directory already exists or could not be added"}, status_code=400)
+    
+    except Exception as e:
+        logger.error(f"Error adding directory: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_delete_directory(request: Request) -> Response:
+    """Delete a directory"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        directory_id = form_data.get('id', '').strip()
+        
+        if not directory_id:
+            return JSONResponse({"success": False, "error": "Directory ID is required"}, status_code=400)
+        
+        result = await db.delete_directory(directory_id)
+        if result:
+            return JSONResponse({"success": True, "message": "Directory deleted successfully"})
+        else:
+            return JSONResponse({"success": False, "error": "Could not delete directory"}, status_code=400)
+    
+    except Exception as e:
+        logger.error(f"Error deleting directory: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_scan_directory(request: Request) -> Response:
+    """Scan a directory for game files"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        directory_id = form_data.get('id', '').strip()
+        
+        if not directory_id:
+            return JSONResponse({"success": False, "error": "Directory ID is required"}, status_code=400)
+        
+        # Get directory from database
+        directories = await db.get_all_directories()
+        directory = None
+        for d in directories:
+            if d.get('_key') == directory_id:
+                directory = d
+                break
+        
+        if not directory:
+            return JSONResponse({"success": False, "error": "Directory not found"}, status_code=404)
+        
+        directory_path = directory.get('path')
+        if not os.path.exists(directory_path):
+            return JSONResponse({"success": False, "error": "Directory does not exist on disk"}, status_code=400)
+        
+        # Scan the directory
+        username = request.session.get('username', 'admin')
+        added_count, skipped_count = await scan_directory_for_files(directory_path, username)
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Scan complete. Added {added_count} files, skipped {skipped_count} duplicates"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error scanning directory: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_clear_entries(request: Request) -> Response:
+    """Clear all entries from the database"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        result = await db.clear_all_entries()
+        if result:
+            return JSONResponse({"success": True, "message": "All entries cleared successfully"})
+        else:
+            return JSONResponse({"success": False, "error": "Could not clear entries"}, status_code=400)
+    
+    except Exception as e:
+        logger.error(f"Error clearing entries: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def admin_rescan_all(request: Request) -> Response:
+    """Rescan all directories"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is admin
+    if not request.session.get('user_id') or not request.session.get('is_admin'):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        directories = await db.get_all_directories()
+        username = request.session.get('username', 'admin')
+        
+        total_added = 0
+        total_skipped = 0
+        
+        for directory in directories:
+            directory_path = directory.get('path')
+            if os.path.exists(directory_path):
+                added, skipped = await scan_directory_for_files(directory_path, username)
+                total_added += added
+                total_skipped += skipped
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Rescan complete. Added {total_added} files, skipped {total_skipped} duplicates"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error rescanning directories: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def scan_directory_for_files(directory_path: str, username: str, max_depth: int = 3) -> tuple:
+    """
+    Scan a directory recursively for game files (.nsz, .nsp, .xci)
+    Returns tuple of (added_count, skipped_count)
+    """
+    added_count = 0
+    skipped_count = 0
+    
+    def should_process_file(file_path: str) -> bool:
+        """Check if file has valid extension"""
+        return file_path.lower().endswith(('.nsz', '.nsp', '.xci'))
+    
+    def get_file_type(file_path: str) -> str:
+        """Get file type from extension"""
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == '.nsz':
+            return FileType.NSZ.value
+        elif ext == '.nsp':
+            return FileType.NSP.value
+        elif ext == '.xci':
+            return FileType.XCI.value
+        return 'nsp'  # default
+    
+    def walk_directory(path: str, current_depth: int = 0):
+        """Recursively walk directory up to max_depth"""
+        if current_depth > max_depth:
+            return
+        
+        try:
+            for entry in os.scandir(path):
+                if entry.is_file() and should_process_file(entry.path):
+                    yield entry.path
+                elif entry.is_dir() and current_depth < max_depth:
+                    yield from walk_directory(entry.path, current_depth + 1)
+        except PermissionError:
+            logger.warning(f"Permission denied: {path}")
+        except Exception as e:
+            logger.error(f"Error scanning {path}: {e}")
+    
+    # Scan directory
+    for file_path in walk_directory(directory_path):
+        try:
+            # Check if entry already exists
+            if await db.entry_exists(file_path):
+                skipped_count += 1
+                continue
+            
+            # Get file size
+            file_size = os.path.getsize(file_path)
+            
+            # Get file name without extension
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            
+            # Create entry
+            entry_data = {
+                'name': file_name,
+                'source': file_path,
+                'type': 'filepath',
+                'file_type': get_file_type(file_path),
+                'size': file_size,
+                'created_by': username,
+                'created_at': datetime.utcnow().isoformat(),
+                'metadata': {}
+            }
+            
+            result = await db.add_entry(entry_data)
+            if result:
+                added_count += 1
+                
+        except Exception as e:
+            logger.error(f"Error processing file {file_path}: {e}")
+    
+    return added_count, skipped_count
