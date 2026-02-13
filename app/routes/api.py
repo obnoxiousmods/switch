@@ -3,6 +3,7 @@ from starlette.requests import Request
 import os
 
 from app.database import db
+from app.utils.ip_utils import get_ip_info, format_ip_for_log
 
 async def list_entries(request: Request):
     """API endpoint to list all entries"""
@@ -50,7 +51,7 @@ async def download_entry(request: Request):
         # Track download if user is logged in (session-based)
         user_id = request.session.get('user_id')
         username = request.session.get('username')
-        ip_address = request.client.host if request.client else 'unknown'
+        ip_info = get_ip_info(request)
         
         # For API key authentication, use the authenticated user_id
         if not user_id and has_api_auth:
@@ -67,8 +68,8 @@ async def download_entry(request: Request):
                 entry_name=entry.get('name', 'Unknown')
             )
             
-            # Log the download activity
-            await db.add_activity_log({
+            # Log the download activity with IP information
+            activity_data = {
                 'event_type': 'download',
                 'user_id': user_id,
                 'username': username,
@@ -78,8 +79,13 @@ async def download_entry(request: Request):
                     'file_type': entry.get('file_type', 'unknown'),
                     'source_type': entry.get('type', 'unknown')
                 },
-                'ip_address': ip_address
-            })
+                'ip_address': ip_info['ip_address'],
+                'client_ip': ip_info['client_ip']
+            }
+            if 'forwarded_ip' in ip_info:
+                activity_data['forwarded_ip'] = ip_info['forwarded_ip']
+            
+            await db.add_activity_log(activity_data)
         
         # If it's a URL, redirect to it
         if entry.get('type') == 'url':

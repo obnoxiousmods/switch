@@ -10,6 +10,7 @@ from app.config import Config
 from app.database import db
 from app.models.request import Request as UserRequest, RequestStatus, RequestType
 from app.models.entry import Entry, EntryType, FileType
+from app.utils.ip_utils import get_ip_info, format_ip_for_log
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -326,18 +327,24 @@ async def uploader_upload_submit(request: Request) -> Response:
         # Record upload statistics
         await db.record_upload(user_id, username, entry_id, size)
         
-        # Log activity
-        await db.add_activity_log({
+        # Log activity with IP information
+        ip_info = get_ip_info(request)
+        activity_data = {
             'event_type': 'upload',
             'user_id': user_id,
             'username': username,
             'entry_id': entry_id,
             'entry_name': name,
             'size_bytes': size,
-            'ip_address': request.client.host if request.client else 'unknown'
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"User {username} uploaded game '{name}' ({size} bytes)")
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"User {username} uploaded game '{name}' ({size} bytes) from {format_ip_for_log(request)}")
         return JSONResponse({
             "success": True, 
             "message": f"Game '{name}' uploaded successfully!",

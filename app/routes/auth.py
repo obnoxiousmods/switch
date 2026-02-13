@@ -6,6 +6,7 @@ from starlette.templating import Jinja2Templates
 from app.config import Config
 from app.database import db
 from app.models.user import User
+from app.utils.ip_utils import get_ip_info, format_ip_for_log
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -89,9 +90,9 @@ async def login_submit(request: Request) -> Response:
         request.session['is_moderator'] = user.is_moderator
         request.session['is_uploader'] = user.is_uploader
         
-        # Log the login activity
-        ip_address = request.client.host if request.client else 'unknown'
-        await db.add_activity_log({
+        # Log the login activity with IP information
+        ip_info = get_ip_info(request)
+        activity_data = {
             'event_type': 'login',
             'user_id': user._key,
             'username': user.username,
@@ -99,10 +100,15 @@ async def login_submit(request: Request) -> Response:
                 'success': True,
                 'totp_used': user.totp_enabled
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"User logged in: {username}")
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"User logged in: {username} from {format_ip_for_log(request)}")
         return JSONResponse({"success": True, "redirect": "/"})
         
     except Exception as e:
@@ -190,19 +196,24 @@ async def register_submit(request: Request) -> Response:
         request.session['is_moderator'] = False
         request.session['is_uploader'] = False
         
-        # Log the registration activity
-        ip_address = request.client.host if request.client else 'unknown'
-        await db.add_activity_log({
+        # Log the registration activity with IP information
+        ip_info = get_ip_info(request)
+        activity_data = {
             'event_type': 'registration',
             'user_id': user_id,
             'username': username,
             'details': {
                 'success': True
             },
-            'ip_address': ip_address
-        })
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
         
-        logger.info(f"New user registered: {username}")
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"New user registered: {username} from {format_ip_for_log(request)}")
         return JSONResponse({"success": True, "redirect": "/"})
         
     except Exception as e:
