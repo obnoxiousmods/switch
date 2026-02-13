@@ -2,6 +2,36 @@
 
 {% block content %}
 <div class="container">
+    <!-- Moderator Actions Section -->
+    {% if is_moderator %}
+    <div class="mod-actions-section">
+        <div class="mod-actions-card">
+            <div class="mod-action-item">
+                <span class="mod-action-label">📋 Pending Requests</span>
+                <div class="mod-action-content">
+                    <span class="pending-count-badge">{{ pending_count }}</span>
+                    <a href="/modcp/requests" class="btn-view-requests">View Requests</a>
+                </div>
+            </div>
+        </div>
+        <div class="mod-actions-card">
+            <div class="mod-action-item">
+                <span class="mod-action-label">💬 Chat</span>
+                <div class="mod-action-content">
+                    <a href="https://chat.obnoxious.lol" target="_blank" rel="noopener noreferrer" class="btn-chat">Open Chat/IRC</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Chat Button for Non-Moderators -->
+    <div class="chat-section">
+        <a href="https://chat.obnoxious.lol" target="_blank" rel="noopener noreferrer" class="btn-chat-hero">
+            💬 Join Chat/IRC
+        </a>
+    </div>
+    {% endif %}
+
     <!-- Search Section -->
     <div class="search-section">
         <h2 class="search-title">Find Your Game</h2>
