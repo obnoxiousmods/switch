@@ -147,7 +147,7 @@ class Database:
         """Get all entries from the database"""
         try:
             cursor = await self.db.aql.execute(
-                "FOR doc IN entries SORT doc.created_at DESC RETURN doc"
+                "FOR doc IN entries SORT doc.size DESC RETURN doc"
             )
             entries = []
             async with cursor:
