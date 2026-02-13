@@ -15,14 +15,12 @@ async def index(request: Request) -> Response:
         return RedirectResponse(url="/admincp/init", status_code=303)
     
     # Check if user is moderator or admin to show pending requests
-    is_mod = request.session.get('is_moderator', False)
-    is_admin = request.session.get('is_admin', False)
+    is_moderator = request.session.get('is_moderator', False) or request.session.get('is_admin', False)
     pending_count = 0
     
-    if is_mod or is_admin:
-        # Get pending requests count for mods
-        pending_requests = await db.get_all_requests(status='pending')
-        pending_count = len(pending_requests)
+    if is_moderator:
+        # Get pending requests count for mods (efficient count query)
+        pending_count = await db.count_requests(status='pending')
     
     return templates.TemplateResponse(
         request,
@@ -30,7 +28,7 @@ async def index(request: Request) -> Response:
         {
             "title": "Home",
             "app_name": Config.get('app.name', 'Switch Game Repository'),
-            "is_moderator": is_mod or is_admin,
+            "is_moderator": is_moderator,
             "pending_count": pending_count
         }
     )
