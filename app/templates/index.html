@@ -1,13 +1,48 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Welcome{{ ' back' if user else '' }}!</h2>
-<p>This is the home page. Visits: {{ visits }}</p>
+<div class="container">
+    <!-- Search Section -->
+    <div class="search-section">
+        <h2 class="search-title">Find Your Game</h2>
+        <p class="search-subtitle">Search through our collection of Nintendo Switch games</p>
+        
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="search-input" 
+                class="search-input" 
+                placeholder="Type game name to search..."
+                autocomplete="off"
+            >
+        </div>
+    </div>
 
-{% if not user %}
-<form method="post" action="/login">
-    <input type="text" name="username" placeholder="Your name" required>
-    <button type="submit">Quick Login</button>
-</form>
-{% endif %}
+    <!-- Results Section -->
+    <div class="results-section">
+        <div class="results-header">
+            <h3>Results</h3>
+            <div id="results-count" class="results-count">Loading...</div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading-state" class="loading">
+            Loading entries
+        </div>
+
+        <!-- Results Grid -->
+        <div id="results-grid" class="results-grid hidden">
+            <!-- Results will be dynamically inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state hidden">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-title">No Results Found</div>
+            <div class="empty-state-message">Try adjusting your search terms</div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', path='js/search.js') }}"></script>
 {% endblock %}
