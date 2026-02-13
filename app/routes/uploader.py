@@ -1,5 +1,7 @@
 import logging
 import os
+import re
+import secrets
 from datetime import datetime
 from starlette.requests import Request
 from starlette.responses import Response, RedirectResponse, JSONResponse
@@ -282,10 +284,6 @@ async def uploader_upload_submit(request: Request) -> Response:
             return JSONResponse({"success": False, "error": "Invalid filename"}, status_code=400)
         
         # Sanitize filename to prevent path traversal
-        # Remove any path separators and dangerous characters
-        import re
-        import secrets
-        
         # Get extension first
         name_part, ext_part = os.path.splitext(filename)
         if not ext_part:

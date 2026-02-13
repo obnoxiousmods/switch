@@ -761,8 +761,6 @@ async def admin_force_password_change(request: Request) -> Response:
         
         logger.info(f"Password force changed for user: {target_username} by {actor_username} from {format_ip_for_log(request)}")
         
-        logger.info(f"Admin {actor_username} force-changed password for user {target_username}")
-        
         return JSONResponse({
             "success": True,
             "message": f"Successfully changed password for user {target_username}"

@@ -1,6 +1,7 @@
 """
 Input validation utilities for user-provided data.
 """
+import os
 import re
 from typing import Optional
 
@@ -65,8 +66,6 @@ def validate_file_extension(filename: str, allowed_extensions: list[str]) -> tup
     Returns:
         Tuple of (is_valid, error_message)
     """
-    import os
-    
     if not filename:
         return False, "Filename is required"
     
@@ -95,9 +94,6 @@ def sanitize_filename(filename: str, max_length: int = 200) -> Optional[str]:
     Returns:
         Sanitized filename or None if invalid
     """
-    import os
-    import re
-    
     if not filename:
         return None
     
