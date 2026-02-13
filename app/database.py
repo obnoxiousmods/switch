@@ -103,6 +103,27 @@ class Database:
             logger.error(f"Error fetching entries: {e}")
             return []
     
+    async def get_entry_by_id(self, entry_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single entry by its ID"""
+        try:
+            doc = await self.entries_collection.get(entry_id)
+            if doc:
+                return {
+                    'id': doc.get('_key'),
+                    'name': doc.get('name'),
+                    'source': doc.get('source'),
+                    'type': doc.get('type'),
+                    'file_type': doc.get('file_type'),
+                    'size': doc.get('size'),
+                    'created_at': doc.get('created_at'),
+                    'created_by': doc.get('created_by', ''),
+                    'metadata': doc.get('metadata', {})
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching entry by ID: {e}")
+            return None
+    
     async def add_entry(self, entry_data: Dict[str, Any]) -> Optional[str]:
         """Add a new entry to the database"""
         try:
