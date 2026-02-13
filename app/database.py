@@ -386,7 +386,7 @@ class Database:
 
     # Download history methods
     async def add_download_history(
-        self, user_id: str, entry_id: str, entry_name: str
+        self, user_id: str, entry_id: str, entry_name: str, size_bytes: int = 0
     ) -> Optional[str]:
         """Add a download history record"""
         try:
@@ -394,6 +394,7 @@ class Database:
                 "user_id": user_id,
                 "entry_id": entry_id,
                 "entry_name": entry_name,
+                "size_bytes": size_bytes,
                 "downloaded_at": datetime.utcnow().isoformat(),
             }
             result = await self.download_history_collection.insert(download_data)
@@ -987,6 +988,150 @@ class Database:
             return stats
         except Exception as e:
             logger.error(f"Error fetching all uploader statistics: {e}")
+            return []
+
+    async def get_download_statistics(
+        self, user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get download statistics for a user or all users"""
+        try:
+            if user_id:
+                # Get stats for specific user
+                query = """
+                FOR doc IN download_history
+                FILTER doc.user_id == @user_id
+                COLLECT AGGREGATE 
+                    total_downloads = COUNT(1),
+                    total_bytes = SUM(doc.size_bytes)
+                RETURN {total_downloads, total_bytes}
+                """
+                bind_vars = {"user_id": user_id}
+            else:
+                # Get overall stats
+                query = """
+                FOR doc IN download_history
+                COLLECT AGGREGATE 
+                    total_downloads = COUNT(1),
+                    total_bytes = SUM(doc.size_bytes)
+                RETURN {total_downloads, total_bytes}
+                """
+                bind_vars = {}
+
+            cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
+            async with cursor:
+                async for result in cursor:
+                    total_gb = (result.get("total_bytes", 0) or 0) / BYTES_PER_GB
+                    return {
+                        "total_downloads": result.get("total_downloads", 0) or 0,
+                        "total_bytes": result.get("total_bytes", 0) or 0,
+                        "total_gb": round(total_gb, 2),
+                    }
+            return {"total_downloads": 0, "total_bytes": 0, "total_gb": 0}
+        except Exception as e:
+            logger.error(f"Error fetching download statistics: {e}")
+            return {"total_downloads": 0, "total_bytes": 0, "total_gb": 0}
+
+    async def get_user_statistics(self, user_id: str) -> Dict[str, Any]:
+        """Get comprehensive statistics for a specific user"""
+        try:
+            upload_stats = await self.get_upload_statistics(user_id)
+            download_stats = await self.get_download_statistics(user_id)
+            
+            # Calculate ratio (uploaded / downloaded)
+            total_uploaded_bytes = upload_stats.get("total_bytes", 0)
+            total_downloaded_bytes = download_stats.get("total_bytes", 0)
+            
+            if total_downloaded_bytes > 0:
+                ratio = total_uploaded_bytes / total_downloaded_bytes
+            else:
+                ratio = 0.0 if total_uploaded_bytes == 0 else float('inf')
+            
+            return {
+                "total_uploaded": upload_stats.get("total_uploads", 0),
+                "total_uploaded_bytes": total_uploaded_bytes,
+                "total_uploaded_gb": upload_stats.get("total_gb", 0),
+                "total_downloaded": download_stats.get("total_downloads", 0),
+                "total_downloaded_bytes": total_downloaded_bytes,
+                "total_downloaded_gb": download_stats.get("total_gb", 0),
+                "ratio": round(ratio, 2) if ratio != float('inf') else "∞"
+            }
+        except Exception as e:
+            logger.error(f"Error fetching user statistics: {e}")
+            return {
+                "total_uploaded": 0,
+                "total_uploaded_bytes": 0,
+                "total_uploaded_gb": 0,
+                "total_downloaded": 0,
+                "total_downloaded_bytes": 0,
+                "total_downloaded_gb": 0,
+                "ratio": 0
+            }
+
+    async def get_entry_download_count(self, entry_id: str) -> int:
+        """Get the total download count for a specific entry"""
+        try:
+            query = """
+            FOR doc IN download_history
+            FILTER doc.entry_id == @entry_id
+            COLLECT WITH COUNT INTO count
+            RETURN count
+            """
+            cursor = await self.db.aql.execute(query, bind_vars={"entry_id": entry_id})
+            async with cursor:
+                async for count in cursor:
+                    return count or 0
+            return 0
+        except Exception as e:
+            logger.error(f"Error fetching entry download count: {e}")
+            return 0
+
+    async def get_all_entries_with_download_counts(
+        self, search_query: Optional[str] = None, sort_by_downloads: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Get all entries with their download counts, optionally filtered and sorted"""
+        try:
+            if search_query:
+                # Search with download counts
+                query = """
+                FOR entry IN entries
+                FILTER LOWER(entry.name) LIKE LOWER(CONCAT('%', @search, '%'))
+                LET download_count = (
+                    FOR doc IN download_history
+                    FILTER doc.entry_id == entry._key
+                    COLLECT WITH COUNT INTO count
+                    RETURN count
+                )[0] || 0
+                """
+                bind_vars = {"search": search_query}
+            else:
+                # Get all entries with download counts
+                query = """
+                FOR entry IN entries
+                LET download_count = (
+                    FOR doc IN download_history
+                    FILTER doc.entry_id == entry._key
+                    COLLECT WITH COUNT INTO count
+                    RETURN count
+                )[0] || 0
+                """
+                bind_vars = {}
+            
+            # Add sorting
+            if sort_by_downloads:
+                query += " SORT download_count DESC"
+            else:
+                query += " SORT entry.name ASC"
+            
+            query += " RETURN MERGE(entry, {download_count: download_count})"
+            
+            cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
+            entries = []
+            async with cursor:
+                async for entry in cursor:
+                    entries.append(entry)
+            return entries
+        except Exception as e:
+            logger.error(f"Error fetching entries with download counts: {e}")
             return []
 
     async def get_system_statistics(self) -> Dict[str, Any]:

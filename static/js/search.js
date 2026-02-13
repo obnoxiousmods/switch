@@ -6,6 +6,7 @@
     let filteredEntries = [];
     let currentPage = 1;
     let itemsPerPage = 10;
+    let sortBy = 'name'; // 'name' or 'downloads'
     
     // DOM Elements
     const searchInput = document.getElementById('search-input');
@@ -13,6 +14,7 @@
     const resultsCount = document.getElementById('results-count');
     const loadingState = document.getElementById('loading-state');
     const emptyState = document.getElementById('empty-state');
+    const sortSelect = document.getElementById('sort-select');
     
     // Initialize the application
     async function init() {
@@ -28,6 +30,10 @@
         if (searchInput) {
             searchInput.addEventListener('input', handleSearch);
         }
+        
+        if (sortSelect) {
+            sortSelect.addEventListener('change', handleSortChange);
+        }
     }
     
     // Load all entries from the API
@@ -35,7 +41,9 @@
         try {
             showLoading();
             
-            const response = await fetch('/api/list');
+            // Include sort_by parameter if sorting by downloads
+            const sortParam = sortBy === 'downloads' ? '?sort_by=downloads' : '';
+            const response = await fetch(`/api/list${sortParam}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch entries');
             }
@@ -71,6 +79,13 @@
         // Reset to first page when search changes
         currentPage = 1;
         renderResults();
+    }
+    
+    // Handle sort change
+    function handleSortChange(event) {
+        sortBy = event.target.value;
+        currentPage = 1;
+        loadEntries();
     }
     
     // Render the results
@@ -313,9 +328,16 @@
         dateItem.className = 'meta-item';
         dateItem.innerHTML = `📅 ${formatDate(entry.created_at)}`;
         
+        // Download count
+        const downloadItem = document.createElement('div');
+        downloadItem.className = 'meta-item';
+        const downloadCount = entry.download_count || 0;
+        downloadItem.innerHTML = `⬇️ ${downloadCount} download${downloadCount !== 1 ? 's' : ''}`;
+        
         meta.appendChild(fileTypeItem);
         meta.appendChild(sizeItem);
         meta.appendChild(dateItem);
+        meta.appendChild(downloadItem);
         
         card.appendChild(title);
         card.appendChild(meta);

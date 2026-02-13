@@ -606,8 +606,14 @@ async def admin_users(request: Request) -> Response:
     # Get all users
     users = await db.get_all_users()
     
-    # Don't show password hashes in the template
+    # Get statistics for each user
     for user in users:
+        user_id = user.get('_key')
+        if user_id:
+            user_stats = await db.get_user_statistics(user_id)
+            user['statistics'] = user_stats
+        
+        # Don't show password hashes in the template
         user.pop('password_hash', None)
     
     return templates.TemplateResponse(

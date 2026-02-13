@@ -21,7 +21,19 @@ async def list_entries(request: Request):
         }, status_code=401)
     
     try:
-        entries = await db.get_all_entries()
+        # Get query parameters
+        search_query = request.query_params.get('search')
+        sort_by = request.query_params.get('sort_by')
+        
+        # Check if sorting by downloads
+        sort_by_downloads = sort_by == 'downloads'
+        
+        # Get entries with download counts
+        entries = await db.get_all_entries_with_download_counts(
+            search_query=search_query,
+            sort_by_downloads=sort_by_downloads
+        )
+        
         return JSONResponse({
             "entries": entries
         })
@@ -69,7 +81,8 @@ async def download_entry(request: Request):
             await db.add_download_history(
                 user_id=user_id,
                 entry_id=entry_id,
-                entry_name=entry.get('name', 'Unknown')
+                entry_name=entry.get('name', 'Unknown'),
+                size_bytes=entry.get('size', 0)
             )
             
             # Log the download activity with IP information

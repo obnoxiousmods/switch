@@ -18,12 +18,17 @@ async def settings_page(request: Request) -> Response:
     if not request.session.get('user_id'):
         return RedirectResponse(url="/login", status_code=303)
     
+    # Get user statistics
+    user_id = request.session.get('user_id')
+    user_stats = await db.get_user_statistics(user_id)
+    
     return templates.TemplateResponse(
         request,
         "settings/settings.html",
         {
             "title": "Settings",
-            "app_name": Config.get('app.name', 'Switch Game Repository')
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "user_stats": user_stats
         }
     )
 

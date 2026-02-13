@@ -17,6 +17,33 @@
     </div>
     {% endif %}
     
+    <!-- User Statistics Section -->
+    {% if user_stats %}
+    <div class="user-stats-section">
+        <h3 class="user-stats-title">📊 Your Statistics</h3>
+        <div class="user-stats-grid">
+            <div class="user-stat-card">
+                <div class="user-stat-icon">⬆️</div>
+                <div class="user-stat-label">Total Uploaded</div>
+                <div class="user-stat-value">{{ user_stats.total_uploaded_gb }} GB</div>
+                <div class="user-stat-subtext">{{ user_stats.total_uploaded }} files</div>
+            </div>
+            <div class="user-stat-card">
+                <div class="user-stat-icon">⬇️</div>
+                <div class="user-stat-label">Total Downloaded</div>
+                <div class="user-stat-value">{{ user_stats.total_downloaded_gb }} GB</div>
+                <div class="user-stat-subtext">{{ user_stats.total_downloaded }} files</div>
+            </div>
+            <div class="user-stat-card">
+                <div class="user-stat-icon">📈</div>
+                <div class="user-stat-label">Upload/Download Ratio</div>
+                <div class="user-stat-value">{{ user_stats.ratio }}</div>
+                <div class="user-stat-subtext">{% if user_stats.ratio == "∞" %}Perfect ratio!{% else %}Keep sharing!{% endif %}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- System Statistics Dashboard -->
     {% if system_stats %}
     <div class="stats-dashboard">
@@ -100,7 +127,14 @@
     <div class="results-section">
         <div class="results-header">
             <h3>Results</h3>
-            <div id="results-count" class="results-count">Loading...</div>
+            <div class="results-controls">
+                <label for="sort-select" class="sort-label">Sort by:</label>
+                <select id="sort-select" class="sort-select">
+                    <option value="name">Name (A-Z)</option>
+                    <option value="downloads">Most Downloads</option>
+                </select>
+                <div id="results-count" class="results-count">Loading...</div>
+            </div>
         </div>
 
         <!-- Loading State -->
@@ -123,6 +157,64 @@
 </div>
 
 <style>
+/* User Statistics Styles */
+.user-stats-section {
+    margin: 30px 0;
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.user-stats-title {
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.user-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.user-stat-card {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.user-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+}
+
+.user-stat-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.user-stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 8px;
+}
+
+.user-stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.user-stat-subtext {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
 /* Statistics Dashboard Styles */
 .stats-dashboard {
     margin: 30px 0;
@@ -224,6 +316,41 @@
     color: #dc3545;
     font-size: 0.9rem;
     font-weight: 500;
+}
+
+/* Results Controls Styles */
+.results-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.sort-label {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.sort-select {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9rem;
+    color: #333;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.sort-select:hover {
+    border-color: #667eea;
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 @media (max-width: 768px) {

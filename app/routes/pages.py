@@ -25,6 +25,12 @@ async def index(request: Request) -> Response:
     # Get system statistics for dashboard
     system_stats = await db.get_system_statistics()
     
+    # Get user statistics if logged in
+    user_stats = None
+    user_id = request.session.get('user_id')
+    if user_id:
+        user_stats = await db.get_user_statistics(user_id)
+    
     response = templates.TemplateResponse(
         request,
         "index.html",
@@ -33,7 +39,8 @@ async def index(request: Request) -> Response:
             "app_name": Config.get('app.name', 'Switch Game Repository'),
             "is_moderator": is_moderator,
             "pending_count": pending_count,
-            "system_stats": system_stats
+            "system_stats": system_stats,
+            "user_stats": user_stats
         }
     )
     
