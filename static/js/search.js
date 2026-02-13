@@ -93,7 +93,7 @@
         hideEmptyState();
         
         // Calculate pagination
-        const totalPages = Math.ceil(count / itemsPerPage);
+        const totalPages = Math.max(1, Math.ceil(count / itemsPerPage));
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
         const paginatedEntries = filteredEntries.slice(startIndex, endIndex);
@@ -162,16 +162,10 @@
         
         // Previous button
         const prevButton = document.createElement('button');
-        prevButton.className = 'page-button';
+        prevButton.className = 'page-button page-prev';
         prevButton.textContent = '← Previous';
         prevButton.disabled = currentPage === 1;
-        prevButton.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderResults();
-                scrollToTop();
-            }
-        });
+        prevButton.dataset.action = 'prev';
         
         // Page numbers
         const pageNumbers = document.createElement('div');
@@ -189,7 +183,10 @@
         
         // First page button
         if (startPage > 1) {
-            const firstButton = createPageButton(1, 1 === currentPage);
+            const firstButton = document.createElement('button');
+            firstButton.className = 'page-number-button' + (1 === currentPage ? ' active' : '');
+            firstButton.textContent = '1';
+            firstButton.dataset.page = '1';
             pageNumbers.appendChild(firstButton);
             
             if (startPage > 2) {
@@ -202,7 +199,10 @@
         
         // Page number buttons
         for (let i = startPage; i <= endPage; i++) {
-            const pageButton = createPageButton(i, i === currentPage);
+            const pageButton = document.createElement('button');
+            pageButton.className = 'page-number-button' + (i === currentPage ? ' active' : '');
+            pageButton.textContent = i;
+            pageButton.dataset.page = i;
             pageNumbers.appendChild(pageButton);
         }
         
@@ -215,22 +215,19 @@
                 pageNumbers.appendChild(ellipsis);
             }
             
-            const lastButton = createPageButton(totalPages, totalPages === currentPage);
+            const lastButton = document.createElement('button');
+            lastButton.className = 'page-number-button' + (totalPages === currentPage ? ' active' : '');
+            lastButton.textContent = totalPages;
+            lastButton.dataset.page = totalPages;
             pageNumbers.appendChild(lastButton);
         }
         
         // Next button
         const nextButton = document.createElement('button');
-        nextButton.className = 'page-button';
+        nextButton.className = 'page-button page-next';
         nextButton.textContent = 'Next →';
         nextButton.disabled = currentPage === totalPages;
-        nextButton.addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderResults();
-                scrollToTop();
-            }
-        });
+        nextButton.dataset.action = 'next';
         
         // Assemble page controls
         pageControls.appendChild(prevButton);
@@ -244,9 +241,39 @@
         
         paginationContainer.appendChild(paginationWrapper);
         
-        // Add event listener for items per page selector
+        // Use event delegation for pagination controls (attach once)
+        if (!paginationContainer.dataset.listenerAttached) {
+            paginationContainer.dataset.listenerAttached = 'true';
+            paginationContainer.addEventListener('click', (e) => {
+                const target = e.target;
+                
+                // Handle page number buttons
+                if (target.classList.contains('page-number-button') && !target.classList.contains('active')) {
+                    const page = parseInt(target.dataset.page);
+                    if (page && page !== currentPage) {
+                        currentPage = page;
+                        renderResults();
+                        scrollToTop();
+                    }
+                }
+                
+                // Handle prev/next buttons
+                if (target.classList.contains('page-prev') && !target.disabled) {
+                    currentPage--;
+                    renderResults();
+                    scrollToTop();
+                } else if (target.classList.contains('page-next') && !target.disabled) {
+                    currentPage++;
+                    renderResults();
+                    scrollToTop();
+                }
+            });
+        }
+        
+        // Add event listener for items per page selector (attach once)
         const itemsPerPageSelect = document.getElementById('items-per-page');
-        if (itemsPerPageSelect) {
+        if (itemsPerPageSelect && !itemsPerPageSelect.dataset.listenerAttached) {
+            itemsPerPageSelect.dataset.listenerAttached = 'true';
             itemsPerPageSelect.addEventListener('change', (e) => {
                 itemsPerPage = parseInt(e.target.value);
                 currentPage = 1;
@@ -254,19 +281,6 @@
                 scrollToTop();
             });
         }
-    }
-    
-    // Create a page button
-    function createPageButton(pageNum, isActive) {
-        const button = document.createElement('button');
-        button.className = 'page-number-button' + (isActive ? ' active' : '');
-        button.textContent = pageNum;
-        button.addEventListener('click', () => {
-            currentPage = pageNum;
-            renderResults();
-            scrollToTop();
-        });
-        return button;
     }
     
     // Scroll to top of results
