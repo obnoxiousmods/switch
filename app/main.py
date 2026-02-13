@@ -8,7 +8,11 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.routes.pages import index
 from app.routes.api import list_entries
-from app.routes.admin import admin_init_page, admin_init_submit, admin_dashboard
+from app.routes.admin import (
+    admin_init_page, admin_init_submit, admin_dashboard,
+    admin_directories, admin_add_directory, admin_delete_directory,
+    admin_scan_directory, admin_clear_entries, admin_rescan_all
+)
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
 from app.database import db
 from app.config import Config
@@ -35,6 +39,12 @@ routes = [
     Route("/admincp/init", admin_init_page, methods=["GET"]),
     Route("/admincp/init", admin_init_submit, methods=["POST"]),
     Route("/admincp", admin_dashboard),
+    Route("/admincp/directories", admin_directories, methods=["GET"]),
+    Route("/admincp/directories/add", admin_add_directory, methods=["POST"]),
+    Route("/admincp/directories/delete", admin_delete_directory, methods=["POST"]),
+    Route("/admincp/directories/scan", admin_scan_directory, methods=["POST"]),
+    Route("/admincp/directories/clear", admin_clear_entries, methods=["POST"]),
+    Route("/admincp/directories/rescan", admin_rescan_all, methods=["POST"]),
     Mount("/static", StaticFiles(directory="static"), name="static"),
 ]
 
