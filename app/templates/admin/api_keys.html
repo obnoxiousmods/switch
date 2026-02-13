@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-container">
+        <div class="admin-header">
+            <h2>🔑 API Key Management</h2>
+            <a href="/admincp" class="btn-back">← Back to Admin Dashboard</a>
+        </div>
+        
+        <div class="admin-section">
+            <div class="section-header">
+                <h3>All API Keys</h3>
+                <span class="count-badge">{{ api_keys|length }} keys</span>
+            </div>
+            
+            {% if api_keys %}
+                <div class="keys-table-container">
+                    <table class="keys-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Key Name</th>
+                                <th>Created</th>
+                                <th>Last Used</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key in api_keys %}
+                                <tr class="{% if not key.is_active %}revoked-row{% endif %}">
+                                    <td>
+                                        <a href="/admincp/api-usage?user_id={{ key.user_id }}" class="user-link">
+                                            {{ key.username }}
+                                        </a>
+                                    </td>
+                                    <td class="key-name-cell">{{ key.key_name }}</td>
+                                    <td>{{ key.created_at[:10] }}</td>
+                                    <td>
+                                        {% if key.last_used_at %}
+                                            {{ key.last_used_at[:10] }}
+                                        {% else %}
+                                            <span class="never-used">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if key.is_active %}
+                                            <span class="status-badge active">Active</span>
+                                        {% else %}
+                                            <span class="status-badge revoked">Revoked</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if key.is_active %}
+                                            <button 
+                                                type="button" 
+                                                class="btn-revoke-small" 
+                                                onclick="revokeKey('{{ key._key }}', '{{ key.key_name }}', '{{ key.username }}')"
+                                            >
+                                                Revoke
+                                            </button>
+                                        {% else %}
+                                            <span class="action-disabled">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="no-data">No API keys have been generated yet.</p>
+            {% endif %}
+        </div>
+        
+        <div class="admin-section">
+            <h3>Quick Links</h3>
+            <div class="quick-links">
+                <a href="/admincp/api-usage" class="btn-secondary">📊 View All API Usage</a>
+                <a href="/admincp/users" class="btn-secondary">👥 Manage Users</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-container {
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .admin-header h2 {
+        font-size: 32px;
+        color: #fff;
+        margin: 0;
+    }
+    
+    .btn-back {
+        padding: 10px 20px;
+        background: #444;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .btn-back:hover {
+        background: #555;
+    }
+    
+    .admin-section {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .admin-section h3 {
+        font-size: 24px;
+        color: #5a9fd4;
+        margin: 0;
+    }
+    
+    .count-badge {
+        background: #2a2a2a;
+        color: #5a9fd4;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .keys-table-container {
+        overflow-x: auto;
+    }
+    
+    .keys-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .keys-table thead {
+        background: #2a2a2a;
+    }
+    
+    .keys-table th {
+        padding: 12px 16px;
+        text-align: left;
+        color: #5a9fd4;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .keys-table td {
+        padding: 12px 16px;
+        color: #ccc;
+        font-size: 14px;
+        border-top: 1px solid #333;
+    }
+    
+    .keys-table tbody tr:hover {
+        background: #2a2a2a;
+    }
+    
+    .keys-table tbody tr.revoked-row {
+        opacity: 0.5;
+    }
+    
+    .user-link {
+        color: #5a9fd4;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .user-link:hover {
+        text-decoration: underline;
+    }
+    
+    .key-name-cell {
+        font-weight: 600;
+    }
+    
+    .never-used {
+        color: #888;
+        font-style: italic;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-badge.active {
+        background: #1a4d2e;
+        color: #7cfc00;
+    }
+    
+    .status-badge.revoked {
+        background: #4d1a1a;
+        color: #ff6b6b;
+    }
+    
+    .btn-revoke-small {
+        padding: 6px 12px;
+        background: #d9534f;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-revoke-small:hover {
+        background: #c9302c;
+    }
+    
+    .action-disabled {
+        color: #666;
+    }
+    
+    .no-data {
+        color: #888;
+        font-style: italic;
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .quick-links {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .btn-secondary {
+        padding: 12px 24px;
+        background: #444;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+    
+    .btn-secondary:hover {
+        background: #555;
+    }
+</style>
+
+<script>
+    async function revokeKey(keyId, keyName, username) {
+        if (!confirm(`Are you sure you want to revoke the API key "${keyName}" belonging to ${username}? This action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('key_id', keyId);
+            
+            const response = await fetch('/admincp/api-keys/revoke', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to revoke API key: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('An error occurred. Please try again.');
+        }
+    }
+</script>
+{% endblock %}
