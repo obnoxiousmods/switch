@@ -21,6 +21,8 @@ class User:
     is_moderator: bool = False
     is_uploader: bool = False
     created_at: Optional[str] = None
+    totp_secret: Optional[str] = None
+    totp_enabled: bool = False
     _key: Optional[str] = None
     
     # Class-level password hasher for Argon2
@@ -78,7 +80,9 @@ class User:
             'is_admin': self.is_admin,
             'is_moderator': self.is_moderator,
             'is_uploader': self.is_uploader,
-            'created_at': self.created_at or datetime.utcnow().isoformat()
+            'created_at': self.created_at or datetime.utcnow().isoformat(),
+            'totp_secret': self.totp_secret,
+            'totp_enabled': self.totp_enabled
         }
         if self._key:
             data['_key'] = self._key
@@ -94,5 +98,7 @@ class User:
             is_moderator=data.get('is_moderator', False),
             is_uploader=data.get('is_uploader', False),
             created_at=data.get('created_at'),
+            totp_secret=data.get('totp_secret'),
+            totp_enabled=data.get('totp_enabled', False),
             _key=data.get('_key')
         )

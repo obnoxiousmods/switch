@@ -33,6 +33,7 @@ async def login_submit(request: Request) -> Response:
         form_data = await request.form()
         username = form_data.get('username', '').strip()
         password = form_data.get('password', '')
+        totp_code = form_data.get('totp_code', '').strip()
         
         if not username or not password:
             return JSONResponse(
@@ -56,6 +57,25 @@ async def login_submit(request: Request) -> Response:
                 status_code=401
             )
         
+        # Check if TOTP is enabled for this user
+        if user.totp_enabled and user.totp_secret:
+            if not totp_code:
+                # Password is correct but TOTP is required
+                return JSONResponse({
+                    "success": False,
+                    "requires_totp": True,
+                    "message": "Two-factor authentication code required"
+                })
+            
+            # Verify TOTP code
+            import pyotp
+            totp = pyotp.TOTP(user.totp_secret)
+            if not totp.verify(totp_code, valid_window=1):
+                return JSONResponse(
+                    {"success": False, "error": "Invalid two-factor authentication code"},
+                    status_code=401
+                )
+        
         # If password is verified and needs rehashing, upgrade it to Argon2
         if User.needs_rehash(user.password_hash):
             new_hash = User.hash_password(password)
@@ -76,7 +96,8 @@ async def login_submit(request: Request) -> Response:
             'user_id': user._key,
             'username': user.username,
             'details': {
-                'success': True
+                'success': True,
+                'totp_used': user.totp_enabled
             },
             'ip_address': ip_address
         })

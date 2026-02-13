@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="totp-container">
+        <h2>🔐 Two-Factor Authentication</h2>
+        <p class="totp-subtitle">Secure your account with an authenticator app</p>
+        
+        {% if totp_enabled %}
+        <div class="totp-section totp-enabled">
+            <div class="status-indicator">
+                <span class="status-icon">✓</span>
+                <span class="status-text">Two-Factor Authentication is <strong>ENABLED</strong></span>
+            </div>
+            
+            <p>Your account is protected with two-factor authentication.</p>
+            
+            <button onclick="showDisableForm()" class="btn-danger">Disable 2FA</button>
+            
+            <div id="disable-form" class="totp-form" style="display: none;">
+                <h3>Disable Two-Factor Authentication</h3>
+                <p class="warning-text">⚠️ Disabling 2FA will make your account less secure.</p>
+                
+                <form id="disable-totp-form">
+                    <div class="form-group">
+                        <label for="disable_password">Enter Your Password</label>
+                        <input 
+                            type="password" 
+                            id="disable_password" 
+                            name="password" 
+                            required 
+                            class="form-input"
+                            autocomplete="current-password"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="disable_totp_code">Enter Current 2FA Code</label>
+                        <input 
+                            type="text" 
+                            id="disable_totp_code" 
+                            name="totp_code" 
+                            required 
+                            pattern="[0-9]{6}"
+                            maxlength="6"
+                            class="form-input totp-input"
+                            placeholder="000000"
+                            autocomplete="one-time-code"
+                        >
+                    </div>
+                    
+                    <div id="disable-message" class="message"></div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn-danger">Disable 2FA</button>
+                        <button type="button" onclick="hideDisableForm()" class="btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="totp-section totp-disabled">
+            <div class="status-indicator">
+                <span class="status-icon">✗</span>
+                <span class="status-text">Two-Factor Authentication is <strong>DISABLED</strong></span>
+            </div>
+            
+            <p>Protect your account by enabling two-factor authentication. You'll need an authenticator app like:</p>
+            <ul class="app-list">
+                <li>Google Authenticator</li>
+                <li>Microsoft Authenticator</li>
+                <li>Authy</li>
+                <li>1Password</li>
+                <li>Any TOTP-compatible app</li>
+            </ul>
+            
+            <button onclick="enableTOTP()" class="btn-primary" id="enable-btn">Enable 2FA</button>
+            
+            <div id="setup-form" class="totp-form" style="display: none;">
+                <h3>Step 1: Scan QR Code</h3>
+                <p>Scan this QR code with your authenticator app:</p>
+                
+                <div id="qr-code-container" class="qr-container">
+                    <div class="loading">Loading QR code...</div>
+                </div>
+                
+                <div class="secret-container" id="secret-container" style="display: none;">
+                    <p><strong>Or enter this secret key manually:</strong></p>
+                    <div class="secret-code" id="secret-code"></div>
+                    <button onclick="copySecret()" class="btn-copy">Copy Secret</button>
+                </div>
+                
+                <h3>Step 2: Enter Verification Code</h3>
+                <p>Enter the 6-digit code from your authenticator app:</p>
+                
+                <form id="verify-totp-form">
+                    <div class="form-group">
+                        <input 
+                            type="text" 
+                            id="verify_totp_code" 
+                            name="totp_code" 
+                            required 
+                            pattern="[0-9]{6}"
+                            maxlength="6"
+                            class="form-input totp-input"
+                            placeholder="000000"
+                            autocomplete="one-time-code"
+                        >
+                    </div>
+                    
+                    <div id="verify-message" class="message"></div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Verify & Enable 2FA</button>
+                        <button type="button" onclick="cancelSetup()" class="btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .totp-container {
+        max-width: 700px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .totp-container h2 {
+        font-size: 32px;
+        margin-bottom: 10px;
+        color: #fff;
+    }
+    
+    .totp-subtitle {
+        color: #999;
+        font-size: 16px;
+        margin-bottom: 30px;
+    }
+    
+    .totp-section {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 16px;
+    }
+    
+    .totp-enabled .status-indicator {
+        background: rgba(16, 185, 129, 0.1);
+        border: 2px solid #10b981;
+        color: #10b981;
+    }
+    
+    .totp-disabled .status-indicator {
+        background: rgba(239, 68, 68, 0.1);
+        border: 2px solid #ef4444;
+        color: #ef4444;
+    }
+    
+    .status-icon {
+        font-size: 24px;
+        font-weight: bold;
+    }
+    
+    .totp-section p {
+        color: #ccc;
+        margin-bottom: 16px;
+        line-height: 1.6;
+    }
+    
+    .app-list {
+        color: #ccc;
+        margin: 16px 0 24px 24px;
+        line-height: 1.8;
+    }
+    
+    .app-list li {
+        margin-bottom: 8px;
+    }
+    
+    .totp-form {
+        margin-top: 30px;
+        padding-top: 30px;
+        border-top: 2px solid #333;
+    }
+    
+    .totp-form h3 {
+        font-size: 20px;
+        color: #5a9fd4;
+        margin-bottom: 12px;
+    }
+    
+    .qr-container {
+        background: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .qr-container img {
+        max-width: 300px;
+        height: auto;
+    }
+    
+    .loading {
+        color: #666;
+        padding: 40px;
+    }
+    
+    .secret-container {
+        background: #2a2a2a;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        text-align: center;
+    }
+    
+    .secret-code {
+        font-family: 'Courier New', monospace;
+        font-size: 18px;
+        font-weight: bold;
+        color: #5a9fd4;
+        letter-spacing: 2px;
+        padding: 16px;
+        background: #1a1a1a;
+        border-radius: 6px;
+        margin: 16px 0;
+        word-break: break-all;
+    }
+    
+    .btn-copy {
+        padding: 8px 16px;
+        background: #444;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .btn-copy:hover {
+        background: #555;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: #2a2a2a;
+        border: 2px solid #444;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 14px;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #5a9fd4;
+    }
+    
+    .totp-input {
+        max-width: 200px;
+        font-size: 24px;
+        text-align: center;
+        letter-spacing: 8px;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .message {
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        display: none;
+    }
+    
+    .message.success {
+        background: #1a4d2e;
+        color: #7cfc00;
+        border: 1px solid #2d7a4b;
+        display: block;
+    }
+    
+    .message.error {
+        background: #4d1a1a;
+        color: #ff6b6b;
+        border: 1px solid #7a2d2d;
+        display: block;
+    }
+    
+    .warning-text {
+        color: #ff9d1a !important;
+        font-weight: 600;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+    
+    .btn-primary, .btn-secondary, .btn-danger {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+        color: #fff;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(90, 159, 212, 0.4);
+    }
+    
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-secondary {
+        background: #444;
+        color: #fff;
+    }
+    
+    .btn-secondary:hover {
+        background: #555;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: #fff;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+</style>
+
+<script>
+let totpSecret = null;
+
+async function enableTOTP() {
+    const enableBtn = document.getElementById('enable-btn');
+    const setupForm = document.getElementById('setup-form');
+    const qrContainer = document.getElementById('qr-code-container');
+    
+    enableBtn.disabled = true;
+    enableBtn.textContent = 'Generating...';
+    
+    try {
+        const response = await fetch('/settings/totp/enable', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            totpSecret = data.secret;
+            
+            // Show QR code
+            qrContainer.innerHTML = `<img src="${data.qr_code}" alt="QR Code">`;
+            
+            // Show secret key
+            document.getElementById('secret-code').textContent = data.secret;
+            document.getElementById('secret-container').style.display = 'block';
+            
+            // Show setup form
+            setupForm.style.display = 'block';
+            enableBtn.style.display = 'none';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to generate 2FA setup'));
+            enableBtn.disabled = false;
+            enableBtn.textContent = 'Enable 2FA';
+        }
+    } catch (error) {
+        alert('An error occurred. Please try again.');
+        enableBtn.disabled = false;
+        enableBtn.textContent = 'Enable 2FA';
+    }
+}
+
+function cancelSetup() {
+    document.getElementById('setup-form').style.display = 'none';
+    document.getElementById('enable-btn').style.display = 'inline-block';
+    document.getElementById('enable-btn').disabled = false;
+    document.getElementById('enable-btn').textContent = 'Enable 2FA';
+}
+
+function copySecret() {
+    const secretText = document.getElementById('secret-code').textContent;
+    navigator.clipboard.writeText(secretText).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+            btn.textContent = 'Copy Secret';
+        }, 2000);
+    });
+}
+
+document.getElementById('verify-totp-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const messageDiv = document.getElementById('verify-message');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Verifying...';
+    
+    messageDiv.className = 'message';
+    messageDiv.textContent = '';
+    
+    try {
+        const formData = new FormData(form);
+        const response = await fetch('/settings/totp/verify', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            messageDiv.className = 'message success';
+            messageDiv.textContent = data.message || '2FA enabled successfully!';
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            messageDiv.className = 'message error';
+            messageDiv.textContent = data.error || 'Verification failed';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Verify & Enable 2FA';
+        }
+    } catch (error) {
+        messageDiv.className = 'message error';
+        messageDiv.textContent = 'An error occurred. Please try again.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Verify & Enable 2FA';
+    }
+});
+
+function showDisableForm() {
+    document.getElementById('disable-form').style.display = 'block';
+}
+
+function hideDisableForm() {
+    document.getElementById('disable-form').style.display = 'none';
+    document.getElementById('disable-totp-form').reset();
+    document.getElementById('disable-message').className = 'message';
+}
+
+document.getElementById('disable-totp-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const messageDiv = document.getElementById('disable-message');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Disabling...';
+    
+    messageDiv.className = 'message';
+    messageDiv.textContent = '';
+    
+    try {
+        const formData = new FormData(form);
+        const response = await fetch('/settings/totp/disable', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            messageDiv.className = 'message success';
+            messageDiv.textContent = data.message || '2FA disabled successfully!';
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            messageDiv.className = 'message error';
+            messageDiv.textContent = data.error || 'Failed to disable 2FA';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Disable 2FA';
+        }
+    } catch (error) {
+        messageDiv.className = 'message error';
+        messageDiv.textContent = 'An error occurred. Please try again.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Disable 2FA';
+    }
+});
+</script>
+{% endblock %}

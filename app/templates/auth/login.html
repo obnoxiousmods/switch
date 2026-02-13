@@ -34,6 +34,21 @@
                 >
             </div>
 
+            <div class="form-group" id="totp-group" style="display: none;">
+                <label for="totp_code">Two-Factor Code</label>
+                <input 
+                    type="text" 
+                    id="totp_code" 
+                    name="totp_code" 
+                    placeholder="000000"
+                    pattern="[0-9]{6}"
+                    maxlength="6"
+                    autocomplete="one-time-code"
+                    class="totp-input"
+                >
+                <small style="color: #888; margin-top: 4px; display: block;">Enter the 6-digit code from your authenticator app</small>
+            </div>
+
             <div id="error-message" class="error-message hidden"></div>
 
             <div class="form-actions">
@@ -173,6 +188,13 @@
 .auth-footer a:hover {
     text-decoration: underline;
 }
+
+.totp-input {
+    font-size: 24px !important;
+    text-align: center;
+    letter-spacing: 6px;
+    font-family: 'Courier New', monospace !important;
+}
 </style>
 
 <script>
@@ -181,6 +203,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     
     const submitBtn = document.getElementById('submit-btn');
     const errorMsg = document.getElementById('error-message');
+    const totpGroup = document.getElementById('totp-group');
+    const totpInput = document.getElementById('totp_code');
     
     // Hide previous messages
     errorMsg.classList.add('hidden');
@@ -201,6 +225,16 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         
         if (data.success) {
             window.location.href = data.redirect || '/';
+        } else if (data.requires_totp) {
+            // Show TOTP field
+            totpGroup.style.display = 'block';
+            totpInput.required = true;
+            totpInput.focus();
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Login';
+            errorMsg.textContent = data.message || 'Please enter your 2FA code';
+            errorMsg.classList.remove('hidden');
+            errorMsg.style.background = '#ff9d1a';
         } else {
             errorMsg.textContent = data.error || 'Login failed. Please try again.';
             errorMsg.classList.remove('hidden');

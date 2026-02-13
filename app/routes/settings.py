@@ -148,3 +148,264 @@ async def download_history_page(request: Request) -> Response:
             },
             status_code=500
         )
+
+
+async def totp_setup_page(request: Request) -> Response:
+    """Show TOTP setup page"""
+    # Check if user is logged in
+    if not request.session.get('user_id'):
+        return RedirectResponse(url="/login", status_code=303)
+    
+    try:
+        user_id = request.session.get('user_id')
+        user_data = await db.get_user_by_id(user_id)
+        
+        if not user_data:
+            return RedirectResponse(url="/login", status_code=303)
+        
+        user = User.from_dict(user_data)
+        
+        return templates.TemplateResponse(
+            request,
+            "settings/totp_setup.html",
+            {
+                "title": "Two-Factor Authentication",
+                "app_name": Config.get('app.name', 'Switch Game Repository'),
+                "totp_enabled": user.totp_enabled
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error loading TOTP setup page: {e}")
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Error",
+                "app_name": Config.get('app.name', 'Switch Game Repository'),
+                "error": "Failed to load TOTP setup page"
+            },
+            status_code=500
+        )
+
+
+async def totp_enable(request: Request) -> Response:
+    """Generate TOTP secret and enable 2FA"""
+    # Check if user is logged in
+    if not request.session.get('user_id'):
+        return JSONResponse(
+            {"success": False, "error": "Not authenticated"},
+            status_code=401
+        )
+    
+    try:
+        import pyotp
+        import qrcode
+        import io
+        import base64
+        
+        user_id = request.session.get('user_id')
+        user_data = await db.get_user_by_id(user_id)
+        
+        if not user_data:
+            return JSONResponse(
+                {"success": False, "error": "User not found"},
+                status_code=404
+            )
+        
+        user = User.from_dict(user_data)
+        
+        # Generate new TOTP secret
+        secret = pyotp.random_base32()
+        
+        # Generate provisioning URI for QR code
+        app_name = Config.get('app.name', 'Switch Game Repository')
+        totp = pyotp.TOTP(secret)
+        provisioning_uri = totp.provisioning_uri(
+            name=user.username,
+            issuer_name=app_name
+        )
+        
+        # Generate QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(provisioning_uri)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert QR code to base64 for embedding in HTML
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        qr_code_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        # Store the secret temporarily (will be confirmed on verification)
+        # Update user with TOTP secret but don't enable it yet
+        await db.update_user_totp(user_id, secret, False)
+        
+        return JSONResponse({
+            "success": True,
+            "secret": secret,
+            "qr_code": f"data:image/png;base64,{qr_code_base64}",
+            "provisioning_uri": provisioning_uri
+        })
+        
+    except Exception as e:
+        logger.error(f"TOTP enable error: {e}")
+        return JSONResponse(
+            {"success": False, "error": "An error occurred while setting up 2FA"},
+            status_code=500
+        )
+
+
+async def totp_verify_and_enable(request: Request) -> Response:
+    """Verify TOTP code and enable 2FA"""
+    # Check if user is logged in
+    if not request.session.get('user_id'):
+        return JSONResponse(
+            {"success": False, "error": "Not authenticated"},
+            status_code=401
+        )
+    
+    try:
+        import pyotp
+        
+        form_data = await request.form()
+        totp_code = form_data.get('totp_code', '').strip()
+        
+        if not totp_code:
+            return JSONResponse(
+                {"success": False, "error": "TOTP code is required"},
+                status_code=400
+            )
+        
+        user_id = request.session.get('user_id')
+        user_data = await db.get_user_by_id(user_id)
+        
+        if not user_data:
+            return JSONResponse(
+                {"success": False, "error": "User not found"},
+                status_code=404
+            )
+        
+        user = User.from_dict(user_data)
+        
+        if not user.totp_secret:
+            return JSONResponse(
+                {"success": False, "error": "TOTP not initialized"},
+                status_code=400
+            )
+        
+        # Verify the TOTP code
+        totp = pyotp.TOTP(user.totp_secret)
+        if not totp.verify(totp_code, valid_window=1):
+            return JSONResponse(
+                {"success": False, "error": "Invalid TOTP code"},
+                status_code=401
+            )
+        
+        # Enable TOTP for the user
+        await db.update_user_totp(user_id, user.totp_secret, True)
+        
+        # Log the TOTP enablement
+        username = request.session.get('username', user.username)
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': 'totp_enabled',
+            'actor_id': user_id,
+            'actor_username': username,
+            'target_id': user_id,
+            'target_username': username,
+            'details': {
+                'message': 'Two-factor authentication enabled'
+            },
+            'ip_address': ip_address
+        })
+        
+        logger.info(f"TOTP enabled for user: {user.username}")
+        return JSONResponse({"success": True, "message": "Two-factor authentication enabled successfully"})
+        
+    except Exception as e:
+        logger.error(f"TOTP verification error: {e}")
+        return JSONResponse(
+            {"success": False, "error": "An error occurred while verifying 2FA"},
+            status_code=500
+        )
+
+
+async def totp_disable(request: Request) -> Response:
+    """Disable TOTP/2FA"""
+    # Check if user is logged in
+    if not request.session.get('user_id'):
+        return JSONResponse(
+            {"success": False, "error": "Not authenticated"},
+            status_code=401
+        )
+    
+    try:
+        import pyotp
+        
+        form_data = await request.form()
+        password = form_data.get('password', '')
+        totp_code = form_data.get('totp_code', '').strip()
+        
+        if not password or not totp_code:
+            return JSONResponse(
+                {"success": False, "error": "Password and TOTP code are required"},
+                status_code=400
+            )
+        
+        user_id = request.session.get('user_id')
+        user_data = await db.get_user_by_id(user_id)
+        
+        if not user_data:
+            return JSONResponse(
+                {"success": False, "error": "User not found"},
+                status_code=404
+            )
+        
+        user = User.from_dict(user_data)
+        
+        # Verify password
+        if not User.verify_password(password, user.password_hash):
+            return JSONResponse(
+                {"success": False, "error": "Incorrect password"},
+                status_code=401
+            )
+        
+        # Verify TOTP code
+        if user.totp_enabled and user.totp_secret:
+            totp = pyotp.TOTP(user.totp_secret)
+            if not totp.verify(totp_code, valid_window=1):
+                return JSONResponse(
+                    {"success": False, "error": "Invalid TOTP code"},
+                    status_code=401
+                )
+        
+        # Disable TOTP
+        await db.update_user_totp(user_id, None, False)
+        
+        # Log the TOTP disablement
+        username = request.session.get('username', user.username)
+        ip_address = request.client.host if request.client else 'unknown'
+        
+        await db.add_audit_log({
+            'action': 'totp_disabled',
+            'actor_id': user_id,
+            'actor_username': username,
+            'target_id': user_id,
+            'target_username': username,
+            'details': {
+                'message': 'Two-factor authentication disabled'
+            },
+            'ip_address': ip_address
+        })
+        
+        logger.info(f"TOTP disabled for user: {user.username}")
+        return JSONResponse({"success": True, "message": "Two-factor authentication disabled successfully"})
+        
+    except Exception as e:
+        logger.error(f"TOTP disable error: {e}")
+        return JSONResponse(
+            {"success": False, "error": "An error occurred while disabling 2FA"},
+            status_code=500
+        )
