@@ -12,22 +12,57 @@
             <h1><a href="/" class="site-name">🎮 {{ app_name|default('Switch Game Repository') }}</a></h1>
             <div class="header-actions">
                 {% if request.session.get('username') %}
-                    <div class="user-menu">
-                        <span class="user-info">
-                            👤 {{ request.session.get('username') }}
-                        </span>
-                        {% if request.session.get('is_admin') %}
-                            <a href="/admincp" class="btn-admin">⚙️ Admin</a>
-                        {% endif %}
-                        {% if request.session.get('is_moderator') or request.session.get('is_admin') %}
-                            <a href="/modcp" class="btn-mod">🛡️ Mod CP</a>
-                        {% endif %}
-                        {% if request.session.get('is_uploader') or request.session.get('is_moderator') or request.session.get('is_admin') %}
-                            <a href="/uploadercp" class="btn-uploader">📤 Uploader</a>
-                        {% endif %}
-                        <a href="/requests" class="btn-requests">📝 Requests</a>
-                        <a href="/settings" class="btn-settings">⚙️ Settings</a>
-                        <a href="/logout" class="btn-logout">Logout</a>
+                    <div class="user-menu-container">
+                        <button class="user-menu-button" id="userMenuButton" aria-expanded="false" aria-haspopup="true">
+                            <span class="user-avatar">👤</span>
+                            <span class="user-name">{{ request.session.get('username') }}</span>
+                            {% if request.session.get('is_admin') %}
+                                <span class="user-badge badge-admin">Admin</span>
+                            {% elif request.session.get('is_moderator') %}
+                                <span class="user-badge badge-mod">Moderator</span>
+                            {% elif request.session.get('is_uploader') %}
+                                <span class="user-badge badge-uploader">Uploader</span>
+                            {% endif %}
+                            <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                                <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div class="user-dropdown" id="userDropdown" role="menu" aria-labelledby="userMenuButton">
+                            {% if request.session.get('is_admin') %}
+                                <a href="/admincp" class="dropdown-item dropdown-admin" role="menuitem">
+                                    <span class="item-icon">⚙️</span>
+                                    <span class="item-text">Admin Control Panel</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
+                            {% endif %}
+                            {% if request.session.get('is_moderator') or request.session.get('is_admin') %}
+                                <a href="/modcp" class="dropdown-item dropdown-mod" role="menuitem">
+                                    <span class="item-icon">🛡️</span>
+                                    <span class="item-text">Moderator Panel</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
+                            {% endif %}
+                            {% if request.session.get('is_uploader') or request.session.get('is_moderator') or request.session.get('is_admin') %}
+                                <a href="/uploadercp" class="dropdown-item dropdown-uploader" role="menuitem">
+                                    <span class="item-icon">📤</span>
+                                    <span class="item-text">Uploader Panel</span>
+                                </a>
+                                <div class="dropdown-divider"></div>
+                            {% endif %}
+                            <a href="/requests" class="dropdown-item" role="menuitem">
+                                <span class="item-icon">📝</span>
+                                <span class="item-text">My Requests</span>
+                            </a>
+                            <a href="/settings" class="dropdown-item" role="menuitem">
+                                <span class="item-icon">⚙️</span>
+                                <span class="item-text">Settings</span>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="/logout" class="dropdown-item dropdown-logout" role="menuitem">
+                                <span class="item-icon">🚪</span>
+                                <span class="item-text">Logout</span>
+                            </a>
+                        </div>
                     </div>
                 {% else %}
                     <div class="auth-links">
@@ -70,27 +105,12 @@
             align-items: center;
         }
         
-        .user-menu {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        
-        .user-info {
-            color: #fff;
-            font-weight: 600;
-            padding: 8px 16px;
-            background: #333;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        
         .auth-links {
             display: flex;
             gap: 10px;
         }
         
-        .btn-login, .btn-register, .btn-logout, .btn-settings, .btn-admin, .btn-mod, .btn-requests {
+        .btn-login, .btn-register {
             padding: 8px 16px;
             border-radius: 6px;
             text-decoration: none;
@@ -118,68 +138,218 @@
             box-shadow: 0 4px 12px rgba(90, 159, 212, 0.4);
         }
         
-        .btn-admin {
-            background: #ff8c00;
-            color: #fff;
+        /* User Menu Dropdown */
+        .user-menu-container {
+            position: relative;
         }
         
-        .btn-admin:hover {
-            background: #ff9d1a;
-            transform: translateY(-2px);
-        }
-        
-        .btn-mod {
-            background: #6c5ce7;
-            color: #fff;
-        }
-        
-        .btn-mod:hover {
-            background: #5f4dd8;
-            transform: translateY(-2px);
-        }
-        
-        .btn-uploader {
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             padding: 8px 16px;
-            border-radius: 6px;
-            text-decoration: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
             font-weight: 600;
             font-size: 14px;
-            font-color: #fff;
-            transition: all 0.2s;
-            background: #00b894;\
-            forground: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
-
-        .btn-uploader:hover {
-            background: #8b5ad4;
-            transform: translateY(-2px);
+        
+        .user-menu-button:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary-color);
         }
-        .btn-requests {
-            background: #444;
+        
+        .user-menu-button[aria-expanded="true"] {
+            background: var(--surface-hover);
+            border-color: var(--primary-color);
+        }
+        
+        .user-avatar {
+            font-size: 18px;
+        }
+        
+        .user-name {
+            font-weight: 600;
+        }
+        
+        .user-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-admin {
+            background: linear-gradient(135deg, #ff8c00, #ff9d1a);
             color: #fff;
         }
         
-        .btn-requests:hover {
-            background: #555;
-        }
-        
-        .btn-settings {
-            background: #444;
+        .badge-mod {
+            background: linear-gradient(135deg, #6c5ce7, #5f4dd8);
             color: #fff;
         }
         
-        .btn-settings:hover {
-            background: #555;
-        }
-        
-        .btn-logout {
-            background: #d9534f;
+        .badge-uploader {
+            background: linear-gradient(135deg, #00b894, #00d9a5);
             color: #fff;
         }
         
-        .btn-logout:hover {
-            background: #c9302c;
+        .dropdown-arrow {
+            transition: transform 0.2s ease;
+        }
+        
+        .user-menu-button[aria-expanded="true"] .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 240px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+            z-index: 1000;
+        }
+        
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all 0.15s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .dropdown-item:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .dropdown-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .dropdown-item:hover {
+            background: var(--surface-hover);
+        }
+        
+        .dropdown-admin:hover {
+            background: rgba(255, 140, 0, 0.1);
+            color: #ff9d1a;
+        }
+        
+        .dropdown-mod:hover {
+            background: rgba(108, 92, 231, 0.1);
+            color: #6c5ce7;
+        }
+        
+        .dropdown-uploader:hover {
+            background: rgba(0, 184, 148, 0.1);
+            color: #00d9a5;
+        }
+        
+        .dropdown-logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .item-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .item-text {
+            flex: 1;
+        }
+        
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .user-name {
+                display: none;
+            }
+            
+            .user-dropdown {
+                right: -10px;
+            }
         }
     </style>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuButton = document.getElementById('userMenuButton');
+            const dropdown = document.getElementById('userDropdown');
+            
+            if (menuButton && dropdown) {
+                // Toggle dropdown on button click
+                menuButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isExpanded = menuButton.getAttribute('aria-expanded') === 'true';
+                    menuButton.setAttribute('aria-expanded', !isExpanded);
+                    dropdown.classList.toggle('show');
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!menuButton.contains(e.target) && !dropdown.contains(e.target)) {
+                        menuButton.setAttribute('aria-expanded', 'false');
+                        dropdown.classList.remove('show');
+                    }
+                });
+                
+                // Close dropdown when pressing Escape
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && dropdown.classList.contains('show')) {
+                        menuButton.setAttribute('aria-expanded', 'false');
+                        dropdown.classList.remove('show');
+                        menuButton.focus();
+                    }
+                });
+                
+                // Handle keyboard navigation in dropdown
+                dropdown.addEventListener('keydown', function(e) {
+                    const items = Array.from(dropdown.querySelectorAll('.dropdown-item'));
+                    const currentIndex = items.indexOf(document.activeElement);
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                        items[nextIndex].focus();
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                        items[prevIndex].focus();
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
