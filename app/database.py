@@ -32,6 +32,7 @@ class Database:
         self.audit_logs_collection: Optional[StandardCollection] = None
         self.activity_logs_collection: Optional[StandardCollection] = None
         self.upload_statistics_collection: Optional[StandardCollection] = None
+        self.reports_collection: Optional[StandardCollection] = None
 
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -138,6 +139,13 @@ class Database:
                 self.upload_statistics_collection = self.db.collection(
                     "upload_statistics"
                 )
+
+            # Create reports collection if it doesn't exist
+            if not await self.db.has_collection("reports"):
+                self.reports_collection = await self.db.create_collection("reports")
+                logger.info("Created collection: reports")
+            else:
+                self.reports_collection = self.db.collection("reports")
 
             logger.info("Successfully connected to ArangoDB")
 
@@ -1088,10 +1096,10 @@ class Database:
     async def get_all_entries_with_download_counts(
         self, search_query: Optional[str] = None, sort_by_downloads: bool = False
     ) -> List[Dict[str, Any]]:
-        """Get all entries with their download counts, optionally filtered and sorted"""
+        """Get all entries with their download counts and report counts, optionally filtered and sorted"""
         try:
             if search_query:
-                # Search with download counts
+                # Search with download counts and report counts
                 query = """
                 FOR entry IN entries
                 FILTER LOWER(entry.name) LIKE LOWER(CONCAT('%', @search, '%'))
@@ -1101,15 +1109,27 @@ class Database:
                     COLLECT WITH COUNT INTO count
                     RETURN count
                 )[0] || 0
+                LET report_count = (
+                    FOR report IN reports
+                    FILTER report.entry_id == entry._key AND report.status == 'open'
+                    COLLECT WITH COUNT INTO count
+                    RETURN count
+                )[0] || 0
                 """
                 bind_vars = {"search": search_query}
             else:
-                # Get all entries with download counts
+                # Get all entries with download counts and report counts
                 query = """
                 FOR entry IN entries
                 LET download_count = (
                     FOR doc IN download_history
                     FILTER doc.entry_id == entry._key
+                    COLLECT WITH COUNT INTO count
+                    RETURN count
+                )[0] || 0
+                LET report_count = (
+                    FOR report IN reports
+                    FILTER report.entry_id == entry._key AND report.status == 'open'
                     COLLECT WITH COUNT INTO count
                     RETURN count
                 )[0] || 0
@@ -1122,7 +1142,7 @@ class Database:
             else:
                 query += " SORT entry.name ASC"
             
-            query += " RETURN MERGE(entry, {download_count: download_count})"
+            query += " RETURN MERGE(entry, {download_count: download_count, report_count: report_count})"
             
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             entries = []
@@ -1133,6 +1153,146 @@ class Database:
         except Exception as e:
             logger.error(f"Error fetching entries with download counts: {e}")
             return []
+
+    # Report management methods
+    async def create_report(
+        self, entry_id: str, entry_name: str, user_id: str, username: str, 
+        reason: str, description: str = ""
+    ) -> Optional[str]:
+        """Create a new report for a broken/corrupted file"""
+        try:
+            report_data = {
+                "entry_id": entry_id,
+                "entry_name": entry_name,
+                "user_id": user_id,
+                "username": username,
+                "reason": reason,
+                "description": description,
+                "status": "open",  # open, resolved
+                "created_at": datetime.utcnow().isoformat(),
+                "resolved_at": None,
+                "resolved_by": None,
+                "resolved_by_username": None
+            }
+            result = await self.reports_collection.insert(report_data)
+            logger.info(f"Created report for entry {entry_id} by user {username}")
+            return result["_key"]
+        except Exception as e:
+            logger.error(f"Error creating report: {e}")
+            return None
+
+    async def get_all_reports(
+        self, status: Optional[str] = None, entry_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get all reports, optionally filtered by status or entry_id"""
+        try:
+            if status and entry_id:
+                query = """
+                FOR doc IN reports
+                FILTER doc.status == @status AND doc.entry_id == @entry_id
+                SORT doc.created_at DESC
+                RETURN doc
+                """
+                bind_vars = {"status": status, "entry_id": entry_id}
+            elif status:
+                query = """
+                FOR doc IN reports
+                FILTER doc.status == @status
+                SORT doc.created_at DESC
+                RETURN doc
+                """
+                bind_vars = {"status": status}
+            elif entry_id:
+                query = """
+                FOR doc IN reports
+                FILTER doc.entry_id == @entry_id
+                SORT doc.created_at DESC
+                RETURN doc
+                """
+                bind_vars = {"entry_id": entry_id}
+            else:
+                query = """
+                FOR doc IN reports
+                SORT doc.created_at DESC
+                RETURN doc
+                """
+                bind_vars = {}
+
+            cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
+            reports = []
+            async with cursor:
+                async for doc in cursor:
+                    reports.append(doc)
+            return reports
+        except Exception as e:
+            logger.error(f"Error fetching reports: {e}")
+            return []
+
+    async def get_report_count_for_entry(self, entry_id: str) -> int:
+        """Get the count of open reports for a specific entry"""
+        try:
+            query = """
+            FOR doc IN reports
+            FILTER doc.entry_id == @entry_id AND doc.status == 'open'
+            COLLECT WITH COUNT INTO count
+            RETURN count
+            """
+            cursor = await self.db.aql.execute(query, bind_vars={"entry_id": entry_id})
+            async with cursor:
+                async for count in cursor:
+                    return count or 0
+            return 0
+        except Exception as e:
+            logger.error(f"Error fetching report count: {e}")
+            return 0
+
+    async def resolve_report(
+        self, report_id: str, resolved_by_id: str, resolved_by_username: str
+    ) -> bool:
+        """Mark a report as resolved"""
+        try:
+            await self.reports_collection.update(
+                {"_key": report_id},
+                {
+                    "status": "resolved",
+                    "resolved_at": datetime.utcnow().isoformat(),
+                    "resolved_by": resolved_by_id,
+                    "resolved_by_username": resolved_by_username
+                }
+            )
+            logger.info(f"Resolved report {report_id} by {resolved_by_username}")
+            return True
+        except Exception as e:
+            logger.error(f"Error resolving report: {e}")
+            return False
+
+    async def count_reports(self, status: Optional[str] = None) -> int:
+        """Count reports, optionally filtered by status"""
+        try:
+            if status:
+                query = """
+                FOR doc IN reports
+                FILTER doc.status == @status
+                COLLECT WITH COUNT INTO count
+                RETURN count
+                """
+                bind_vars = {"status": status}
+            else:
+                query = """
+                FOR doc IN reports
+                COLLECT WITH COUNT INTO count
+                RETURN count
+                """
+                bind_vars = {}
+
+            cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
+            async with cursor:
+                async for count in cursor:
+                    return count or 0
+            return 0
+        except Exception as e:
+            logger.error(f"Error counting reports: {e}")
+            return 0
 
     async def get_system_statistics(self) -> Dict[str, Any]:
         """Get system-wide statistics including directories, storage, and game count"""

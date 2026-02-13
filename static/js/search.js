@@ -297,11 +297,6 @@
         const card = document.createElement('div');
         card.className = 'result-card';
         
-        // Add click handler for download
-        card.addEventListener('click', () => {
-            handleDownload(entry);
-        });
-        
         const title = document.createElement('div');
         title.className = 'result-title';
         title.textContent = entry.name;
@@ -339,8 +334,44 @@
         meta.appendChild(dateItem);
         meta.appendChild(downloadItem);
         
+        // Report warning badge if there are open reports
+        if (entry.report_count && entry.report_count > 0) {
+            const reportBadge = document.createElement('div');
+            reportBadge.className = 'report-warning-badge';
+            reportBadge.innerHTML = `⚠️ ${entry.report_count} report${entry.report_count !== 1 ? 's' : ''}`;
+            reportBadge.title = 'This file has been reported as broken or corrupted';
+            card.appendChild(reportBadge);
+        }
+        
+        // Action buttons container
+        const actions = document.createElement('div');
+        actions.className = 'result-actions';
+        
+        // Download button
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'btn-download';
+        downloadBtn.textContent = '⬇️ Download';
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleDownload(entry);
+        });
+        
+        // Report button
+        const reportBtn = document.createElement('button');
+        reportBtn.className = 'btn-report';
+        reportBtn.textContent = '⚠️ Report';
+        reportBtn.title = 'Report this file as broken or corrupted';
+        reportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleReport(entry);
+        });
+        
+        actions.appendChild(downloadBtn);
+        actions.appendChild(reportBtn);
+        
         card.appendChild(title);
         card.appendChild(meta);
+        card.appendChild(actions);
         
         return card;
     }
@@ -355,6 +386,88 @@
             const downloadUrl = `/api/download/${encodeURIComponent(entry.id)}`;
             window.location.href = downloadUrl;
         }
+    }
+    
+    // Handle report of an entry
+    function handleReport(entry) {
+        // Create modal for report submission
+        const modal = document.createElement('div');
+        modal.className = 'report-modal-overlay';
+        modal.innerHTML = `
+            <div class="report-modal">
+                <div class="report-modal-header">
+                    <h3>Report File Issue</h3>
+                    <button class="modal-close" onclick="this.closest('.report-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="report-modal-body">
+                    <p><strong>File:</strong> ${entry.name}</p>
+                    <form id="report-form">
+                        <div class="form-group">
+                            <label for="report-reason">Reason:</label>
+                            <select id="report-reason" name="reason" required class="form-select">
+                                <option value="">Select a reason...</option>
+                                <option value="not_working">File Not Working</option>
+                                <option value="corrupted">File Corrupted</option>
+                                <option value="wrong_file">Wrong File</option>
+                                <option value="missing_updates">Missing Updates/DLC</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="report-description">Additional Details (Optional):</label>
+                            <textarea id="report-description" name="description" rows="4" 
+                                class="form-textarea" placeholder="Describe the issue..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="this.closest('.report-modal-overlay').remove()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn-submit">Submit Report</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle form submission
+        const form = modal.querySelector('#report-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            formData.append('entry_id', entry.id);
+            formData.append('entry_name', entry.name);
+            
+            const submitBtn = form.querySelector('.btn-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
+            try {
+                const response = await fetch('/api/reports/submit', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Report submitted successfully. Thank you for helping improve our collection!');
+                    modal.remove();
+                    // Reload entries to update report counts
+                    loadEntries();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to submit report'));
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Report';
+                }
+            } catch (error) {
+                alert('Error submitting report. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Report';
+            }
+        });
     }
     
     // Format file size

@@ -177,3 +177,106 @@ async def download_entry(request: Request):
         return JSONResponse({
             "error": "An error occurred while processing your request"
         }, status_code=500)
+
+
+async def submit_report(request: Request):
+    """API endpoint to submit a report for a file"""
+    # Require authentication - either session or API key
+    has_session = request.session.get('user_id') is not None
+    has_api_auth = getattr(request.state, 'authenticated', False)
+    
+    if not has_session and not has_api_auth:
+        return JSONResponse({
+            "success": False,
+            "error": "Authentication required. Please log in or use an API key."
+        }, status_code=401)
+    
+    try:
+        # Get user info
+        user_id = request.session.get('user_id')
+        username = request.session.get('username')
+        
+        # For API key authentication, use the authenticated user_id
+        if not user_id and has_api_auth:
+            user_id = request.state.user_id
+            # Get username from database for API key users
+            user_doc = await db.get_user_by_id(user_id)
+            if user_doc:
+                username = user_doc.get('username', 'api_user')
+        
+        if not user_id or not username:
+            return JSONResponse({
+                "success": False,
+                "error": "User information not found"
+            }, status_code=401)
+        
+        # Get form data
+        form_data = await request.form()
+        entry_id = form_data.get('entry_id', '').strip()
+        entry_name = form_data.get('entry_name', '').strip()
+        reason = form_data.get('reason', '').strip()
+        description = form_data.get('description', '').strip()
+        
+        if not entry_id or not reason:
+            return JSONResponse({
+                "success": False,
+                "error": "Missing required fields"
+            }, status_code=400)
+        
+        # Verify entry exists
+        entry = await db.get_entry_by_id(entry_id)
+        if not entry:
+            return JSONResponse({
+                "success": False,
+                "error": "Entry not found"
+            }, status_code=404)
+        
+        # Create the report
+        report_id = await db.create_report(
+            entry_id=entry_id,
+            entry_name=entry_name or entry.get('name', 'Unknown'),
+            user_id=user_id,
+            username=username,
+            reason=reason,
+            description=description
+        )
+        
+        if not report_id:
+            return JSONResponse({
+                "success": False,
+                "error": "Failed to create report"
+            }, status_code=500)
+        
+        # Log the report activity
+        ip_info = get_ip_info(request)
+        activity_data = {
+            'event_type': 'report_submitted',
+            'user_id': user_id,
+            'username': username,
+            'details': {
+                'report_id': report_id,
+                'entry_id': entry_id,
+                'entry_name': entry_name or entry.get('name', 'Unknown'),
+                'reason': reason
+            },
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
+        
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"Report submitted for entry {entry_id} by user {username} from {format_ip_for_log(request)}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": "Report submitted successfully"
+        })
+        
+    except Exception as e:
+        logger.error(f"Report submission error: {e}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": "An error occurred while submitting the report"
+        }, status_code=500)

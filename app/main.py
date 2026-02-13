@@ -7,7 +7,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.routes.pages import index, api_docs_page
-from app.routes.api import list_entries, download_entry
+from app.routes.api import list_entries, download_entry, submit_report
 from app.routes.admin import (
     admin_init_page, admin_init_submit, admin_dashboard,
     admin_directories, admin_add_directory, admin_delete_directory,
@@ -15,7 +15,8 @@ from app.routes.admin import (
     admin_users, admin_update_user_role, admin_force_password_change,
     admin_api_keys, admin_revoke_api_key, admin_user_api_usage,
     admin_audit_logs, admin_activity_logs, admin_storage_info,
-    admin_upload_statistics, admin_migrate_passwords, admin_password_migration_status
+    admin_upload_statistics, admin_reports, admin_resolve_report,
+    admin_migrate_passwords, admin_password_migration_status
 )
 from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
 from app.routes.settings import settings_page, change_password, download_history_page, totp_setup_page, totp_enable, totp_verify_and_enable, totp_disable
@@ -48,6 +49,7 @@ routes = [
     Route("/api-docs", api_docs_page),
     Route("/api/list", list_entries),
     Route("/api/download/{entry_id}", download_entry),
+    Route("/api/reports/submit", submit_report, methods=["POST"]),
     Route("/login", login_page, methods=["GET"]),
     Route("/login", login_submit, methods=["POST"]),
     Route("/register", register_page, methods=["GET"]),
@@ -96,6 +98,8 @@ routes = [
     Route("/admincp/activity-logs", admin_activity_logs, methods=["GET"]),
     Route("/admincp/storage-info", admin_storage_info, methods=["GET"]),
     Route("/admincp/upload-statistics", admin_upload_statistics, methods=["GET"]),
+    Route("/admincp/reports", admin_reports, methods=["GET"]),
+    Route("/admincp/reports/resolve", admin_resolve_report, methods=["POST"]),
     Route("/admincp/password-migration/status", admin_password_migration_status, methods=["GET"]),
     Route("/admincp/password-migration/migrate", admin_migrate_passwords, methods=["POST"]),
     Mount("/static", StaticFiles(directory="static"), name="static"),
