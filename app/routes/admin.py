@@ -182,6 +182,7 @@ async def admin_init_submit(request: Request) -> Response:
     try:
         # Parse form data
         form_data = await request.form()
+        validated_data = {}
         
         # Validate required fields
         required_fields = ['website_name', 'db_host', 'db_port', 'db_username', 'db_password', 'db_name']
@@ -191,15 +192,27 @@ async def admin_init_submit(request: Request) -> Response:
                     {"success": False, "error": f"Missing required field: {field}"},
                     status_code=400
                 )
+            validated_data[field] = form_data.get(field)
+        
+        # Validate port number
+        try:
+            validated_data['db_port'] = int(validated_data['db_port'])
+            if not (0 < validated_data['db_port'] < 65536):
+                raise ValueError
+        except ValueError:
+            return JSONResponse(
+                {"success": False, "error": "Invalid port number"},
+                status_code=400
+            )
         
         # Initialize configuration
         Config.initialize({
-            'website_name': form_data['website_name'],
-            'db_host': form_data['db_host'],
-            'db_port': form_data['db_port'],
-            'db_username': form_data['db_username'],
-            'db_password': form_data['db_password'],
-            'db_name': form_data['db_name'],
+            'website_name': validated_data['website_name'],
+            'db_host': validated_data['db_host'],
+            'db_port': validated_data['db_port'],
+            'db_username': validated_data['db_username'],
+            'db_password': validated_data['db_password'],
+            'db_name': validated_data['db_name'],
         })
         
         # Connect to database and create dummy entries

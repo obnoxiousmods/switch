@@ -94,43 +94,50 @@ class Config:
         }
         cls.save()
     
-    # Accessor methods for common values
+    # Configuration accessor methods (not properties!)
     @classmethod
     def APP_NAME(cls) -> str:
+        """Get application name"""
         return cls.get('app.name', 'Switch Game Repository')
     
     @classmethod
     def DEBUG(cls) -> bool:
+        """Get debug mode setting"""
         return cls.get('app.debug', True)
     
     @classmethod
     def ARANGODB_HOST(cls) -> str:
+        """Get ArangoDB host"""
         return cls.get('database.host', 'localhost')
     
     @classmethod
     def ARANGODB_PORT(cls) -> int:
+        """Get ArangoDB port"""
         return cls.get('database.port', 8529)
     
     @classmethod
     def ARANGODB_USERNAME(cls) -> str:
+        """Get ArangoDB username"""
         return cls.get('database.username', 'root')
     
     @classmethod
     def ARANGODB_PASSWORD(cls) -> str:
+        """Get ArangoDB password"""
         return cls.get('database.password', '')
     
     @classmethod
     def ARANGODB_DATABASE(cls) -> str:
+        """Get ArangoDB database name"""
         return cls.get('database.database', 'switch_db')
     
     @classmethod
     def SECRET_KEY(cls) -> str:
-        return cls.get('security.secret_key', 'change-this-secret-key')
+        """Get secret key for sessions"""
+        return cls.get('security.secret_key', 'change-this-to-a-very-long-random-secret-2026!')
     
     @classmethod
-    def get_arangodb_url(cls):
+    def get_arangodb_url(cls) -> str:
         """Get ArangoDB connection URL"""
-        return f"http://{cls.ARANGODB_HOST()}:{cls.ARANGODB_PORT()}"
-
-# Load config on module import
-Config.load()
+        host = cls.ARANGODB_HOST()
+        port = cls.ARANGODB_PORT()
+        return f"http://{host}:{port}"
