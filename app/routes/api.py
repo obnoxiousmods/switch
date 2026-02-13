@@ -29,6 +29,15 @@ async def download_entry(request: Request):
                 "error": "Entry not found"
             }, status_code=404)
         
+        # Track download if user is logged in
+        user_id = request.session.get('user_id')
+        if user_id:
+            await db.add_download_history(
+                user_id=user_id,
+                entry_id=entry_id,
+                entry_name=entry.get('name', 'Unknown')
+            )
+        
         # If it's a URL, redirect to it
         if entry.get('type') == 'url':
             return RedirectResponse(url=entry.get('source'))
