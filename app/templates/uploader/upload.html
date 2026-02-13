@@ -15,44 +15,19 @@
 
                     <div class="form-group">
                         <label for="type">Upload Type *</label>
-                        <select id="type" name="type" required onchange="toggleUploadType()">
+                        <select id="type" name="type" required>
                             <option value="">Select type...</option>
                             <option value="filepath">File Upload</option>
-                            <option value="url">URL Link</option>
                         </select>
-                    </div>
-
-                    <div class="form-group" id="fileGroup" style="display: none;">
-                        <label for="file">Game File *</label>
-                        <input type="file" id="file" name="file" 
-                               accept=".nsp,.nsz,.xci"
-                               onchange="updateFileInfo()">
-                        <small class="form-help">Supported formats: NSP, NSZ, XCI</small>
-                        <div id="fileInfo" class="file-info"></div>
-                    </div>
-
-                    <div class="form-group" id="urlGroup" style="display: none;">
-                        <label for="url">File URL *</label>
-                        <input type="url" id="url" name="url" 
-                               placeholder="https://example.com/game.nsp">
-                        <small class="form-help">Direct download link to the game file</small>
-                    </div>
-
-                    <div class="form-group" id="sizeGroup" style="display: none;">
-                        <label for="size">File Size (bytes) *</label>
-                        <input type="number" id="size" name="size" 
-                               placeholder="e.g., 14500000000">
-                        <small class="form-help">Required for URL uploads</small>
                     </div>
 
                     <div class="form-group">
-                        <label for="file_type">File Type *</label>
-                        <select id="file_type" name="file_type" required>
-                            <option value="">Select file type...</option>
-                            <option value="nsp">NSP</option>
-                            <option value="nsz">NSZ (Compressed)</option>
-                            <option value="xci">XCI</option>
-                        </select>
+                        <label for="file">Game File *</label>
+                        <input type="file" id="file" name="file" 
+                               accept=".nsp,.nsz,.xci"
+                               onchange="updateFileInfo()" required>
+                        <small class="form-help">Supported formats: NSP, NSZ, XCI</small>
+                        <div id="fileInfo" class="file-info"></div>
                     </div>
                 </div>
 
@@ -79,39 +54,6 @@
 </div>
 
 <script>
-function toggleUploadType() {
-    const type = document.getElementById('type').value;
-    const fileGroup = document.getElementById('fileGroup');
-    const urlGroup = document.getElementById('urlGroup');
-    const sizeGroup = document.getElementById('sizeGroup');
-    const fileInput = document.getElementById('file');
-    const urlInput = document.getElementById('url');
-    const sizeInput = document.getElementById('size');
-    
-    if (type === 'filepath') {
-        fileGroup.style.display = 'block';
-        urlGroup.style.display = 'none';
-        sizeGroup.style.display = 'none';
-        fileInput.required = true;
-        urlInput.required = false;
-        sizeInput.required = false;
-    } else if (type === 'url') {
-        fileGroup.style.display = 'none';
-        urlGroup.style.display = 'block';
-        sizeGroup.style.display = 'block';
-        fileInput.required = false;
-        urlInput.required = true;
-        sizeInput.required = true;
-    } else {
-        fileGroup.style.display = 'none';
-        urlGroup.style.display = 'none';
-        sizeGroup.style.display = 'none';
-        fileInput.required = false;
-        urlInput.required = false;
-        sizeInput.required = false;
-    }
-}
-
 function updateFileInfo() {
     const fileInput = document.getElementById('file');
     const fileInfo = document.getElementById('fileInfo');
