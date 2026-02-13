@@ -400,12 +400,12 @@ class Database:
         try:
             if status:
                 cursor = await self.db.aql.execute(
-                    "RETURN LENGTH(FOR doc IN requests FILTER doc.status == @status RETURN 1)",
+                    "FOR doc IN requests FILTER doc.status == @status COLLECT WITH COUNT INTO length RETURN length",
                     bind_vars={"status": status},
                 )
             else:
                 cursor = await self.db.aql.execute(
-                    "RETURN LENGTH(FOR doc IN requests RETURN 1)"
+                    "FOR doc IN requests COLLECT WITH COUNT INTO length RETURN length"
                 )
 
             async with cursor:
