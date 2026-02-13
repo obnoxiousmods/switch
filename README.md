@@ -1,28 +1,31 @@
-# Switch Game Repository - Community Edition
+# Switch Game Repository 🎮
 
-A community website for managing and distributing Nintendo Switch game files (.nsp, .nsz, .xci) with a modern, reactive search interface.
+A modern community platform for managing and distributing Nintendo Switch game files (.nsp, .nsz, .xci) with user authentication, role-based access control, and API key management.
 
-## Technology Stack
+## ✨ Features
 
-- **Backend**: Starlette (async Python web framework)
+- 🔍 **Real-time Search** - Client-side filtering with instant results
+- 👥 **User System** - Registration, authentication, and role-based permissions (Admin/Mod/Uploader/User)
+- 🔑 **API Keys** - Generate and manage API keys for programmatic access
+- 📊 **Admin Dashboard** - Directory management, user control, audit logs, and statistics
+- 🎯 **Request System** - Users can request games, mods approve/reject
+- 📁 **Multi-format Support** - NSP, NSZ, and XCI file types
+- 🌐 **Flexible Sources** - Local filepaths or external URLs
+- 🎨 **Modern UI** - Dark theme with smooth transitions
+
+## 🛠️ Tech Stack
+
+- **Backend**: Starlette (async Python)
 - **Database**: ArangoDB
-- **Frontend**: HTML + JavaScript (served via Starlette templates)
+- **Frontend**: HTML, JavaScript, CSS
+- **Configuration**: YAML-based (`config.yaml`)
 
-## Features
+## 📋 Requirements
 
-- 🎮 Clean, modern interface with reactive search
-- ⚡ Real-time client-side filtering as you type
-- 🔍 Auto-focused search box for instant access
-- 📦 Support for .nsp, .nsz, and .xci file types
-- 🌐 Support for both local filepaths and URLs
-- 🎨 Dark theme interface with smooth transitions
+- Python 3.10+
+- ArangoDB 3.x+
 
-## Requirements
-
-- Python 3.10 or higher (tested with Python 3.10+)
-- ArangoDB 3.x or higher
-
-## Installation
+## 🚀 Quick Start
 
 ### 1. Clone the repository
 
@@ -39,9 +42,9 @@ pip install -r requirements.txt
 
 ### 3. Set up ArangoDB
 
-Install ArangoDB from [https://www.arangodb.com/download/](https://www.arangodb.com/download/)
+Download and install from [arangodb.com/download](https://www.arangodb.com/download/)
 
-Start ArangoDB service:
+Start the service:
 ```bash
 # Linux/macOS
 sudo systemctl start arangodb3
@@ -50,194 +53,145 @@ sudo systemctl start arangodb3
 arangod
 ```
 
-### 4. Configure environment variables
-
-Copy the example environment file and update with your settings:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your ArangoDB credentials:
-
-```env
-ARANGODB_HOST=localhost
-ARANGODB_PORT=8529
-ARANGODB_USERNAME=root
-ARANGODB_PASSWORD=your_password
-ARANGODB_DATABASE=switch_db
-SECRET_KEY=your-secret-key-here
-DEBUG=true
-```
-
-### 5. Initialize the database
-
-Run the database initialization script to create the database and populate it with sample data:
-
-```bash
-python init_db.py
-```
-
-This script will:
-- Create the `switch_db` database (default credentials: `root:root`)
-- Create the `entries` collection
-- Populate the database with 10 sample game entries
-
-**Note:** The script uses `root:root` as default credentials. If your ArangoDB uses different credentials, you can override them using environment variables:
-
-```bash
-# Example with custom credentials
-export ARANGODB_USERNAME=myuser
-export ARANGODB_PASSWORD=mypassword
-python init_db.py
-```
-
-### 6. Run the application
+### 4. Run the application
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The application will be available at: `http://localhost:8000`
+**Or use the provided launch scripts:**
+- Windows: `launch.bat`
+- Linux/macOS: `./launch.sh`
 
-## Project Structure
+### 5. Initialize via web interface
+
+🌐 Open your browser and navigate to:
+
+```
+http://localhost:8000/admincp/init
+```
+
+Complete the setup form with:
+- **Website Name** - Your site's display name
+- **Admin Username** - Your admin login username
+- **Admin Password** - Secure password for admin account
+- **Database Settings** - ArangoDB connection details:
+  - Host: `localhost` (default)
+  - Port: `8529` (default)
+  - Username: `root` (default)
+  - Password: Your ArangoDB password
+  - Database Name: `switch_db` (or custom)
+
+The system will automatically:
+- ✅ Create `config.yaml` with your settings
+- ✅ Connect to ArangoDB and create the database
+- ✅ Create your admin account
+- ✅ Add sample game entries for testing
+- ✅ Redirect you to the homepage
+
+## 📁 Project Structure
 
 ```
 switch/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py                 # Starlette app entry point
-│   ├── config.py               # Configuration management
-│   ├── database.py             # ArangoDB connection and queries
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   ├── api.py             # API routes (/api/list)
-│   │   └── pages.py           # Page routes (homepage)
-│   ├── models/
-│   │   ├── __init__.py
-│   │   └── entry.py           # Entry model/schema
-│   └── templates/
-│       ├── base.html          # Base template
-│       └── index.html         # Homepage with search dashboard
-├── static/
-│   ├── css/
-│   │   └── style.css          # Styles for the dashboard
-│   └── js/
-│       └── search.js          # Reactive search logic
+│   ├── main.py                # Application entry point
+│   ├── config.py              # Config management (loads config.yaml)
+│   ├── config.yaml            # Generated by web init (git ignored)
+│   ├── database.py            # ArangoDB connection
+│   ├── routes/                # Route handlers
+│   │   ├── api.py            # Public API endpoints
+│   │   ├── pages.py          # Page routes
+│   │   ├── auth.py           # Authentication
+│   │   ├── admin.py          # Admin panel
+│   │   ├── mod.py            # Moderator panel
+│   │   ├── uploader.py       # Uploader panel
+│   │   └── api_keys.py       # API key management
+│   ├── models/               # Data models
+│   ├── templates/            # HTML templates
+│   └── middleware/           # Custom middleware
+├── static/                   # CSS, JS, assets
 ├── requirements.txt
-├── .env.example               # Example environment variables
-└── README.md
+├── launch.bat                # Windows launcher
+└── launch.sh                 # Unix launcher
 ```
 
-## API Endpoints
+## 🔐 User Roles
 
-### GET `/api/list`
+| Role | Permissions |
+|------|-------------|
+| **Admin** | Full system access, user management, directory scanning, settings |
+| **Moderator** | Approve/reject requests, moderate users, view audit logs |
+| **Uploader** | Upload games, manage own uploads, view upload stats |
+| **User** | Browse, search, download, request games |
 
-Returns all game entries from the database.
+## 🔌 API Endpoints
 
-**Response:**
-```json
-{
-  "entries": [
-    {
-      "id": "unique_id",
-      "name": "Game Title",
-      "source": "filepath or url",
-      "type": "filepath|url",
-      "file_type": "nsp|nsz|xci",
-      "size": 1234567890,
-      "created_at": "2026-02-13T12:00:00",
-      "created_by": "username",
-      "metadata": {
-        "description": "Game description",
-        "version": "1.0.0"
-      }
-    }
-  ]
-}
+### Public Endpoints
+
+```
+GET  /api/list                    # List all game entries
+GET  /api/download/{entry_id}     # Download game file
+GET  /api-docs                    # API documentation
 ```
 
-## Database Schema
+### Authenticated Endpoints
 
-The `entries` collection in ArangoDB uses the following schema:
+Include API key in request header:
+```
+X-API-Key: your_api_key_here
+```
 
+**Generate API keys:**
+1. Log in to your account
+2. Navigate to Settings → API Keys
+3. Create a new key with a descriptive name
+4. Copy the key immediately (shown only once!)
+
+## 🗄️ Database Schema
+
+**Entries Collection**:
 ```json
 {
   "_key": "auto-generated",
-  "name": "string (game title/name)",
-  "source": "string (full filepath or HTTPS URL)",
-  "type": "string (filepath or url)",
-  "file_type": "string (nsp, nsz, or xci)",
-  "size": "integer (bytes)",
-  "created_at": "string (ISO timestamp)",
-  "created_by": "string (username - for future use)",
+  "name": "Game Title",
+  "source": "/path/to/file.nsp",
+  "type": "filepath",
+  "file_type": "nsp",
+  "size": 5800000000,
+  "created_at": "2026-02-13T12:00:00Z",
+  "created_by": "admin",
   "metadata": {
-    "description": "string (optional)",
-    "version": "string (optional)"
+    "description": "Game description",
+    "version": "1.0.0",
+    "publisher": "Nintendo",
+    "release_date": "2024-01-01"
   }
 }
 ```
 
-## Adding Sample Data
+## ⚙️ Configuration
 
-### Quick Setup with init_db.py
+Configuration is stored in `app/config.yaml` (auto-generated during initialization).
 
-The easiest way to populate your database is to use the provided initialization script:
-
-```bash
-python init_db.py
+**Example structure:**
+```yaml
+initialized: true
+app:
+  name: Switch Game Repository
+  debug: true
+database:
+  host: localhost
+  port: 8529
+  username: root
+  password: your_password
+  database: switch_db
+security:
+  secret_key: auto-generated-secret-key
 ```
 
-This will automatically create the database and add 10 sample game entries.
+> **Note**: `config.yaml` is gitignored and should never be committed.
 
-### Manual Entry via Python Shell
-
-Alternatively, you can add sample entries manually using the Python shell:
-
-```python
-from app.database import db
-from app.models.entry import Entry
-import asyncio
-
-async def add_sample_data():
-    await db.connect()
-    
-    sample_entries = [
-        {
-            "name": "Super Mario Odyssey",
-            "source": "/games/super_mario_odyssey.nsp",
-            "type": "filepath",
-            "file_type": "nsp",
-            "size": 5800000000,
-            "created_by": "admin",
-            "metadata": {
-                "description": "A 3D platform game",
-                "version": "1.3.0"
-            }
-        },
-        {
-            "name": "The Legend of Zelda: Breath of the Wild",
-            "source": "https://example.com/zelda_botw.nsz",
-            "type": "url",
-            "file_type": "nsz",
-            "size": 13400000000,
-            "created_by": "admin",
-            "metadata": {
-                "description": "Open-world action-adventure game",
-                "version": "1.6.0"
-            }
-        }
-    ]
-    
-    for entry_data in sample_entries:
-        await db.add_entry(entry_data)
-    
-    await db.disconnect()
-
-asyncio.run(add_sample_data())
-```
-
-## Development
+## 🔧 Development
 
 ### Running in development mode
 
@@ -245,30 +199,56 @@ asyncio.run(add_sample_data())
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Checking logs
+The `--reload` flag enables auto-restart on code changes.
 
-The application uses Python's logging module. Logs will be printed to stdout.
+### Logs
 
-## Future Features
+The application uses Python's logging module. Logs are output to stdout.
 
-The following features are planned but not yet implemented:
+## 🎯 Usage Guide
 
-- User registration and authentication
-- Admin control panel
-- User roles (admin/mod/uploader/downloader)
-- Mod panel and uploader panel
-- File serving endpoint for local files
-- HTTPS proxy for external URLs
-- File upload functionality
+### Admin Tasks
 
-## Contributing
+1. **Add scan directories** - Admin CP → Directory Management
+2. **Scan for games** - Triggers automatic game detection
+3. **Manage users** - View, edit roles, force password changes
+4. **View audit logs** - Track all system actions
+
+### User Workflow
+
+1. **Register account** - `/register`
+2. **Browse games** - Search and filter on homepage
+3. **Request games** - Submit requests for missing titles
+4. **Generate API key** - For programmatic access
+
+## 🚨 Troubleshooting
+
+**"System not initialized" error:**
+- Visit `/admincp/init` to complete setup
+
+**Database connection failed:**
+- Ensure ArangoDB is running (`systemctl status arangodb3`)
+- Verify credentials in initialization form
+- Check firewall settings (port 8529)
+
+**Port already in use:**
+```bash
+# Change port in launch command
+uvicorn app.main:app --host 0.0.0.0 --port 8080
+```
+
+## 📝 License
+
+GNU General Public License v3.0 - See LICENSE file for details.
+
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+## 🐛 Support
 
-See LICENSE file for details.
+For issues and questions, use the [GitHub issue tracker](https://github.com/obnoxiousmods/switch/issues).
 
-## Support
+---
 
-For issues and questions, please use the GitHub issue tracker.
+**⚠️ Disclaimer**: This tool is intended for managing legally obtained backup files. Always respect copyright laws in your jurisdiction.
