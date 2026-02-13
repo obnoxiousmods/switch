@@ -94,51 +94,43 @@ class Config:
         }
         cls.save()
     
-    # Property accessors for common values
+    # Accessor methods for common values
     @classmethod
-    @property
     def APP_NAME(cls) -> str:
         return cls.get('app.name', 'Switch Game Repository')
     
     @classmethod
-    @property
     def DEBUG(cls) -> bool:
         return cls.get('app.debug', True)
     
     @classmethod
-    @property
     def ARANGODB_HOST(cls) -> str:
         return cls.get('database.host', 'localhost')
     
     @classmethod
-    @property
     def ARANGODB_PORT(cls) -> int:
         return cls.get('database.port', 8529)
     
     @classmethod
-    @property
     def ARANGODB_USERNAME(cls) -> str:
         return cls.get('database.username', 'root')
     
     @classmethod
-    @property
     def ARANGODB_PASSWORD(cls) -> str:
         return cls.get('database.password', '')
     
     @classmethod
-    @property
     def ARANGODB_DATABASE(cls) -> str:
         return cls.get('database.database', 'switch_db')
     
     @classmethod
-    @property
     def SECRET_KEY(cls) -> str:
         return cls.get('security.secret_key', 'change-this-secret-key')
     
     @classmethod
     def get_arangodb_url(cls):
         """Get ArangoDB connection URL"""
-        return f"http://{cls.ARANGODB_HOST}:{cls.ARANGODB_PORT}"
+        return f"http://{cls.ARANGODB_HOST()}:{cls.ARANGODB_PORT()}"
 
 # Load config on module import
 Config.load()
