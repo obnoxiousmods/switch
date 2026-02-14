@@ -350,12 +350,18 @@ async def uploader_upload_submit(request: Request) -> Response:
                 return JSONResponse({"success": False, "error": "Invalid file path"}, status_code=400)
             counter += 1
         
-        # Read and save file
-        content = await file.read()
-        size = len(content)
+        # Stream file in chunks to avoid reading entire file into memory
+        # This prevents "Read-only file system" errors with large files
+        size = 0
+        chunk_size = 1024 * 1024  # 1MB chunks
         
         with open(file_path, 'wb') as f:
-            f.write(content)
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+                f.write(chunk)
+                size += len(chunk)
         
         source = file_path
         logger.info(f"File saved to {file_path}, size: {size} bytes")
