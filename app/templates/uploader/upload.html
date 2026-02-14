@@ -55,7 +55,8 @@
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
-                <p class="progress-text" id="progressText">Uploading...</p>
+                <p class="progress-text" id="progressText">Preparing upload...</p>
+                <p class="progress-speed" id="progressSpeed"></p>
             </div>
         </div>
     </div>
@@ -143,6 +144,9 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     const submitText = document.getElementById('submitText');
     const uploadingText = document.getElementById('uploadingText');
     const progressDiv = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const progressSpeed = document.getElementById('progressSpeed');
     
     // Disable submit button
     submitBtn.disabled = true;
@@ -152,33 +156,94 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     
     const formData = new FormData(e.target);
     
-    try {
-        // Use relative URL if UPLOAD_ENDPOINT is empty, otherwise prepend it
-        const uploadUrl = UPLOAD_ENDPOINT ? UPLOAD_ENDPOINT + '/uploadercp/upload' : '/uploadercp/upload';
-        const response = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert('✓ ' + data.message);
-            window.location.href = '/uploadercp';
+    // Track upload progress with XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    
+    let startTime = Date.now();
+    let lastLoaded = 0;
+    let lastTime = startTime;
+    
+    xhr.upload.addEventListener('progress', function(event) {
+        if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            progressFill.style.width = percentComplete + '%';
+            progressText.textContent = `Uploading: ${percentComplete}%`;
+            
+            // Calculate upload speed
+            const currentTime = Date.now();
+            const timeDiff = (currentTime - lastTime) / 1000; // seconds
+            const loadedDiff = event.loaded - lastLoaded;
+            
+            if (timeDiff > 0.5) { // Update speed every 0.5 seconds
+                const speedBps = loadedDiff / timeDiff;
+                const speedMBps = speedBps / (1024 * 1024);
+                
+                // Format size
+                const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(2);
+                const totalMB = (event.total / (1024 * 1024)).toFixed(2);
+                
+                progressSpeed.textContent = `${uploadedMB} MB / ${totalMB} MB (${speedMBps.toFixed(2)} MB/s)`;
+                
+                lastLoaded = event.loaded;
+                lastTime = currentTime;
+            }
+        }
+    });
+    
+    xhr.addEventListener('load', function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                
+                if (data.success) {
+                    Toast.success(data.message);
+                    setTimeout(() => {
+                        window.location.href = '/uploadercp';
+                    }, 1000);
+                } else {
+                    Toast.error(data.error || 'Upload failed');
+                    submitBtn.disabled = false;
+                    submitText.style.display = 'inline';
+                    uploadingText.style.display = 'none';
+                    progressDiv.style.display = 'none';
+                }
+            } catch (error) {
+                Toast.error('Failed to parse server response');
+                submitBtn.disabled = false;
+                submitText.style.display = 'inline';
+                uploadingText.style.display = 'none';
+                progressDiv.style.display = 'none';
+            }
         } else {
-            alert('✗ Error: ' + data.error);
+            Toast.error(`Upload failed with status: ${xhr.status}`);
             submitBtn.disabled = false;
             submitText.style.display = 'inline';
             uploadingText.style.display = 'none';
             progressDiv.style.display = 'none';
         }
-    } catch (error) {
-        alert('✗ Error uploading game: ' + error);
+    });
+    
+    xhr.addEventListener('error', function() {
+        Toast.error('Network error occurred during upload');
         submitBtn.disabled = false;
         submitText.style.display = 'inline';
         uploadingText.style.display = 'none';
         progressDiv.style.display = 'none';
-    }
+    });
+    
+    xhr.addEventListener('abort', function() {
+        Toast.warning('Upload was cancelled');
+        submitBtn.disabled = false;
+        submitText.style.display = 'inline';
+        uploadingText.style.display = 'none';
+        progressDiv.style.display = 'none';
+    });
+    
+    // Use relative URL if UPLOAD_ENDPOINT is empty, otherwise prepend it
+    const uploadUrl = UPLOAD_ENDPOINT ? UPLOAD_ENDPOINT + '/uploadercp/upload' : '/uploadercp/upload';
+    
+    xhr.open('POST', uploadUrl);
+    xhr.send(formData);
 });
 </script>
 
@@ -370,6 +435,13 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     text-align: center;
     margin-top: 10px;
     font-weight: 600;
+}
+
+.progress-speed {
+    color: #999;
+    text-align: center;
+    margin-top: 5px;
+    font-size: 13px;
 }
 
 @media (max-width: 768px) {
