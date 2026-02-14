@@ -1351,6 +1351,12 @@ class Database:
                 )
                 LET likes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'like' RETURN v.count) || 0
                 LET dislikes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'dislike' RETURN v.count) || 0
+                LET comment_count = (
+                    FOR comment IN comments
+                    FILTER comment.entry_id == entry._key
+                    COLLECT WITH COUNT INTO count
+                    RETURN count
+                )[0] || 0
                 """
                 bind_vars = {"search": search_query}
             else:
@@ -1378,6 +1384,12 @@ class Database:
                 )
                 LET likes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'like' RETURN v.count) || 0
                 LET dislikes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'dislike' RETURN v.count) || 0
+                LET comment_count = (
+                    FOR comment IN comments
+                    FILTER comment.entry_id == entry._key
+                    COLLECT WITH COUNT INTO count
+                    RETURN count
+                )[0] || 0
                 """
                 bind_vars = {}
 
@@ -1392,10 +1404,12 @@ class Database:
                 query += " SORT likes_count DESC"
             elif sort_by == "dislikes":
                 query += " SORT dislikes_count DESC"
+            elif sort_by == "comments":
+                query += " SORT comment_count DESC"
             else:  # default to name
                 query += " SORT entry.name ASC"
 
-            query += " RETURN MERGE(entry, {download_count: download_count, report_count: report_count, likes_count: likes_count, dislikes_count: dislikes_count})"
+            query += " RETURN MERGE(entry, {download_count: download_count, report_count: report_count, likes_count: likes_count, dislikes_count: dislikes_count, comment_count: comment_count})"
 
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             entries = []
@@ -1717,13 +1731,27 @@ class Database:
     async def get_comments_for_entry(
         self, entry_id: str
     ) -> List[Dict[str, Any]]:
-        """Get all comments for an entry with their replies organized"""
+        """Get all comments for an entry with user role information"""
         try:
             query = """
             FOR comment IN comments
             FILTER comment.entry_id == @entry_id
+            LET user = FIRST(
+                FOR u IN users
+                FILTER u._key == comment.user_id
+                RETURN {
+                    is_admin: u.is_admin,
+                    is_moderator: u.is_moderator,
+                    is_uploader: u.is_uploader
+                }
+            )
             SORT comment.created_at ASC
-            RETURN MERGE(comment, {id: comment._key})
+            RETURN MERGE(comment, {
+                id: comment._key,
+                user_is_admin: user.is_admin || false,
+                user_is_moderator: user.is_moderator || false,
+                user_is_uploader: user.is_uploader || false
+            })
             """
             cursor = await self.db.aql.execute(query, bind_vars={"entry_id": entry_id})
             comments = []
