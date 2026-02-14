@@ -27,6 +27,7 @@
     // Initialize the module
     function init() {
         // Get DOM elements
+        filtersToggle = document.getElementById('filters-toggle');
         filtersContent = document.getElementById('filters-content');
         fileTypeFilter = document.getElementById('file-type-filter');
         sizeFilter = document.getElementById('size-filter');
@@ -36,6 +37,18 @@
         clearFiltersBtn = document.getElementById('clear-filters');
         
         if (!filtersContent) return;
+        
+        // Set up toggle functionality if toggle button exists
+        if (filtersToggle) {
+            filtersToggle.addEventListener('click', () => {
+                filtersToggle.classList.toggle('active');
+                filtersContent.classList.toggle('active');
+            });
+            
+            // Start with filters expanded
+            filtersToggle.classList.add('active');
+            filtersContent.classList.add('active');
+        }
         
         // Load saved filters from localStorage
         loadSavedFilters();
