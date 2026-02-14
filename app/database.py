@@ -234,7 +234,7 @@ class Database:
     async def mark_entry_corrupt(self, entry_id: str, corrupt: bool = True) -> bool:
         """Mark an entry as corrupt or not corrupt"""
         try:
-            await self.entries_collection.update(entry_id, {"corrupt": corrupt})
+            await self.entries_collection.update({"_key": entry_id, "corrupt": corrupt})
             logger.info(f"Updated entry {entry_id} corrupt status to {corrupt}")
             return True
         except Exception as e:
@@ -244,14 +244,14 @@ class Database:
     async def update_entry_hashes(self, entry_id: str, md5_hash: Optional[str] = None, sha256_hash: Optional[str] = None) -> bool:
         """Update MD5 and/or SHA256 hashes for an entry"""
         try:
-            update_data = {}
+            update_data = {"_key": entry_id}
             if md5_hash:
                 update_data["md5_hash"] = md5_hash
             if sha256_hash:
                 update_data["sha256_hash"] = sha256_hash
             
-            if update_data:
-                await self.entries_collection.update(entry_id, update_data)
+            if len(update_data) > 1:  # More than just _key
+                await self.entries_collection.update(update_data)
                 logger.info(f"Updated hashes for entry {entry_id}")
                 return True
             return False
@@ -287,6 +287,27 @@ class Database:
         except Exception as e:
             logger.error(f"Error fetching corrupt entries: {e}")
             return []
+
+    async def clear_all_corrupt_flags(self) -> int:
+        """Clear corrupt flag from all entries and return count of updated entries"""
+        try:
+            query = """
+            FOR entry IN entries
+            FILTER entry.corrupt == true
+            UPDATE entry WITH { corrupt: false } IN entries
+            RETURN OLD
+            """
+            cursor = await self.db.aql.execute(query)
+            count = 0
+            async with cursor:
+                async for _ in cursor:
+                    count += 1
+            logger.info(f"Cleared corrupt flag from {count} entries")
+            return count
+        except Exception as e:
+            logger.error(f"Error clearing all corrupt flags: {e}")
+            return 0
+
 
     # User management methods
     async def create_user(self, user_data: Dict[str, Any]) -> Optional[str]:

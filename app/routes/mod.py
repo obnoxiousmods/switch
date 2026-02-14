@@ -442,3 +442,51 @@ async def mod_mark_entry_valid(request: Request) -> Response:
     except Exception as e:
         logger.error(f"Error marking entry as valid: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def mod_clear_all_corrupt_flags(request: Request) -> Response:
+    """Clear corrupt flag from all entries"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is moderator or admin
+    user_id = request.session.get('user_id')
+    username = request.session.get('username')
+    is_mod = request.session.get('is_moderator', False)
+    is_admin = request.session.get('is_admin', False)
+    
+    if not user_id or not (is_mod or is_admin):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        # Clear all corrupt flags
+        count = await db.clear_all_corrupt_flags()
+        
+        # Log the action
+        ip_info = get_ip_info(request)
+        activity_data = {
+            'event_type': 'clear_all_corrupt_flags',
+            'user_id': user_id,
+            'username': username,
+            'details': {
+                'entries_cleared': count
+            },
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
+        
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"{'Admin' if is_admin else 'Moderator'} {username} cleared corrupt flags from {count} entries from {format_ip_for_log(request)}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Cleared corrupt flag from {count} entries"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error clearing all corrupt flags: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+

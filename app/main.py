@@ -24,7 +24,7 @@ from app.routes.api_keys import api_keys_page, generate_api_key, revoke_api_key,
 from app.routes.mod import (
     mod_dashboard, mod_requests, mod_approve_request, mod_reject_request,
     mod_force_password_change, user_submit_request, user_requests_page,
-    mod_corrupt_games, mod_mark_entry_valid
+    mod_corrupt_games, mod_mark_entry_valid, mod_clear_all_corrupt_flags
 )
 from app.routes.uploader import (
     uploader_dashboard, uploader_game_requests, uploader_approve_request,
@@ -78,6 +78,7 @@ routes = [
     Route("/modcp/users/force-change-password", mod_force_password_change, methods=["POST"]),
     Route("/modcp/corrupt-games", mod_corrupt_games, methods=["GET"]),
     Route("/modcp/corrupt-games/mark-valid", mod_mark_entry_valid, methods=["POST"]),
+    Route("/modcp/corrupt-games/clear-all", mod_clear_all_corrupt_flags, methods=["POST"]),
     Route("/uploadercp", uploader_dashboard),
     Route("/uploadercp/game-requests", uploader_game_requests, methods=["GET"]),
     Route("/uploadercp/game-requests/approve", uploader_approve_request, methods=["POST"]),
