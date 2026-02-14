@@ -1221,7 +1221,8 @@
             
             if (data.success) {
                 // Check if vote was added or removed based on user_vote in response
-                const action = data.user_vote === voteType ? 'added' : 'removed';
+                // user_vote will be the vote type if added, or null if removed/toggled off
+                const action = data.user_vote ? 'added' : 'removed';
                 const message = action === 'added' 
                     ? `${voteType === 'like' ? 'Liked' : 'Disliked'} successfully`
                     : `${voteType === 'like' ? 'Like' : 'Dislike'} removed`;
