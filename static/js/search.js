@@ -61,7 +61,7 @@
             sortSelect.addEventListener('change', handleSortChange);
         }
         
-        # Start auto-refresh
+        // Start auto-refresh
         startAutoRefresh();
     }
     
