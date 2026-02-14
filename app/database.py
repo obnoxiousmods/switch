@@ -1044,16 +1044,16 @@ class Database:
         try:
             upload_stats = await self.get_upload_statistics(user_id)
             download_stats = await self.get_download_statistics(user_id)
-            
+
             # Calculate ratio (uploaded / downloaded)
             total_uploaded_bytes = upload_stats.get("total_bytes", 0)
             total_downloaded_bytes = download_stats.get("total_bytes", 0)
-            
+
             if total_downloaded_bytes > 0:
                 ratio = total_uploaded_bytes / total_downloaded_bytes
             else:
-                ratio = 0.0 if total_uploaded_bytes == 0 else float('inf')
-            
+                ratio = 0.0 if total_uploaded_bytes == 0 else float("inf")
+
             return {
                 "total_uploaded": upload_stats.get("total_uploads", 0),
                 "total_uploaded_bytes": total_uploaded_bytes,
@@ -1061,7 +1061,7 @@ class Database:
                 "total_downloaded": download_stats.get("total_downloads", 0),
                 "total_downloaded_bytes": total_downloaded_bytes,
                 "total_downloaded_gb": download_stats.get("total_gb", 0),
-                "ratio": round(ratio, 2) if ratio != float('inf') else "∞"
+                "ratio": round(ratio, 2) if ratio != float("inf") else "∞",
             }
         except Exception as e:
             logger.error(f"Error fetching user statistics: {e}")
@@ -1072,7 +1072,7 @@ class Database:
                 "total_downloaded": 0,
                 "total_downloaded_bytes": 0,
                 "total_downloaded_gb": 0,
-                "ratio": 0
+                "ratio": 0,
             }
 
     async def get_entry_download_count(self, entry_id: str) -> int:
@@ -1140,18 +1140,17 @@ class Database:
                 )[0] || 0
                 """
                 bind_vars = {}
-            
-            # Add sorting based on sort_by parameter
-            if sort_by == "downloads":
+
+            # Add sorting
+            if sort_by_downloads:
                 query += " SORT download_count DESC"
             elif sort_by == "size":
                 query += " SORT entry.size DESC"
             else:  # default to name
                 query += " SORT entry.name ASC"
-            
-            # Include id field (mapped from _key) in the response to fix download button
-            query += " RETURN MERGE(entry, {id: entry._key, download_count: download_count, report_count: report_count})"
-            
+
+            query += " RETURN MERGE(entry, {download_count: download_count, report_count: report_count})"
+
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             entries = []
             async with cursor:
@@ -1164,8 +1163,13 @@ class Database:
 
     # Report management methods
     async def create_report(
-        self, entry_id: str, entry_name: str, user_id: str, username: str, 
-        reason: str, description: str = ""
+        self,
+        entry_id: str,
+        entry_name: str,
+        user_id: str,
+        username: str,
+        reason: str,
+        description: str = "",
     ) -> Optional[str]:
         """Create a new report for a broken/corrupted file"""
         try:
@@ -1180,7 +1184,7 @@ class Database:
                 "created_at": datetime.utcnow().isoformat(),
                 "resolved_at": None,
                 "resolved_by": None,
-                "resolved_by_username": None
+                "resolved_by_username": None,
             }
             result = await self.reports_collection.insert(report_data)
             logger.info(f"Created report for entry {entry_id} by user {username}")
@@ -1260,12 +1264,12 @@ class Database:
         """Mark a report as resolved"""
         try:
             await self.reports_collection.update(
-                {"_key": report_id},
                 {
+                    "_key": report_id,
                     "status": "resolved",
                     "resolved_at": datetime.utcnow().isoformat(),
                     "resolved_by": resolved_by_id,
-                    "resolved_by_username": resolved_by_username
+                    "resolved_by_username": resolved_by_username,
                 }
             )
             logger.info(f"Resolved report {report_id} by {resolved_by_username}")
