@@ -1,14 +1,15 @@
-from starlette.responses import JSONResponse, FileResponse, RedirectResponse
-from starlette.requests import Request
-from starlette.background import BackgroundTask
-import os
-import logging
-import hashlib
 import asyncio
+import hashlib
+import logging
+import os
 
-from app.database import db
-from app.utils.ip_utils import get_ip_info, format_ip_for_log
+from starlette.background import BackgroundTask
+from starlette.requests import Request
+from starlette.responses import FileResponse, JSONResponse, RedirectResponse
+
 from app.config import Config
+from app.database import db
+from app.utils.ip_utils import format_ip_for_log, get_ip_info
 
 logger = logging.getLogger(__name__)
 
@@ -585,5 +586,33 @@ async def delete_entry(request: Request):
         logger.error(f"Error deleting entry: {e}", exc_info=True)
         return JSONResponse(
             {"success": False, "error": "An error occurred while deleting the entry"},
+            status_code=500,
+        )
+
+
+async def get_user_stats(request: Request):
+    """API endpoint to get user statistics
+
+    Route: GET /api/user/stats
+    """
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+
+    if not user_id:
+        return JSONResponse(
+            {"success": False, "error": "Authentication required"},
+            status_code=401,
+        )
+
+    try:
+        # Get user statistics from database
+        stats = await db.get_user_statistics(user_id)
+
+        return JSONResponse({"success": True, "stats": stats})
+
+    except Exception as e:
+        logger.error(f"Error fetching user statistics: {e}", exc_info=True)
+        return JSONResponse(
+            {"success": False, "error": "Failed to fetch user statistics"},
             status_code=500,
         )

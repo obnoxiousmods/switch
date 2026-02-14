@@ -1,12 +1,13 @@
 import logging
+
 from starlette.requests import Request
-from starlette.responses import Response, RedirectResponse, JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.templating import Jinja2Templates
 
 from app.config import Config
 from app.database import db
 from app.models.user import User
-from app.utils.ip_utils import get_ip_info, format_ip_for_log
+from app.utils.ip_utils import format_ip_for_log, get_ip_info
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
@@ -209,10 +210,11 @@ async def totp_enable(request: Request) -> Response:
         )
 
     try:
+        import base64
+        import io
+
         import pyotp
         import qrcode
-        import io
-        import base64
 
         user_id = request.session.get("user_id")
         user_data = await db.get_user_by_id(user_id)

@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-from typing import Optional
-from datetime import datetime
-import secrets
 import hashlib
+import secrets
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
 
 
 @dataclass

@@ -1,11 +1,12 @@
 import logging
+
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import db
 from app.models.api_key import ApiKey
-from app.utils.ip_utils import get_ip_info, format_ip_for_log
+from app.utils.ip_utils import format_ip_for_log, get_ip_info
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,6 @@ import os
 import re
 from typing import Optional
 
-
 # Username validation regex: 3-32 chars, alphanumeric, dash, underscore
 USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_-]{3,32}$")
 

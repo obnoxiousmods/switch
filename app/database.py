@@ -2,11 +2,12 @@ import logging
 import os
 import shutil
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from arangoasync import ArangoClient
 from arangoasync.auth import Auth
-from arangoasync.database import StandardDatabase
 from arangoasync.collection import StandardCollection
+from arangoasync.database import StandardDatabase
 
 from app.config import Config
 
@@ -309,7 +310,7 @@ class Database:
                 FILTER entry.corrupt == true
                 LET current_reports = entry.reports || []
                 LET current_old_reports = entry.oldReports || []
-                UPDATE entry WITH { 
+                UPDATE entry WITH {
                     corrupt: false,
                     oldReports: APPEND(current_old_reports, current_reports),
                     reports: []
@@ -1132,7 +1133,7 @@ class Database:
                 query = """
                 FOR doc IN upload_statistics
                 FILTER doc.user_id == @user_id
-                COLLECT AGGREGATE 
+                COLLECT AGGREGATE
                     total_uploads = COUNT(1),
                     total_bytes = SUM(doc.size_bytes)
                 RETURN {total_uploads, total_bytes}
@@ -1142,7 +1143,7 @@ class Database:
                 # Get overall stats
                 query = """
                 FOR doc IN upload_statistics
-                COLLECT AGGREGATE 
+                COLLECT AGGREGATE
                     total_uploads = COUNT(1),
                     total_bytes = SUM(doc.size_bytes)
                 RETURN {total_uploads, total_bytes}
@@ -1169,7 +1170,7 @@ class Database:
             query = """
             FOR doc IN upload_statistics
             COLLECT user_id = doc.user_id, username = doc.username
-            AGGREGATE 
+            AGGREGATE
                 total_uploads = COUNT(1),
                 total_bytes = SUM(doc.size_bytes)
             SORT total_bytes DESC
@@ -1203,7 +1204,7 @@ class Database:
                 query = """
                 FOR doc IN download_history
                 FILTER doc.user_id == @user_id
-                COLLECT AGGREGATE 
+                COLLECT AGGREGATE
                     total_downloads = COUNT(1),
                     total_bytes = SUM(doc.size_bytes)
                 RETURN {total_downloads, total_bytes}
@@ -1213,7 +1214,7 @@ class Database:
                 # Get overall stats
                 query = """
                 FOR doc IN download_history
-                COLLECT AGGREGATE 
+                COLLECT AGGREGATE
                     total_downloads = COUNT(1),
                     total_bytes = SUM(doc.size_bytes)
                 RETURN {total_downloads, total_bytes}
@@ -1572,7 +1573,7 @@ class Database:
                 )[0]
                 FILTER matching_dir != null
                 COLLECT dir_path = matching_dir
-                AGGREGATE 
+                AGGREGATE
                     game_count = LENGTH(1),
                     total_size = SUM(doc.size)
                 RETURN {

@@ -1,6 +1,7 @@
 import logging
+
 from starlette.requests import Request
-from starlette.responses import Response, JSONResponse, RedirectResponse
+from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.templating import Jinja2Templates
 
 from app.database import db

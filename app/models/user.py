@@ -1,14 +1,14 @@
-from dataclasses import dataclass
-from typing import Optional
-from datetime import datetime
 import hashlib
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
 
 try:
     from argon2 import PasswordHasher
     from argon2.exceptions import (
-        VerifyMismatchError,
-        VerificationError,
         InvalidHashError,
+        VerificationError,
+        VerifyMismatchError,
     )
 
     ARGON2_AVAILABLE = True

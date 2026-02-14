@@ -3,7 +3,8 @@ Utility functions for extracting IP addresses from requests.
 Handles Cloudflare and proxy headers.
 """
 
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 from starlette.requests import Request
 
 

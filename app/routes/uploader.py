@@ -1,18 +1,19 @@
+import asyncio
+import hashlib
 import logging
 import os
 import re
 import secrets
-import hashlib
-import asyncio
-from starlette.requests import Request
-from starlette.responses import Response, RedirectResponse, JSONResponse
-from starlette.templating import Jinja2Templates
+
 from starlette.datastructures import UploadFile
+from starlette.requests import Request
+from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.templating import Jinja2Templates
 
 from app.config import Config
 from app.database import db
 from app.models.entry import Entry, EntryType, FileType
-from app.utils.ip_utils import get_ip_info, format_ip_for_log
+from app.utils.ip_utils import format_ip_for_log, get_ip_info
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")

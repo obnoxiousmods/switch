@@ -1,13 +1,14 @@
 import logging
+
 from starlette.requests import Request
-from starlette.responses import Response, RedirectResponse, JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.templating import Jinja2Templates
 
 from app.config import Config
 from app.database import db
 from app.models.user import User
-from app.utils.ip_utils import get_ip_info, format_ip_for_log
-from app.utils.validation import validate_username, validate_password
+from app.utils.ip_utils import format_ip_for_log, get_ip_info
+from app.utils.validation import validate_password, validate_username
 
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")

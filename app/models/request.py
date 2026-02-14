@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Optional
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 
 class RequestStatus(str, Enum):
