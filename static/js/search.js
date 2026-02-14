@@ -37,7 +37,7 @@
         const sortParam = urlParams.get('sort');
         
         // Apply sort filter from URL first, then from localStorage if no URL param
-        if (sortParam && ['name', 'recent', 'downloads', 'size'].includes(sortParam)) {
+        if (sortParam && ['name', 'recent', 'downloads', 'size', 'likes', 'dislikes'].includes(sortParam)) {
             sortBy = sortParam;
             if (sortSelect) {
                 sortSelect.value = sortBy;
@@ -47,7 +47,7 @@
         } else {
             // Load from localStorage if no URL parameter
             const savedSort = localStorage.getItem('preferredSort');
-            if (savedSort && ['name', 'recent', 'downloads', 'size'].includes(savedSort)) {
+            if (savedSort && ['name', 'recent', 'downloads', 'size', 'likes', 'dislikes'].includes(savedSort)) {
                 sortBy = savedSort;
                 if (sortSelect) {
                     sortSelect.value = sortBy;
@@ -559,10 +559,26 @@
         const downloadCount = entry.download_count || 0;
         downloadItem.innerHTML = `⬇️ ${downloadCount} download${downloadCount !== 1 ? 's' : ''}`;
         
+        // Likes count
+        const likesItem = document.createElement('div');
+        likesItem.className = 'meta-item';
+        const likesCount = entry.likes_count || 0;
+        likesItem.innerHTML = `👍 ${likesCount}`;
+        likesItem.title = `${likesCount} like${likesCount !== 1 ? 's' : ''}`;
+        
+        // Dislikes count
+        const dislikesItem = document.createElement('div');
+        dislikesItem.className = 'meta-item';
+        const dislikesCount = entry.dislikes_count || 0;
+        dislikesItem.innerHTML = `👎 ${dislikesCount}`;
+        dislikesItem.title = `${dislikesCount} dislike${dislikesCount !== 1 ? 's' : ''}`;
+        
         meta.appendChild(fileTypeItem);
         meta.appendChild(sizeItem);
         meta.appendChild(dateItem);
         meta.appendChild(downloadItem);
+        meta.appendChild(likesItem);
+        meta.appendChild(dislikesItem);
         
         // Report warning badge if there are open reports
         if (entry.report_count && entry.report_count > 0) {
@@ -606,9 +622,42 @@
             handleReport(entry);
         });
         
+        // Like button
+        const likeBtn = document.createElement('button');
+        likeBtn.className = 'btn-like';
+        likeBtn.textContent = '👍 Like';
+        likeBtn.title = 'Like this entry';
+        likeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleVote(entry, 'like', likeBtn);
+        });
+        
+        // Dislike button
+        const dislikeBtn = document.createElement('button');
+        dislikeBtn.className = 'btn-dislike';
+        dislikeBtn.textContent = '👎 Dislike';
+        dislikeBtn.title = 'Dislike this entry';
+        dislikeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleVote(entry, 'dislike', dislikeBtn);
+        });
+        
+        // Comments button
+        const commentsBtn = document.createElement('button');
+        commentsBtn.className = 'btn-comments';
+        commentsBtn.textContent = '💬 Comments';
+        commentsBtn.title = 'View and add comments';
+        commentsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showComments(entry);
+        });
+        
         actions.appendChild(downloadBtn);
         actions.appendChild(infoBtn);
         actions.appendChild(reportBtn);
+        actions.appendChild(likeBtn);
+        actions.appendChild(dislikeBtn);
+        actions.appendChild(commentsBtn);
         
         // Add delete button for moderators/admins
         if (isModerator) {
@@ -1153,6 +1202,184 @@
                 deleteBtn.textContent = '🗑️ Delete Entry';
             }
         });
+    }
+    
+    // Handle vote (like/dislike) on an entry
+    async function handleVote(entry, voteType, button) {
+        try {
+            button.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('vote_type', voteType);
+            
+            const response = await fetch(`/api/entries/${encodeURIComponent(entry._key)}/vote`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Check if vote was added or removed based on user_vote in response
+                const action = data.user_vote === voteType ? 'added' : 'removed';
+                const message = action === 'added' 
+                    ? `${voteType === 'like' ? 'Liked' : 'Disliked'} successfully`
+                    : `${voteType === 'like' ? 'Like' : 'Dislike'} removed`;
+                Toast.success(message);
+                // Reload entries to reflect updated vote counts
+                await loadEntries();
+            } else {
+                Toast.error(data.error || 'Failed to vote');
+                button.disabled = false;
+            }
+        } catch (error) {
+            Toast.error('Error voting. Please try again.');
+            button.disabled = false;
+        }
+    }
+    
+    // Show comments modal for an entry
+    async function showComments(entry) {
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'comments-modal-overlay';
+        modal.innerHTML = `
+            <div class="comments-modal">
+                <div class="comments-modal-header">
+                    <h3>💬 Comments - ${entry.name}</h3>
+                    <button class="modal-close" onclick="this.closest('.comments-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="comments-modal-body">
+                    <div class="comments-list" id="comments-list-${entry._key}">
+                        <div class="loading-comments">Loading comments...</div>
+                    </div>
+                    
+                    <div class="comment-form">
+                        <h4>Add a comment</h4>
+                        <textarea id="comment-text-${entry._key}" placeholder="Write your comment here..." maxlength="5000"></textarea>
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="this.closest('.comments-modal-overlay').remove()">
+                                Cancel
+                            </button>
+                            <button type="button" class="btn-submit-comment" data-entry-id="${entry._key}">
+                                Post Comment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Load comments
+        await loadComments(entry._key);
+        
+        // Handle comment submission
+        const submitBtn = modal.querySelector('.btn-submit-comment');
+        submitBtn.addEventListener('click', async () => {
+            const textarea = document.getElementById(`comment-text-${entry._key}`);
+            const text = textarea.value.trim();
+            
+            if (!text) {
+                Toast.error('Please enter a comment');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Posting...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('text', text);
+                
+                const response = await fetch(`/api/entries/${encodeURIComponent(entry._key)}/comments`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    Toast.success('Comment posted successfully');
+                    textarea.value = '';
+                    // Reload comments
+                    await loadComments(entry._key);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Post Comment';
+                } else {
+                    Toast.error(data.error || 'Failed to post comment');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Post Comment';
+                }
+            } catch (error) {
+                Toast.error('Error posting comment. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Post Comment';
+            }
+        });
+    }
+    
+    // Load comments for an entry
+    async function loadComments(entryId) {
+        try {
+            const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/comments`);
+            const data = await response.json();
+            
+            const commentsList = document.getElementById(`comments-list-${entryId}`);
+            
+            if (data.success && data.comments && data.comments.length > 0) {
+                // Organize comments by parent-child relationship
+                const topLevelComments = data.comments.filter(c => !c.parent_comment_id);
+                const replies = data.comments.filter(c => c.parent_comment_id);
+                
+                let html = '';
+                topLevelComments.forEach(comment => {
+                    html += renderComment(comment);
+                    
+                    // Add replies
+                    const commentReplies = replies.filter(r => r.parent_comment_id === comment.id);
+                    if (commentReplies.length > 0) {
+                        html += '<div class="comment-replies">';
+                        commentReplies.forEach(reply => {
+                            html += renderComment(reply);
+                        });
+                        html += '</div>';
+                    }
+                });
+                
+                commentsList.innerHTML = html;
+            } else {
+                commentsList.innerHTML = '<div class="no-comments">No comments yet. Be the first to comment!</div>';
+            }
+        } catch (error) {
+            console.error('Error loading comments:', error);
+            const commentsList = document.getElementById(`comments-list-${entryId}`);
+            if (commentsList) {
+                commentsList.innerHTML = '<div class="error-comments">Failed to load comments</div>';
+            }
+        }
+    }
+    
+    // Render a single comment
+    function renderComment(comment) {
+        const date = formatDate(comment.created_at);
+        return `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">${comment.username}</span>
+                    <span class="comment-date">${date}</span>
+                </div>
+                <div class="comment-text">${escapeHtml(comment.text)}</div>
+            </div>
+        `;
+    }
+    
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     // Format file size

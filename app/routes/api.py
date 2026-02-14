@@ -31,8 +31,8 @@ async def list_entries(request: Request):
         search_query = request.query_params.get("search")
         sort_by = request.query_params.get("sort_by", "name")
 
-        # Validate sort_by parameter (name, downloads, size, or recent)
-        if sort_by not in ["name", "downloads", "size", "recent"]:
+        # Validate sort_by parameter (name, downloads, size, recent, likes, or dislikes)
+        if sort_by not in ["name", "downloads", "size", "recent", "likes", "dislikes"]:
             sort_by = "name"
 
         # Get entries with download counts
@@ -614,5 +614,200 @@ async def get_user_stats(request: Request):
         logger.error(f"Error fetching user statistics: {e}", exc_info=True)
         return JSONResponse(
             {"success": False, "error": "Failed to fetch user statistics"},
+            status_code=500,
+        )
+
+
+async def get_entry_comments(request: Request):
+    """API endpoint to get comments for an entry
+
+    Route: GET /api/entries/{entry_id}/comments
+    """
+    try:
+        entry_id = request.path_params.get("entry_id")
+
+        # Get comments for the entry
+        comments = await db.get_comments_for_entry(entry_id)
+
+        return JSONResponse({"success": True, "comments": comments})
+
+    except Exception as e:
+        logger.error(f"Error fetching comments: {e}", exc_info=True)
+        return JSONResponse(
+            {"success": False, "error": "Failed to fetch comments"},
+            status_code=500,
+        )
+
+
+async def create_entry_comment(request: Request):
+    """API endpoint to create a comment on an entry
+
+    Route: POST /api/entries/{entry_id}/comments
+    """
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+    username = request.session.get("username")
+
+    if not user_id:
+        return JSONResponse(
+            {"success": False, "error": "Authentication required"},
+            status_code=401,
+        )
+
+    try:
+        entry_id = request.path_params.get("entry_id")
+
+        # Get form data
+        form_data = await request.form()
+        text = form_data.get("text", "").strip()
+        parent_comment_id = form_data.get("parent_comment_id")
+
+        # Validate input
+        if not text:
+            return JSONResponse(
+                {"success": False, "error": "Comment text is required"},
+                status_code=400,
+            )
+
+        if len(text) > 5000:
+            return JSONResponse(
+                {"success": False, "error": "Comment text is too long (max 5000 characters)"},
+                status_code=400,
+            )
+
+        # Verify entry exists
+        entry = await db.get_entry_by_id(entry_id)
+        if not entry:
+            return JSONResponse(
+                {"success": False, "error": "Entry not found"},
+                status_code=404,
+            )
+
+        # Create comment
+        comment_id = await db.create_comment(
+            entry_id=entry_id,
+            user_id=user_id,
+            username=username,
+            text=text,
+            parent_comment_id=parent_comment_id if parent_comment_id else None,
+        )
+
+        if comment_id:
+            return JSONResponse(
+                {"success": True, "comment_id": comment_id, "message": "Comment created successfully"}
+            )
+        else:
+            return JSONResponse(
+                {"success": False, "error": "Failed to create comment"},
+                status_code=500,
+            )
+
+    except Exception as e:
+        logger.error(f"Error creating comment: {e}", exc_info=True)
+        return JSONResponse(
+            {"success": False, "error": "Failed to create comment"},
+            status_code=500,
+        )
+
+
+async def vote_entry(request: Request):
+    """API endpoint to vote (like/dislike) on an entry
+
+    Route: POST /api/entries/{entry_id}/vote
+    """
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+
+    if not user_id:
+        return JSONResponse(
+            {"success": False, "error": "Authentication required"},
+            status_code=401,
+        )
+
+    try:
+        entry_id = request.path_params.get("entry_id")
+
+        # Get form data
+        form_data = await request.form()
+        vote_type = form_data.get("vote_type", "").strip().lower()
+
+        # Validate vote type
+        if vote_type not in ["like", "dislike"]:
+            return JSONResponse(
+                {"success": False, "error": "Invalid vote type. Must be 'like' or 'dislike'"},
+                status_code=400,
+            )
+
+        # Verify entry exists
+        entry = await db.get_entry_by_id(entry_id)
+        if not entry:
+            return JSONResponse(
+                {"success": False, "error": "Entry not found"},
+                status_code=404,
+            )
+
+        # Add or update vote
+        success = await db.add_or_update_vote(
+            entry_id=entry_id,
+            user_id=user_id,
+            vote_type=vote_type,
+        )
+
+        if success:
+            # Get updated vote stats
+            vote_stats = await db.get_vote_stats_for_entry(entry_id)
+            user_vote = await db.get_user_vote_for_entry(entry_id, user_id)
+
+            return JSONResponse(
+                {
+                    "success": True,
+                    "message": "Vote recorded successfully",
+                    "vote_stats": vote_stats,
+                    "user_vote": user_vote,
+                }
+            )
+        else:
+            return JSONResponse(
+                {"success": False, "error": "Failed to record vote"},
+                status_code=500,
+            )
+
+    except Exception as e:
+        logger.error(f"Error recording vote: {e}", exc_info=True)
+        return JSONResponse(
+            {"success": False, "error": "Failed to record vote"},
+            status_code=500,
+        )
+
+
+async def get_entry_vote_stats(request: Request):
+    """API endpoint to get vote statistics for an entry
+
+    Route: GET /api/entries/{entry_id}/votes
+    """
+    try:
+        entry_id = request.path_params.get("entry_id")
+        user_id = request.session.get("user_id")
+
+        # Get vote stats
+        vote_stats = await db.get_vote_stats_for_entry(entry_id)
+
+        # Get user's vote if logged in
+        user_vote = None
+        if user_id:
+            user_vote = await db.get_user_vote_for_entry(entry_id, user_id)
+
+        return JSONResponse(
+            {
+                "success": True,
+                "vote_stats": vote_stats,
+                "user_vote": user_vote,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching vote stats: {e}", exc_info=True)
+        return JSONResponse(
+            {"success": False, "error": "Failed to fetch vote stats"},
             status_code=500,
         )

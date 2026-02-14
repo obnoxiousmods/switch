@@ -39,12 +39,16 @@ from app.routes.admin import (
 )
 from app.routes.api import (
     compute_file_hashes,
+    create_entry_comment,
     delete_entry,
     download_entry,
+    get_entry_comments,
     get_entry_info,
+    get_entry_vote_stats,
     get_user_stats,
     list_entries,
     submit_report,
+    vote_entry,
 )
 from app.routes.api_keys import (
     api_keys_page,
@@ -225,6 +229,10 @@ routes = [
     Route("/api/entries/{entry_id}/hashes", compute_file_hashes, methods=["GET"]),
     Route("/api/entries/{entry_id}/info", get_entry_info, methods=["GET"]),
     Route("/api/entries/{entry_id}/delete", delete_entry, methods=["POST"]),
+    Route("/api/entries/{entry_id}/comments", get_entry_comments, methods=["GET"]),
+    Route("/api/entries/{entry_id}/comments", create_entry_comment, methods=["POST"]),
+    Route("/api/entries/{entry_id}/vote", vote_entry, methods=["POST"]),
+    Route("/api/entries/{entry_id}/votes", get_entry_vote_stats, methods=["GET"]),
     Route("/api/user/stats", get_user_stats, methods=["GET"]),
     Route("/login", login_page, methods=["GET"]),
     Route("/login", login_submit, methods=["POST"]),

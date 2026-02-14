@@ -34,6 +34,8 @@ class Database:
         self.activity_logs_collection: Optional[StandardCollection] = None
         self.upload_statistics_collection: Optional[StandardCollection] = None
         self.reports_collection: Optional[StandardCollection] = None
+        self.comments_collection: Optional[StandardCollection] = None
+        self.likes_collection: Optional[StandardCollection] = None
 
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -147,6 +149,20 @@ class Database:
                 logger.info("Created collection: reports")
             else:
                 self.reports_collection = self.db.collection("reports")
+
+            # Create comments collection if it doesn't exist
+            if not await self.db.has_collection("comments"):
+                self.comments_collection = await self.db.create_collection("comments")
+                logger.info("Created collection: comments")
+            else:
+                self.comments_collection = self.db.collection("comments")
+
+            # Create likes collection if it doesn't exist
+            if not await self.db.has_collection("likes"):
+                self.likes_collection = await self.db.create_collection("likes")
+                logger.info("Created collection: likes")
+            else:
+                self.likes_collection = self.db.collection("likes")
 
             logger.info("Successfully connected to ArangoDB")
 
@@ -1295,11 +1311,11 @@ class Database:
         sort_by: str = "name",
         exclude_corrupt: bool = True,
     ) -> List[Dict[str, Any]]:
-        """Get all entries with their download counts and report counts, optionally filtered and sorted
+        """Get all entries with their download counts, report counts, and vote stats, optionally filtered and sorted
 
         Args:
             search_query: Optional search term to filter entries by name
-            sort_by: Sort method - 'name', 'downloads', 'size', or 'recent' (default: 'name')
+            sort_by: Sort method - 'name', 'downloads', 'size', 'recent', 'likes', or 'dislikes' (default: 'name')
             exclude_corrupt: If True, exclude entries marked as corrupt (default: True)
         """
         try:
@@ -1311,7 +1327,7 @@ class Database:
             )
 
             if search_query:
-                # Search with download counts and report counts
+                # Search with download counts, report counts, and vote stats
                 query = f"""
                 FOR entry IN entries
                 FILTER LOWER(entry.name) LIKE LOWER(CONCAT('%', @search, '%')){corrupt_filter}
@@ -1327,10 +1343,18 @@ class Database:
                     COLLECT WITH COUNT INTO count
                     RETURN count
                 )[0] || 0
+                LET vote_stats = (
+                    FOR vote IN likes
+                    FILTER vote.entry_id == entry._key
+                    COLLECT vote_type = vote.vote_type WITH COUNT INTO count
+                    RETURN {{vote_type: vote_type, count: count}}
+                )
+                LET likes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'like' RETURN v.count) || 0
+                LET dislikes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'dislike' RETURN v.count) || 0
                 """
                 bind_vars = {"search": search_query}
             else:
-                # Get all entries with download counts and report counts
+                # Get all entries with download counts, report counts, and vote stats
                 query = f"""
                 FOR entry IN entries
                 FILTER true{corrupt_filter}
@@ -1346,6 +1370,14 @@ class Database:
                     COLLECT WITH COUNT INTO count
                     RETURN count
                 )[0] || 0
+                LET vote_stats = (
+                    FOR vote IN likes
+                    FILTER vote.entry_id == entry._key
+                    COLLECT vote_type = vote.vote_type WITH COUNT INTO count
+                    RETURN {{vote_type: vote_type, count: count}}
+                )
+                LET likes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'like' RETURN v.count) || 0
+                LET dislikes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'dislike' RETURN v.count) || 0
                 """
                 bind_vars = {}
 
@@ -1356,10 +1388,14 @@ class Database:
                 query += " SORT entry.size DESC"
             elif sort_by == "recent":
                 query += " SORT entry.created_at DESC"
+            elif sort_by == "likes":
+                query += " SORT likes_count DESC"
+            elif sort_by == "dislikes":
+                query += " SORT dislikes_count DESC"
             else:  # default to name
                 query += " SORT entry.name ASC"
 
-            query += " RETURN MERGE(entry, {download_count: download_count, report_count: report_count})"
+            query += " RETURN MERGE(entry, {download_count: download_count, report_count: report_count, likes_count: likes_count, dislikes_count: dislikes_count})"
 
             cursor = await self.db.aql.execute(query, bind_vars=bind_vars)
             entries = []
@@ -1652,6 +1688,154 @@ class Database:
                 "total_capacity_gb": 0,
                 "directories": [],
             }
+
+    # Comment management methods
+    async def create_comment(
+        self,
+        entry_id: str,
+        user_id: str,
+        username: str,
+        text: str,
+        parent_comment_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Create a new comment on an entry"""
+        try:
+            comment_data = {
+                "entry_id": entry_id,
+                "user_id": user_id,
+                "username": username,
+                "text": text,
+                "parent_comment_id": parent_comment_id,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+            result = await self.comments_collection.insert(comment_data)
+            return result["_key"]
+        except Exception as e:
+            logger.error(f"Error creating comment: {e}")
+            return None
+
+    async def get_comments_for_entry(
+        self, entry_id: str
+    ) -> List[Dict[str, Any]]:
+        """Get all comments for an entry with their replies organized"""
+        try:
+            query = """
+            FOR comment IN comments
+            FILTER comment.entry_id == @entry_id
+            SORT comment.created_at ASC
+            RETURN MERGE(comment, {id: comment._key})
+            """
+            cursor = await self.db.aql.execute(query, bind_vars={"entry_id": entry_id})
+            comments = []
+            async with cursor:
+                async for comment in cursor:
+                    comments.append(comment)
+            return comments
+        except Exception as e:
+            logger.error(f"Error fetching comments: {e}")
+            return []
+
+    async def delete_comment(self, comment_id: str) -> bool:
+        """Delete a comment by ID"""
+        try:
+            await self.comments_collection.delete(comment_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting comment: {e}")
+            return False
+
+    # Like/Dislike management methods
+    async def add_or_update_vote(
+        self, entry_id: str, user_id: str, vote_type: str
+    ) -> bool:
+        """Add or update a user's vote on an entry"""
+        try:
+            # Check if user already voted
+            query = """
+            FOR vote IN likes
+            FILTER vote.entry_id == @entry_id AND vote.user_id == @user_id
+            RETURN vote
+            """
+            cursor = await self.db.aql.execute(
+                query, bind_vars={"entry_id": entry_id, "user_id": user_id}
+            )
+            existing_vote = None
+            async with cursor:
+                async for vote in cursor:
+                    existing_vote = vote
+                    break
+
+            if existing_vote:
+                # Update existing vote
+                if existing_vote.get("vote_type") == vote_type:
+                    # Same vote, remove it (toggle off)
+                    await self.likes_collection.delete(existing_vote["_key"])
+                else:
+                    # Different vote, update it
+                    await self.likes_collection.update(
+                        existing_vote["_key"],
+                        {
+                            "vote_type": vote_type,
+                            "updated_at": datetime.utcnow().isoformat(),
+                        },
+                    )
+            else:
+                # Create new vote
+                vote_data = {
+                    "entry_id": entry_id,
+                    "user_id": user_id,
+                    "vote_type": vote_type,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+                await self.likes_collection.insert(vote_data)
+
+            return True
+        except Exception as e:
+            logger.error(f"Error adding/updating vote: {e}")
+            return False
+
+    async def get_vote_stats_for_entry(self, entry_id: str) -> Dict[str, int]:
+        """Get like and dislike counts for an entry"""
+        try:
+            query = """
+            FOR vote IN likes
+            FILTER vote.entry_id == @entry_id
+            COLLECT vote_type = vote.vote_type WITH COUNT INTO count
+            RETURN {vote_type: vote_type, count: count}
+            """
+            cursor = await self.db.aql.execute(query, bind_vars={"entry_id": entry_id})
+            stats = {"likes": 0, "dislikes": 0}
+            async with cursor:
+                async for stat in cursor:
+                    if stat["vote_type"] == "like":
+                        stats["likes"] = stat["count"]
+                    elif stat["vote_type"] == "dislike":
+                        stats["dislikes"] = stat["count"]
+            return stats
+        except Exception as e:
+            logger.error(f"Error fetching vote stats: {e}")
+            return {"likes": 0, "dislikes": 0}
+
+    async def get_user_vote_for_entry(
+        self, entry_id: str, user_id: str
+    ) -> Optional[str]:
+        """Get a user's vote on an entry (like, dislike, or None)"""
+        try:
+            query = """
+            FOR vote IN likes
+            FILTER vote.entry_id == @entry_id AND vote.user_id == @user_id
+            RETURN vote.vote_type
+            """
+            cursor = await self.db.aql.execute(
+                query, bind_vars={"entry_id": entry_id, "user_id": user_id}
+            )
+            async with cursor:
+                async for vote_type in cursor:
+                    return vote_type
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching user vote: {e}")
+            return None
 
 
 # Global database instance
