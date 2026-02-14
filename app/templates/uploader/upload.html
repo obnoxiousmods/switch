@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/custom-dropdown.css') }}">
 <div class="container">
     <div class="upload-page">
         <div class="page-header">
@@ -695,4 +696,6 @@ async function uploadSingleFile(file, progressFill, progressText, progressSpeed)
     }
 }
 </style>
+
+<script src="{{ url_for('static', path='js/custom-dropdown.js') }}"></script>
 {% endblock %}
