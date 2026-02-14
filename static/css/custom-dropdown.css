@@ -16,8 +16,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: linear-gradient(145deg, #1f1f1f, #2a2a2a);
-    border: 1px solid #3a3a3a;
+    background: linear-gradient(145deg, #2f2f2f, #353535);
+    border: 1px solid #4a4a4a;
     border-radius: 10px;
     color: #fff;
     cursor: pointer;
@@ -82,7 +82,7 @@
     top: calc(100% + 4px);
     left: 0;
     width: 100%;
-    background: #2a2a2a;
+    background: #353535;
     border: 1px solid #4c9ee0;
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(76, 158, 224, 0.2);
@@ -106,9 +106,9 @@
 .dropdown-search {
     width: 100%;
     padding: 12px 16px;
-    background: #1f1f1f;
+    background: #2f2f2f;
     border: none;
-    border-bottom: 1px solid #3a3a3a;
+    border-bottom: 1px solid #4a4a4a;
     color: #fff;
     font-size: 14px;
     outline: none;
@@ -116,7 +116,7 @@
 }
 
 .dropdown-search:focus {
-    background: #252525;
+    background: #383838;
     border-bottom-color: #4c9ee0;
 }
 
@@ -136,7 +136,7 @@
 }
 
 .dropdown-options::-webkit-scrollbar-track {
-    background: #1f1f1f;
+    background: #2f2f2f;
     border-radius: 4px;
 }
 

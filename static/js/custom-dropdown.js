@@ -4,6 +4,8 @@
  */
 
 class CustomDropdown {
+    static instances = [];
+    
     constructor(selectElement) {
         this.select = selectElement;
         this.options = Array.from(this.select.options);
@@ -12,6 +14,17 @@ class CustomDropdown {
         
         this.createCustomDropdown();
         this.bindEvents();
+        
+        // Track this instance
+        CustomDropdown.instances.push(this);
+    }
+    
+    static closeAllDropdowns(exceptInstance = null) {
+        CustomDropdown.instances.forEach(instance => {
+            if (instance !== exceptInstance && instance.isOpen) {
+                instance.closeDropdown();
+            }
+        });
     }
 
     createCustomDropdown() {
@@ -119,6 +132,9 @@ class CustomDropdown {
     }
 
     openDropdown() {
+        // Close all other open dropdowns before opening this one
+        CustomDropdown.closeAllDropdowns(this);
+        
         this.isOpen = true;
         this.customDropdown.classList.add('open');
         this.dropdownMenu.style.display = 'block';
