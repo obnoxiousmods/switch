@@ -133,6 +133,7 @@ async def compute_hashes_for_unhashed_entries():
                     _key: doc._key,
                     source: doc.source,
                     name: doc.name,
+                    size: doc.size,
                     md5_hash: doc.md5_hash,
                     sha256_hash: doc.sha256_hash
                 }
@@ -149,6 +150,26 @@ async def compute_hashes_for_unhashed_entries():
 
             logger.info(
                 f"→ Found {len(entries_to_process)} entries needing hash computation"
+            )
+
+            # Sort entries by file size (smallest first) for faster processing
+            # Get actual file sizes for entries without size in DB
+            for entry in entries_to_process:
+                if not entry.get("size"):
+                    filepath = entry.get("source")
+                    if filepath and os.path.exists(filepath) and os.path.isfile(filepath):
+                        try:
+                            entry["size"] = os.path.getsize(filepath)
+                        except Exception:
+                            entry["size"] = 0
+                    else:
+                        entry["size"] = 0
+
+            # Sort by size (smallest first)
+            entries_to_process.sort(key=lambda x: x.get("size", 0))
+
+            logger.info(
+                "→ Processing entries in order from smallest to largest file"
             )
 
             # Process each entry
@@ -375,6 +396,7 @@ async def run_initial_hash_computation():
                 _key: doc._key,
                 source: doc.source,
                 name: doc.name,
+                size: doc.size,
                 md5_hash: doc.md5_hash,
                 sha256_hash: doc.sha256_hash
             }
@@ -391,6 +413,26 @@ async def run_initial_hash_computation():
 
         logger.info(
             f"→ Found {len(entries_to_process)} entries needing initial hash computation"
+        )
+
+        # Sort entries by file size (smallest first) for faster processing
+        # Get actual file sizes for entries without size in DB
+        for entry in entries_to_process:
+            if not entry.get("size"):
+                filepath = entry.get("source")
+                if filepath and os.path.exists(filepath) and os.path.isfile(filepath):
+                    try:
+                        entry["size"] = os.path.getsize(filepath)
+                    except Exception:
+                        entry["size"] = 0
+                else:
+                    entry["size"] = 0
+
+        # Sort by size (smallest first)
+        entries_to_process.sort(key=lambda x: x.get("size", 0))
+
+        logger.info(
+            "→ Processing entries in order from smallest to largest file"
         )
 
         # Process each entry
