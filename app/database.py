@@ -289,13 +289,20 @@ class Database:
             return []
 
     async def clear_all_corrupt_flags(self) -> int:
-        """Clear corrupt flag from all entries and return count of updated entries"""
+        """Clear corrupt flag from all entries, move reports to oldReports, and clear reports collection"""
         try:
+            # Step 1: Update all corrupt entries - set corrupt to false and move reports to oldReports
             query = """
             LET updated = (
                 FOR entry IN entries
                 FILTER entry.corrupt == true
-                UPDATE entry WITH { corrupt: false } IN entries
+                LET current_reports = entry.reports || []
+                LET current_old_reports = entry.oldReports || []
+                UPDATE entry WITH { 
+                    corrupt: false,
+                    oldReports: APPEND(current_old_reports, current_reports),
+                    reports: []
+                } IN entries
                 RETURN NEW
             )
             RETURN LENGTH(updated)
@@ -306,7 +313,15 @@ class Database:
                 async for result in cursor:
                     count = result
                     break
-            logger.info(f"Cleared corrupt flag from {count} entries")
+            
+            # Step 2: Clear the entire reports collection
+            delete_query = """
+            FOR doc IN reports
+            REMOVE doc IN reports
+            """
+            await self.db.aql.execute(delete_query)
+            
+            logger.info(f"Cleared corrupt flag from {count} entries, moved reports to oldReports, and cleared reports collection")
             return count
         except Exception as e:
             logger.error(f"Error clearing all corrupt flags: {e}")
@@ -1319,8 +1334,33 @@ class Database:
                 "resolved_by_username": None,
             }
             result = await self.reports_collection.insert(report_data)
+            report_id = result["_key"]
+            
+            # Add report to entry's reports array
+            report_entry_data = {
+                "report_id": report_id,
+                "user_id": user_id,
+                "username": username,
+                "reason": reason,
+                "description": description,
+                "created_at": report_data["created_at"]
+            }
+            
+            # Add report to entry document
+            query = """
+            FOR entry IN entries
+            FILTER entry._key == @entry_id
+            UPDATE entry WITH {
+                reports: APPEND(entry.reports || [], @report_data)
+            } IN entries
+            """
+            await self.db.aql.execute(query, bind_vars={
+                "entry_id": entry_id,
+                "report_data": report_entry_data
+            })
+            
             logger.info(f"Created report for entry {entry_id} by user {username}")
-            return result["_key"]
+            return report_id
         except Exception as e:
             logger.error(f"Error creating report: {e}")
             return None

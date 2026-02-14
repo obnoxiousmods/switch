@@ -7,7 +7,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.routes.pages import index, api_docs_page
-from app.routes.api import list_entries, download_entry, submit_report, compute_file_hashes
+from app.routes.api import list_entries, download_entry, submit_report, compute_file_hashes, get_entry_info
 from app.routes.admin import (
     admin_init_page, admin_init_submit, admin_dashboard,
     admin_directories, admin_add_directory, admin_delete_directory,
@@ -53,6 +53,7 @@ routes = [
     Route("/api/download/{entry_id}", download_entry),
     Route("/api/reports/submit", submit_report, methods=["POST"]),
     Route("/api/entries/{entry_id}/hashes", compute_file_hashes, methods=["GET"]),
+    Route("/api/entries/{entry_id}/info", get_entry_info, methods=["GET"]),
     Route("/login", login_page, methods=["GET"]),
     Route("/login", login_submit, methods=["POST"]),
     Route("/register", register_page, methods=["GET"]),

@@ -4,6 +4,7 @@ from starlette.background import BackgroundTask
 import os
 import logging
 import hashlib
+import asyncio
 
 from app.database import db
 from app.utils.ip_utils import get_ip_info, format_ip_for_log
@@ -250,10 +251,9 @@ async def submit_report(request: Request):
                 "error": "Failed to create report"
             }, status_code=500)
         
-        # If reason is "corrupted", mark the entry as corrupt
-        if reason == "corrupted":
-            await db.mark_entry_corrupt(entry_id, True)
-            logger.info(f"Entry {entry_id} marked as corrupt due to corruption report")
+        # Always mark the entry as corrupt when any report is submitted
+        await db.mark_entry_corrupt(entry_id, True)
+        logger.info(f"Entry {entry_id} marked as corrupt due to report submission")
         
         # Log the report activity
         ip_info = get_ip_info(request)
@@ -291,25 +291,34 @@ async def submit_report(request: Request):
 
 
 
+def _compute_hashes_sync(filepath: str) -> tuple:
+    """Synchronous hash computation to run in a separate thread"""
+    md5_hash = hashlib.md5()
+    sha256_hash = hashlib.sha256()
+    
+    # Read file in chunks to handle large files
+    chunk_size = 8192
+    with open(filepath, 'rb') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            md5_hash.update(chunk)
+            sha256_hash.update(chunk)
+    
+    return md5_hash.hexdigest(), sha256_hash.hexdigest()
+
+
 async def _compute_and_store_hashes(entry_id: str, filepath: str):
-    """Background task to compute and store file hashes"""
+    """Background task to compute and store file hashes in a separate thread"""
     try:
         logger.info(f"Computing hashes for entry {entry_id}: {filepath}")
-        md5_hash = hashlib.md5()
-        sha256_hash = hashlib.sha256()
         
-        # Read file in chunks to handle large files
-        chunk_size = 8192
-        with open(filepath, 'rb') as f:
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                md5_hash.update(chunk)
-                sha256_hash.update(chunk)
+        # Mark entry as processing by setting temporary values
+        await db.update_entry_hashes(entry_id, "processing", "processing")
         
-        md5_result = md5_hash.hexdigest()
-        sha256_result = sha256_hash.hexdigest()
+        # Run the blocking hash computation in a separate thread
+        md5_result, sha256_result = await asyncio.to_thread(_compute_hashes_sync, filepath)
         
         # Store hashes in database
         await db.update_entry_hashes(entry_id, md5_result, sha256_result)
@@ -317,6 +326,11 @@ async def _compute_and_store_hashes(entry_id: str, filepath: str):
         logger.info(f"Computed and stored hashes for entry {entry_id}")
     except Exception as e:
         logger.error(f"Error computing hashes in background: {e}", exc_info=True)
+        # Clear processing markers on error
+        try:
+            await db.update_entry_hashes(entry_id, None, None)
+        except:
+            pass
 
 
 async def compute_file_hashes(request: Request):
@@ -382,4 +396,54 @@ async def compute_file_hashes(request: Request):
         return JSONResponse({
             "success": False,
             "error": "An error occurred while computing hashes"
+        }, status_code=500)
+
+
+async def get_entry_info(request: Request):
+    """API endpoint to get entry information (for dynamic updates)"""
+    # Require authentication - either session or API key
+    has_session = request.session.get('user_id') is not None
+    has_api_auth = getattr(request.state, 'authenticated', False)
+    
+    if not has_session and not has_api_auth:
+        return JSONResponse({
+            "success": False,
+            "error": "Authentication required. Please log in or use an API key."
+        }, status_code=401)
+    
+    try:
+        entry_id = request.path_params.get('entry_id')
+        
+        # Get the entry from the database
+        entry = await db.get_entry_by_id(entry_id)
+        
+        if not entry:
+            return JSONResponse({
+                "success": False,
+                "error": "Entry not found"
+            }, status_code=404)
+        
+        # Return entry information
+        return JSONResponse({
+            "success": True,
+            "entry": {
+                "_key": entry.get("_key"),
+                "name": entry.get("name"),
+                "file_type": entry.get("file_type"),
+                "size": entry.get("size"),
+                "created_by": entry.get("created_by"),
+                "created_at": entry.get("created_at"),
+                "corrupt": entry.get("corrupt", False),
+                "md5_hash": entry.get("md5_hash"),
+                "sha256_hash": entry.get("sha256_hash"),
+                "type": entry.get("type"),
+                "downloads": entry.get("downloads", 0)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching entry info: {e}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": "An error occurred while fetching entry information"
         }, status_code=500)
