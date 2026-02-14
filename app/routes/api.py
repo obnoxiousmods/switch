@@ -23,15 +23,16 @@ async def list_entries(request: Request):
     try:
         # Get query parameters
         search_query = request.query_params.get('search')
-        sort_by = request.query_params.get('sort_by')
+        sort_by = request.query_params.get('sort_by', 'name')
         
-        # Check if sorting by downloads
-        sort_by_downloads = sort_by == 'downloads'
+        # Validate sort_by parameter (name, downloads, or size)
+        if sort_by not in ['name', 'downloads', 'size']:
+            sort_by = 'name'
         
         # Get entries with download counts
         entries = await db.get_all_entries_with_download_counts(
             search_query=search_query,
-            sort_by_downloads=sort_by_downloads
+            sort_by=sort_by
         )
         
         return JSONResponse({

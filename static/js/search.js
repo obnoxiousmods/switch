@@ -6,7 +6,7 @@
     let filteredEntries = [];
     let currentPage = 1;
     let itemsPerPage = 10;
-    let sortBy = 'name'; // 'name' or 'downloads'
+    let sortBy = 'name'; // 'name', 'downloads', or 'size'
     
     // DOM Elements
     const searchInput = document.getElementById('search-input');
@@ -41,8 +41,8 @@
         try {
             showLoading();
             
-            // Include sort_by parameter if sorting by downloads
-            const sortParam = sortBy === 'downloads' ? '?sort_by=downloads' : '';
+            // Include sort_by parameter
+            const sortParam = sortBy !== 'name' ? `?sort_by=${sortBy}` : '';
             const response = await fetch(`/api/list${sortParam}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch entries');
