@@ -9,6 +9,9 @@
     let sortBy = 'name'; // 'name', 'downloads', 'size', or 'recent'
     let autoRefreshInterval = null;
     
+    // Auto-refresh configuration
+    const AUTO_REFRESH_INTERVAL_MS = 10000; // 10 seconds
+    
     // Check if user is moderator or admin
     const isModerator = window.userRole && (window.userRole.isModerator || window.userRole.isAdmin);
     
@@ -58,7 +61,7 @@
             sortSelect.addEventListener('change', handleSortChange);
         }
         
-        // Start auto-refresh every 10 seconds (10000ms)
+        # Start auto-refresh
         startAutoRefresh();
     }
     
@@ -90,7 +93,7 @@
     
     // Start auto-refresh
     function startAutoRefresh() {
-        // Refresh every 10 seconds
+        // Refresh automatically
         autoRefreshInterval = setInterval(async () => {
             // Silently reload entries in background
             try {
@@ -116,7 +119,7 @@
             } catch (error) {
                 console.error('Error during auto-refresh:', error);
             }
-        }, 10000);
+        }, AUTO_REFRESH_INTERVAL_MS);
     }
     
     // Stop auto-refresh (for cleanup if needed)

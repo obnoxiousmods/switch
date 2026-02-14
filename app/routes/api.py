@@ -449,7 +449,10 @@ async def get_entry_info(request: Request):
 
 
 async def delete_entry(request: Request):
-    """API endpoint to delete an entry (moderator or admin only)"""
+    """API endpoint to delete an entry (moderator or admin only)
+    
+    Route: POST /api/entries/{entry_id}/delete
+    """
     # Check if user is logged in and is moderator or admin
     user_id = request.session.get('user_id')
     username = request.session.get('username')
