@@ -4,6 +4,8 @@
  */
 
 class CustomDropdown {
+    static instances = [];
+    
     constructor(selectElement) {
         this.select = selectElement;
         this.options = Array.from(this.select.options);
@@ -12,6 +14,17 @@ class CustomDropdown {
         
         this.createCustomDropdown();
         this.bindEvents();
+        
+        // Track this instance
+        CustomDropdown.instances.push(this);
+    }
+    
+    static closeAllDropdowns(exceptInstance = null) {
+        CustomDropdown.instances.forEach(instance => {
+            if (instance !== exceptInstance && instance.isOpen) {
+                instance.closeDropdown();
+            }
+        });
     }
 
     createCustomDropdown() {
@@ -119,6 +132,9 @@ class CustomDropdown {
     }
 
     openDropdown() {
+        // Close all other open dropdowns before opening this one
+        CustomDropdown.closeAllDropdowns(this);
+        
         this.isOpen = true;
         this.customDropdown.classList.add('open');
         this.dropdownMenu.style.display = 'block';
@@ -217,6 +233,24 @@ class CustomDropdown {
                 e.preventDefault();
                 this.closeDropdown();
                 break;
+        }
+    }
+    
+    destroy() {
+        // Remove from instances array
+        const index = CustomDropdown.instances.indexOf(this);
+        if (index > -1) {
+            CustomDropdown.instances.splice(index, 1);
+        }
+        
+        // Clean up DOM
+        if (this.wrapper && this.wrapper.parentNode) {
+            this.wrapper.parentNode.removeChild(this.wrapper);
+        }
+        
+        // Restore original select
+        if (this.select) {
+            this.select.style.display = '';
         }
     }
 }
