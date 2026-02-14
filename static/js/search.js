@@ -402,7 +402,21 @@
     }
     
     // Show detailed file information
-    function showFileInfo(entry) {
+    async function showFileInfo(entry) {
+        // Fetch the latest entry information from the server
+        try {
+            const response = await fetch(`/api/entries/${encodeURIComponent(entry._key)}/info`);
+            const data = await response.json();
+            
+            if (data.success && data.entry) {
+                // Use the fresh data from the server
+                entry = data.entry;
+            }
+        } catch (error) {
+            console.error('Failed to fetch latest entry info:', error);
+            // Continue with the existing entry data if fetch fails
+        }
+        
         const modal = document.createElement('div');
         modal.className = 'info-modal-overlay';
         
@@ -411,9 +425,10 @@
         const fileCreated = entry.file_created_at ? formatFullDate(entry.file_created_at) : 'N/A';
         const fileModified = entry.file_modified_at ? formatFullDate(entry.file_modified_at) : 'N/A';
         
-        // Check if hashes exist
-        const hasMD5 = entry.md5_hash && entry.md5_hash.length > 0;
-        const hasSHA256 = entry.sha256_hash && entry.sha256_hash.length > 0;
+        // Check if hashes exist or are being processed
+        const hasMD5 = entry.md5_hash && entry.md5_hash !== 'processing' && entry.md5_hash.length > 0;
+        const hasSHA256 = entry.sha256_hash && entry.sha256_hash !== 'processing' && entry.sha256_hash.length > 0;
+        const isProcessing = entry.md5_hash === 'processing' || entry.sha256_hash === 'processing';
         const canComputeHashes = entry.type === 'filepath';
         
         modal.innerHTML = `
@@ -438,7 +453,7 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">Downloads:</span>
-                            <span class="info-value">${entry.download_count || 0} times</span>
+                            <span class="info-value">${entry.downloads || 0} times</span>
                         </div>
                         ${entry.report_count > 0 ? `
                         <div class="info-row warning">
@@ -467,6 +482,19 @@
                     <div class="info-section">
                         <h5>🔐 File Hashes</h5>
                         <div id="hash-section-${entry._key}">
+                            ${isProcessing ? `
+                            <div class="info-row">
+                                <span class="info-label">MD5:</span>
+                                <span class="info-value"><em>Processing...</em></span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">SHA256:</span>
+                                <span class="info-value"><em>Processing...</em></span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-value" style="color: #5a9fd4;">⏳ Hash computation in progress. Please wait...</span>
+                            </div>
+                            ` : hasMD5 || hasSHA256 ? `
                             ${hasMD5 ? `
                             <div class="info-row">
                                 <span class="info-label">MD5:</span>
@@ -479,7 +507,12 @@
                                 <span class="info-value hash-value">${entry.sha256_hash}</span>
                             </div>
                             ` : ''}
-                            ${!hasMD5 && !hasSHA256 ? `
+                            ${canComputeHashes ? `
+                            <div class="info-row" style="margin-top: 10px;">
+                                <button class="btn-compute-hash" onclick="computeHashes('${entry._key}')">🔐 Recompute Hashes</button>
+                            </div>
+                            ` : ''}
+                            ` : `
                             <div class="info-row">
                                 <span class="info-value">
                                     ${canComputeHashes ? 
@@ -488,7 +521,7 @@
                                     }
                                 </span>
                             </div>
-                            ` : ''}
+                            `}
                         </div>
                     </div>
                     
@@ -530,6 +563,11 @@
         `;
         
         document.body.appendChild(modal);
+        
+        // If hashes are processing, start polling for updates
+        if (isProcessing) {
+            setTimeout(() => pollForHashes(entry._key), 3000);
+        }
         
         // Add hidden download trigger
         const downloadTrigger = document.createElement('a');
@@ -618,7 +656,7 @@
         if (attempts >= 60) {
             hashSection.innerHTML = `
                 <div class="info-row warning">
-                    <span class="info-value">⏱ Hash computation is taking longer than expected. Please refresh to check status.</span>
+                    <span class="info-value">⏱ Hash computation is taking longer than expected. Please click Info again to check status.</span>
                 </div>
                 <div class="info-row">
                     <span class="info-value">
@@ -630,26 +668,65 @@
         }
         
         try {
-            const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/hashes`);
+            // Fetch updated entry info to get latest hash status
+            const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/info`);
             const data = await response.json();
             
-            if (data.success && data.md5 && data.sha256 && !data.processing) {
-                // Hashes are ready
-                hashSection.innerHTML = `
-                    <div class="info-row">
-                        <span class="info-value" style="color: #5a9fd4;">✓ Hashes computed successfully!</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">MD5:</span>
-                        <span class="info-value hash-value">${data.md5}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">SHA256:</span>
-                        <span class="info-value hash-value">${data.sha256}</span>
-                    </div>
-                `;
+            if (data.success && data.entry) {
+                const entry = data.entry;
+                const hasMD5 = entry.md5_hash && entry.md5_hash !== 'processing';
+                const hasSHA256 = entry.sha256_hash && entry.sha256_hash !== 'processing';
+                const isProcessing = entry.md5_hash === 'processing' || entry.sha256_hash === 'processing';
+                
+                if (hasMD5 && hasSHA256) {
+                    // Hashes are ready
+                    hashSection.innerHTML = `
+                        <div class="info-row">
+                            <span class="info-value" style="color: #5a9fd4;">✓ Hashes computed successfully!</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">MD5:</span>
+                            <span class="info-value hash-value">${entry.md5_hash}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">SHA256:</span>
+                            <span class="info-value hash-value">${entry.sha256_hash}</span>
+                        </div>
+                        <div class="info-row" style="margin-top: 10px;">
+                            <button class="btn-compute-hash" onclick="computeHashes('${entryId}')">🔐 Recompute Hashes</button>
+                        </div>
+                    `;
+                } else if (isProcessing) {
+                    // Still processing, update the display and poll again
+                    hashSection.innerHTML = `
+                        <div class="info-row">
+                            <span class="info-label">MD5:</span>
+                            <span class="info-value"><em>Processing...</em></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">SHA256:</span>
+                            <span class="info-value"><em>Processing...</em></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-value" style="color: #5a9fd4;">⏳ Hash computation in progress (${attempts + 1}/60)...</span>
+                        </div>
+                    `;
+                    setTimeout(() => pollForHashes(entryId, attempts + 1), 3000);
+                } else {
+                    // Something went wrong, hashes should be available but aren't
+                    hashSection.innerHTML = `
+                        <div class="info-row warning">
+                            <span class="info-value">⚠ Hash computation may have failed</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-value">
+                                <button class="btn-compute-hash" onclick="computeHashes('${entryId}')">🔐 Try Again</button>
+                            </span>
+                        </div>
+                    `;
+                }
             } else {
-                // Still processing, poll again
+                // Continue polling on error
                 setTimeout(() => pollForHashes(entryId, attempts + 1), 3000);
             }
         } catch (error) {
