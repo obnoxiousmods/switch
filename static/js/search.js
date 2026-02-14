@@ -6,7 +6,7 @@
     let filteredEntries = [];
     let currentPage = 1;
     let itemsPerPage = 10;
-    let sortBy = 'name'; // 'name', 'downloads', 'size', or 'recent'
+    let sortBy = 'downloads'; // 'name', 'downloads', 'size', or 'recent'
     let autoRefreshInterval = null;
     
     // Auto-refresh configuration
