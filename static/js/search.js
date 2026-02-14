@@ -7,6 +7,11 @@
     let currentPage = 1;
     let itemsPerPage = 10;
     let sortBy = 'name'; // 'name', 'downloads', 'size', or 'recent'
+    let autoRefreshInterval = null;
+    let hashPollingIntervals = {};
+    
+    // Check if user is moderator or admin
+    const isModerator = window.userRole && (window.userRole.isModerator || window.userRole.isAdmin);
     
     // DOM Elements
     const searchInput = document.getElementById('search-input');
@@ -23,8 +28,27 @@
             searchInput.focus();
         }
         
+        // Check URL parameters and apply search query and filter
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('search') || urlParams.get('q');
+        const sortParam = urlParams.get('sort');
+        
+        // Apply sort filter from URL
+        if (sortParam && ['name', 'recent', 'downloads', 'size'].includes(sortParam)) {
+            sortBy = sortParam;
+            if (sortSelect) {
+                sortSelect.value = sortBy;
+            }
+        }
+        
         // Load entries from API
         await loadEntries();
+        
+        // Apply search query from URL
+        if (searchQuery && searchInput) {
+            searchInput.value = searchQuery;
+            handleSearch({ target: { value: searchQuery } });
+        }
         
         // Set up event listeners
         if (searchInput) {
@@ -34,6 +58,9 @@
         if (sortSelect) {
             sortSelect.addEventListener('change', handleSortChange);
         }
+        
+        // Start auto-refresh every 10 seconds (10000ms)
+        startAutoRefresh();
     }
     
     // Load all entries from the API
@@ -59,6 +86,45 @@
             console.error('Error loading entries:', error);
             hideLoading();
             showError('Failed to load entries. Please try again later.');
+        }
+    }
+    
+    // Start auto-refresh
+    function startAutoRefresh() {
+        // Refresh every 10 seconds
+        autoRefreshInterval = setInterval(async () => {
+            // Silently reload entries in background
+            try {
+                const sortParam = sortBy !== 'name' ? `?sort_by=${sortBy}` : '';
+                const response = await fetch(`/api/list${sortParam}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    allEntries = data.entries || [];
+                    
+                    // Re-apply current search filter
+                    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+                    if (searchTerm === '') {
+                        filteredEntries = allEntries;
+                    } else {
+                        filteredEntries = allEntries.filter(entry => {
+                            return entry.name.toLowerCase().includes(searchTerm);
+                        });
+                    }
+                    
+                    // Re-render with current page
+                    renderResults();
+                }
+            } catch (error) {
+                console.error('Error during auto-refresh:', error);
+            }
+        }, 10000);
+    }
+    
+    // Stop auto-refresh (for cleanup if needed)
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
         }
     }
     
@@ -382,6 +448,19 @@
         actions.appendChild(infoBtn);
         actions.appendChild(reportBtn);
         
+        // Add delete button for moderators/admins
+        if (isModerator) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn-delete';
+            deleteBtn.textContent = '🗑️ Delete';
+            deleteBtn.title = 'Delete this entry (Moderator)';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleDelete(entry);
+            });
+            actions.appendChild(deleteBtn);
+        }
+        
         card.appendChild(title);
         card.appendChild(meta);
         card.appendChild(actions);
@@ -494,6 +573,11 @@
                             <div class="info-row">
                                 <span class="info-value" style="color: #5a9fd4;">⏳ Hash computation in progress. Please wait...</span>
                             </div>
+                            ${canComputeHashes ? `
+                            <div class="info-row" style="margin-top: 10px;">
+                                <button class="btn-compute-hash" onclick="computeHashes('${entry._key}')">🔐 Recheck Hashes</button>
+                            </div>
+                            ` : ''}
                             ` : hasMD5 || hasSHA256 ? `
                             ${hasMD5 ? `
                             <div class="info-row">
@@ -585,10 +669,18 @@
         const hashSection = document.getElementById(`hash-section-${entryId}`);
         if (!hashSection) return;
         
-        // Show loading state
+        // Show loading state immediately
         hashSection.innerHTML = `
             <div class="info-row">
-                <span class="info-value">⏳ Computing hashes in background... This may take a while for large files.</span>
+                <span class="info-label">MD5:</span>
+                <span class="info-value"><em>Processing...</em></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">SHA256:</span>
+                <span class="info-value"><em>Processing...</em></span>
+            </div>
+            <div class="info-row">
+                <span class="info-value" style="color: #5a9fd4;">⏳ Hash computation in progress. Please wait...</span>
             </div>
         `;
         
@@ -599,13 +691,7 @@
             if (data.success) {
                 // Check if hashes are ready or still processing
                 if (data.processing) {
-                    // Hashes are being computed in background, poll for results
-                    hashSection.innerHTML = `
-                        <div class="info-row">
-                            <span class="info-value">⏳ ${data.message}</span>
-                        </div>
-                    `;
-                    // Poll every 3 seconds to check if hashes are ready
+                    // Hashes are being computed in background, start polling for results
                     setTimeout(() => pollForHashes(entryId), 3000);
                 } else if (data.md5 && data.sha256) {
                     // Hashes are ready
@@ -618,6 +704,9 @@
                         <div class="info-row">
                             <span class="info-label">SHA256:</span>
                             <span class="info-value hash-value">${data.sha256}</span>
+                        </div>
+                        <div class="info-row" style="margin-top: 10px;">
+                            <button class="btn-compute-hash" onclick="computeHashes('${entryId}')">🔐 Recompute Hashes</button>
                         </div>
                     `;
                 }
@@ -674,8 +763,8 @@
             
             if (data.success && data.entry) {
                 const entry = data.entry;
-                const hasMD5 = entry.md5_hash && entry.md5_hash !== 'processing';
-                const hasSHA256 = entry.sha256_hash && entry.sha256_hash !== 'processing';
+                const hasMD5 = entry.md5_hash && entry.md5_hash !== 'processing' && entry.md5_hash.length > 0;
+                const hasSHA256 = entry.sha256_hash && entry.sha256_hash !== 'processing' && entry.sha256_hash.length > 0;
                 const isProcessing = entry.md5_hash === 'processing' || entry.sha256_hash === 'processing';
                 
                 if (hasMD5 && hasSHA256) {
@@ -709,6 +798,9 @@
                         </div>
                         <div class="info-row">
                             <span class="info-value" style="color: #5a9fd4;">⏳ Hash computation in progress (${attempts + 1}/60)...</span>
+                        </div>
+                        <div class="info-row" style="margin-top: 10px;">
+                            <button class="btn-compute-hash" onclick="computeHashes('${entryId}')">🔐 Recheck Hashes</button>
                         </div>
                     `;
                     setTimeout(() => pollForHashes(entryId, attempts + 1), 3000);
@@ -835,6 +927,68 @@
                 Toast.error('Error submitting report. Please try again.');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Report';
+            }
+        });
+    }
+    
+    // Handle delete of an entry (moderator only)
+    async function handleDelete(entry) {
+        // Create confirmation modal
+        const modal = document.createElement('div');
+        modal.className = 'report-modal-overlay';
+        modal.innerHTML = `
+            <div class="report-modal">
+                <div class="report-modal-header">
+                    <h3>⚠️ Delete Entry</h3>
+                    <button class="modal-close" onclick="this.closest('.report-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="report-modal-body">
+                    <p><strong>File:</strong> ${entry.name}</p>
+                    <p style="color: #ef4444; margin-top: 15px;">
+                        <strong>Warning:</strong> This will permanently delete the entry and remove the file from disk. 
+                        This action cannot be undone!
+                    </p>
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button type="button" class="btn-cancel" onclick="this.closest('.report-modal-overlay').remove()">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn-delete-confirm" style="background: #ef4444;">
+                            🗑️ Delete Entry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle delete confirmation
+        const deleteBtn = modal.querySelector('.btn-delete-confirm');
+        deleteBtn.addEventListener('click', async () => {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Deleting...';
+            
+            try {
+                const response = await fetch(`/api/entries/${encodeURIComponent(entry._key)}/delete`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    Toast.success('Entry deleted successfully');
+                    modal.remove();
+                    // Reload entries to reflect deletion
+                    await loadEntries();
+                } else {
+                    Toast.error(data.error || 'Failed to delete entry');
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = '🗑️ Delete Entry';
+                }
+            } catch (error) {
+                Toast.error('Error deleting entry. Please try again.');
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '🗑️ Delete Entry';
             }
         });
     }

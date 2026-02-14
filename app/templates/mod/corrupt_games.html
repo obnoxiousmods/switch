@@ -78,6 +78,9 @@
                     <a href="/uploadercp/upload" class="btn-upload-replacement">
                         📤 Upload Replacement
                     </a>
+                    <button class="btn-delete-entry" onclick="deleteEntry('{{ entry._key }}', '{{ entry.name }}')">
+                        🗑️ Delete Entry
+                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -282,7 +285,7 @@
     border-top: 1px solid #444;
 }
 
-.btn-mark-valid, .btn-upload-replacement {
+.btn-mark-valid, .btn-upload-replacement, .btn-delete-entry {
     padding: 10px 20px;
     border: none;
     border-radius: 6px;
@@ -310,6 +313,15 @@
 
 .btn-upload-replacement:hover {
     background: #4a8fc4;
+}
+
+.btn-delete-entry {
+    background: #ef4444;
+    color: #fff;
+}
+
+.btn-delete-entry:hover {
+    background: #dc2626;
 }
 
 .empty-state {
@@ -423,6 +435,32 @@ async function clearAllCorruptFlags() {
         }
     } catch (error) {
         showNotification('Error clearing corrupt flags', 'error');
+    }
+}
+
+async function deleteEntry(entryId, entryName) {
+    if (!confirm(`Delete "${entryName}"?\n\nThis will permanently delete the entry and remove the file from disk. This action cannot be undone!\n\nAre you sure?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/delete`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Reload page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Error deleting entry', 'error');
     }
 }
 

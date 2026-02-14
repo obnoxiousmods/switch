@@ -446,3 +446,91 @@ async def get_entry_info(request: Request):
             "success": False,
             "error": "An error occurred while fetching entry information"
         }, status_code=500)
+
+
+async def delete_entry(request: Request):
+    """API endpoint to delete an entry (moderator or admin only)"""
+    # Check if user is logged in and is moderator or admin
+    user_id = request.session.get('user_id')
+    username = request.session.get('username')
+    is_mod = request.session.get('is_moderator', False)
+    is_admin = request.session.get('is_admin', False)
+    
+    if not user_id or not (is_mod or is_admin):
+        return JSONResponse({
+            "success": False,
+            "error": "Unauthorized. Moderator or admin access required."
+        }, status_code=403)
+    
+    try:
+        entry_id = request.path_params.get('entry_id')
+        
+        # Get the entry from the database
+        entry = await db.get_entry_by_id(entry_id)
+        
+        if not entry:
+            return JSONResponse({
+                "success": False,
+                "error": "Entry not found"
+            }, status_code=404)
+        
+        entry_name = entry.get("name", "Unknown")
+        entry_type = entry.get("type")
+        
+        # If entry is a filepath, delete the file from disk
+        if entry_type == "filepath":
+            filepath = entry.get("source")
+            if filepath and os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                    logger.info(f"Deleted file from disk: {filepath}")
+                except Exception as e:
+                    logger.error(f"Error deleting file from disk: {e}")
+                    return JSONResponse({
+                        "success": False,
+                        "error": f"Failed to delete file from disk: {str(e)}"
+                    }, status_code=500)
+            elif filepath:
+                logger.warning(f"File not found on disk: {filepath}")
+        
+        # Delete the entry from the database
+        success = await db.delete_entry(entry_id)
+        
+        if not success:
+            return JSONResponse({
+                "success": False,
+                "error": "Failed to delete entry from database"
+            }, status_code=500)
+        
+        # Log the action
+        ip_info = get_ip_info(request)
+        activity_data = {
+            'event_type': 'entry_deleted',
+            'user_id': user_id,
+            'username': username,
+            'details': {
+                'entry_id': entry_id,
+                'entry_name': entry_name,
+                'entry_type': entry_type
+            },
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
+        
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"{'Admin' if is_admin else 'Moderator'} {username} deleted entry {entry_id} ({entry_name}) from {format_ip_for_log(request)}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Entry '{entry_name}' deleted successfully"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting entry: {e}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": "An error occurred while deleting the entry"
+        }, status_code=500)

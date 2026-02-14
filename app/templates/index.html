@@ -367,5 +367,13 @@
 }
 </style>
 
+<script>
+// Pass user role information to JavaScript
+window.userRole = {
+    isModerator: {{ 'true' if is_moderator else 'false' }},
+    isAdmin: {{ 'true' if request.session.get('is_admin', False) else 'false' }}
+};
+</script>
+
 <script src="{{ url_for('static', path='js/search.js') }}"></script>
 {% endblock %}
