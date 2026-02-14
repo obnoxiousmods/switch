@@ -6,6 +6,11 @@
         <div class="page-header">
             <h2>🔧 Corrupt Games Management</h2>
             <p class="page-subtitle">Games marked as corrupt that need replacement</p>
+            {% if entries %}
+            <button class="btn-clear-all" onclick="clearAllCorruptFlags()">
+                🗑️ Clear All Corrupt Flags
+            </button>
+            {% endif %}
         </div>
 
         {% if entries %}
@@ -101,6 +106,7 @@
 .page-header {
     text-align: center;
     margin-bottom: 30px;
+    position: relative;
 }
 
 .page-header h2 {
@@ -112,6 +118,23 @@
 .page-subtitle {
     color: #999;
     font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.btn-clear-all {
+    padding: 12px 24px;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 15px;
+}
+
+.btn-clear-all:hover {
+    background: #dc2626;
 }
 
 .games-list {
@@ -376,6 +399,32 @@ async function markAsValid(entryId, entryName) {
         }
     } catch (error) {
         showNotification('Error marking game as valid', 'error');
+    }
+}
+
+async function clearAllCorruptFlags() {
+    if (!confirm('Clear all corrupt flags?\n\nThis will mark ALL games as valid and remove them from this list. Are you sure?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/modcp/corrupt-games/clear-all', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Reload page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Error clearing corrupt flags', 'error');
     }
 }
 
