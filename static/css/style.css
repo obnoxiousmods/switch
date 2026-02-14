@@ -930,3 +930,156 @@ footer {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+/* How to Play Section Styles */
+.how-to-play-section {
+    margin: 40px 0;
+    padding: 0 20px;
+}
+
+.how-to-play-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.how-to-play-title {
+    font-size: 2rem;
+    color: #333;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.how-to-play-subtitle {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.how-to-play-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 25px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.how-to-play-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 2px solid #f0f0f0;
+}
+
+.how-to-play-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.card-icon {
+    font-size: 3rem;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.card-title {
+    font-size: 1.3rem;
+    color: #333;
+    margin-bottom: 15px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.card-content {
+    color: #555;
+    line-height: 1.6;
+}
+
+.instruction-list {
+    margin: 0;
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+
+.instruction-list li {
+    margin-bottom: 10px;
+}
+
+.instruction-list strong {
+    color: #333;
+}
+
+.instruction-list code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #d63384;
+}
+
+.card-note {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 15px;
+}
+
+.card-note strong {
+    color: #856404;
+}
+
+.modding-services-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+}
+
+.modding-services-card .card-title,
+.modding-services-card .card-content {
+    color: white;
+}
+
+.modding-text {
+    text-align: center;
+    font-size: 1.05rem;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.btn-modding-services {
+    display: block;
+    width: 100%;
+    padding: 14px 24px;
+    background: white;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    text-align: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn-modding-services:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    background: #f8f9fa;
+}
+
+@media (max-width: 768px) {
+    .how-to-play-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .how-to-play-title {
+        font-size: 1.6rem;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+    }
+}
