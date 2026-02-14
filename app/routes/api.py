@@ -347,6 +347,9 @@ async def compute_file_hashes(request: Request):
     try:
         entry_id = request.path_params.get('entry_id')
         
+        # Check for force_recheck parameter
+        force_recheck = request.query_params.get('force_recheck', '').lower() == 'true'
+        
         # Get the entry from the database
         entry = await db.get_entry_by_id(entry_id)
         
@@ -356,8 +359,8 @@ async def compute_file_hashes(request: Request):
                 "error": "Entry not found"
             }, status_code=404)
         
-        # Check if hashes already exist
-        if entry.get('md5_hash') and entry.get('sha256_hash'):
+        # Check if hashes already exist (skip cache if force_recheck)
+        if not force_recheck and entry.get('md5_hash') and entry.get('sha256_hash'):
             return JSONResponse({
                 "success": True,
                 "md5": entry.get('md5_hash'),
@@ -384,10 +387,15 @@ async def compute_file_hashes(request: Request):
         # Return immediately and compute hashes in the background
         background_task = BackgroundTask(_compute_and_store_hashes, entry_id, filepath)
         
+        message = "Hash computation started in background. Results will appear automatically when ready."
+        if force_recheck:
+            message = "Force recheck: Bypassing cache and recomputing hashes in background. Results will appear automatically when ready."
+        
         return JSONResponse({
             "success": True,
             "processing": True,
-            "message": "Hash computation started in background. Results will appear automatically when ready."
+            "force_recheck": force_recheck,
+            "message": message
         }, background=background_task)
         
     except Exception as e:
