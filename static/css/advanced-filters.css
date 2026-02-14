@@ -1,12 +1,12 @@
 /* Advanced Filters Panel Styles */
 
 .filters-panel {
-    background: linear-gradient(135deg, #1a1a1a, #0f0f0f);
+    background: linear-gradient(135deg, var(--surface), var(--background));
     border-radius: 12px;
     margin-bottom: 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     overflow: visible;
-    border: 1px solid #2a2a2a;
+    border: 1px solid var(--border);
 }
 
 .filters-header {
@@ -49,8 +49,11 @@
 }
 
 .filters-content-always-open {
+    /* Allow dropdowns to extend beyond container while maintaining structure */
     overflow: visible;
     padding: 20px;
+    /* Contain only the grid layout, not the dropdown menus */
+    position: relative;
 }
 
 .filters-grid {

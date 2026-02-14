@@ -47,7 +47,6 @@
         // Apply filters on initialization if any are active
         if (hasActiveFilters()) {
             applyFilters(true);
-            updateActiveIndicator();
         }
     }
     
@@ -74,9 +73,6 @@
         if (window.applyAdvancedFilters) {
             window.applyAdvancedFilters(activeFilters);
         }
-        
-        // Update active indicator
-        updateActiveIndicator();
     }
     
     // Clear all filters
@@ -101,9 +97,6 @@
         if (window.applyAdvancedFilters) {
             window.applyAdvancedFilters(activeFilters);
         }
-        
-        // Update active indicator
-        updateActiveIndicator();
     }
     
     // Load saved filters from localStorage
@@ -130,12 +123,6 @@
                activeFilters.size !== 'all' ||
                activeFilters.date !== 'all' ||
                activeFilters.downloads !== 'all';
-    }
-    
-    // Update active indicator on toggle button
-    function updateActiveIndicator() {
-        // Indicator removed since panel is always open
-        // This function can be used for other UI updates if needed
     }
     
     // Export function to get current filters
