@@ -4,6 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }} | {{ app_name|default('Switch Game Repository') }}</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Community-driven platform for uploading, downloading, and managing game files. Browse our extensive collection, request games, and join our gaming community.">
+    <meta name="keywords" content="game repository, community games, game uploads, game downloads, gaming platform, game files, NSP, NSZ, XCI, gaming community, game sharing">
+    <meta name="author" content="Switch Game Repository Community">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+    <meta name="revisit-after" content="7 days">
+    <meta name="rating" content="general">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{{ title }} | {{ app_name|default('Switch Game Repository') }}">
+    <meta property="og:description" content="Community-driven platform for uploading, downloading, and managing game files. Browse our extensive collection and join our gaming community.">
+    <meta property="og:site_name" content="{{ app_name|default('Switch Game Repository') }}">
+    <meta property="og:locale" content="en_US">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ request.url }}">
+    <meta name="twitter:title" content="{{ title }} | {{ app_name|default('Switch Game Repository') }}">
+    <meta name="twitter:description" content="Community-driven platform for uploading, downloading, and managing game files. Browse our extensive collection and join our gaming community.">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{{ request.url }}">
+    
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
 </head>
 <body>
