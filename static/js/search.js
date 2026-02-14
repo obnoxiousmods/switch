@@ -1244,11 +1244,23 @@
     function attachCommentVoteListeners(container) {
         const voteButtons = container.querySelectorAll('.comment-actions .vote-button');
         voteButtons.forEach(button => {
+            // Click handler
             button.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const commentId = button.getAttribute('data-comment-id');
                 const voteType = button.getAttribute('data-vote');
                 await handleCommentVote(commentId, voteType, button);
+            });
+            
+            // Keyboard handler for accessibility
+            button.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const commentId = button.getAttribute('data-comment-id');
+                    const voteType = button.getAttribute('data-vote');
+                    await handleCommentVote(commentId, voteType, button);
+                }
             });
         });
     }
@@ -1283,10 +1295,10 @@
                 }
                 Toast.success(message);
                 
-                // Update the vote counts in the DOM using specific selectors
+                // Update the vote counts in the DOM using specific class names
                 const commentItem = button.closest('.comment-item');
-                const likeCount = commentItem.querySelector('.vote-button[data-vote="like"] + .vote-count');
-                const dislikeCount = commentItem.querySelector('.vote-button[data-vote="dislike"] + .vote-count');
+                const likeCount = commentItem.querySelector('.like-count');
+                const dislikeCount = commentItem.querySelector('.dislike-count');
                 
                 if (likeCount) {
                     likeCount.textContent = data.vote_stats.likes;
@@ -1467,10 +1479,12 @@
                 </div>
                 <div class="comment-text">${escapeHtml(comment.text)}</div>
                 <div class="comment-actions">
-                    <span class="vote-button" data-vote="like" data-comment-id="${comment.id}" title="Like this comment">👍</span>
-                    <span class="vote-count">${likesCount}</span>
-                    <span class="vote-button" data-vote="dislike" data-comment-id="${comment.id}" title="Dislike this comment">👎</span>
-                    <span class="vote-count">${dislikesCount}</span>
+                    <span class="vote-button" data-vote="like" data-comment-id="${comment.id}" 
+                          role="button" tabindex="0" aria-label="Like this comment" title="Like this comment">👍</span>
+                    <span class="vote-count like-count">${likesCount}</span>
+                    <span class="vote-button" data-vote="dislike" data-comment-id="${comment.id}" 
+                          role="button" tabindex="0" aria-label="Dislike this comment" title="Dislike this comment">👎</span>
+                    <span class="vote-count dislike-count">${dislikesCount}</span>
                 </div>
             </div>
         `;

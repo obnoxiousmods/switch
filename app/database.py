@@ -1,7 +1,7 @@
 import logging
 import os
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from arangoasync import ArangoClient
@@ -1930,7 +1930,7 @@ class Database:
                         existing_vote["_key"],
                         {
                             "vote_type": vote_type,
-                            "updated_at": datetime.utcnow().isoformat(),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
                         },
                     )
             else:
@@ -1939,7 +1939,7 @@ class Database:
                     "comment_id": comment_id,
                     "user_id": user_id,
                     "vote_type": vote_type,
-                    "created_at": datetime.utcnow().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                 }
                 await self.comment_likes_collection.insert(vote_data)
 
