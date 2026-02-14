@@ -550,7 +550,7 @@
         // Show loading state
         hashSection.innerHTML = `
             <div class="info-row">
-                <span class="info-value">⏳ Computing hashes... This may take a while for large files.</span>
+                <span class="info-value">⏳ Computing hashes in background... This may take a while for large files.</span>
             </div>
         `;
         
@@ -559,17 +559,30 @@
             const data = await response.json();
             
             if (data.success) {
-                hashSection.innerHTML = `
-                    ${data.cached ? '<div class="info-row"><span class="info-value" style="color: #5a9fd4;">✓ Retrieved from cache</span></div>' : ''}
-                    <div class="info-row">
-                        <span class="info-label">MD5:</span>
-                        <span class="info-value hash-value">${data.md5}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">SHA256:</span>
-                        <span class="info-value hash-value">${data.sha256}</span>
-                    </div>
-                `;
+                // Check if hashes are ready or still processing
+                if (data.processing) {
+                    // Hashes are being computed in background, poll for results
+                    hashSection.innerHTML = `
+                        <div class="info-row">
+                            <span class="info-value">⏳ ${data.message}</span>
+                        </div>
+                    `;
+                    // Poll every 3 seconds to check if hashes are ready
+                    setTimeout(() => pollForHashes(entryId), 3000);
+                } else if (data.md5 && data.sha256) {
+                    // Hashes are ready
+                    hashSection.innerHTML = `
+                        ${data.cached ? '<div class="info-row"><span class="info-value" style="color: #5a9fd4;">✓ Retrieved from cache</span></div>' : ''}
+                        <div class="info-row">
+                            <span class="info-label">MD5:</span>
+                            <span class="info-value hash-value">${data.md5}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">SHA256:</span>
+                            <span class="info-value hash-value">${data.sha256}</span>
+                        </div>
+                    `;
+                }
             } else {
                 hashSection.innerHTML = `
                     <div class="info-row warning">
@@ -595,6 +608,57 @@
             `;
         }
     };
+    
+    // Poll for hash computation results
+    async function pollForHashes(entryId, attempts = 0) {
+        const hashSection = document.getElementById(`hash-section-${entryId}`);
+        if (!hashSection) return;
+        
+        // Stop polling after 60 attempts at 3-second intervals (3 minutes)
+        if (attempts >= 60) {
+            hashSection.innerHTML = `
+                <div class="info-row warning">
+                    <span class="info-value">⏱ Hash computation is taking longer than expected. Please refresh to check status.</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-value">
+                        <button class="btn-compute-hash" onclick="computeHashes('${entryId}')">🔐 Check Again</button>
+                    </span>
+                </div>
+            `;
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/hashes`);
+            const data = await response.json();
+            
+            if (data.success && data.md5 && data.sha256 && !data.processing) {
+                // Hashes are ready
+                hashSection.innerHTML = `
+                    <div class="info-row">
+                        <span class="info-value" style="color: #5a9fd4;">✓ Hashes computed successfully!</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">MD5:</span>
+                        <span class="info-value hash-value">${data.md5}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">SHA256:</span>
+                        <span class="info-value hash-value">${data.sha256}</span>
+                    </div>
+                `;
+            } else {
+                // Still processing, poll again
+                setTimeout(() => pollForHashes(entryId, attempts + 1), 3000);
+            }
+        } catch (error) {
+            // Log error but continue polling
+            console.error('Error polling for hashes:', error);
+            setTimeout(() => pollForHashes(entryId, attempts + 1), 3000);
+        }
+    }
+
     
     // Format full date
     function formatFullDate(dateString) {

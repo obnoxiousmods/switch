@@ -1,5 +1,6 @@
 from starlette.responses import JSONResponse, FileResponse, RedirectResponse
 from starlette.requests import Request
+from starlette.background import BackgroundTask
 import os
 import logging
 import hashlib
@@ -289,6 +290,35 @@ async def submit_report(request: Request):
         }, status_code=500)
 
 
+
+async def _compute_and_store_hashes(entry_id: str, filepath: str):
+    """Background task to compute and store file hashes"""
+    try:
+        logger.info(f"Computing hashes for entry {entry_id}: {filepath}")
+        md5_hash = hashlib.md5()
+        sha256_hash = hashlib.sha256()
+        
+        # Read file in chunks to handle large files
+        chunk_size = 8192
+        with open(filepath, 'rb') as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                md5_hash.update(chunk)
+                sha256_hash.update(chunk)
+        
+        md5_result = md5_hash.hexdigest()
+        sha256_result = sha256_hash.hexdigest()
+        
+        # Store hashes in database
+        await db.update_entry_hashes(entry_id, md5_result, sha256_result)
+        
+        logger.info(f"Computed and stored hashes for entry {entry_id}")
+    except Exception as e:
+        logger.error(f"Error computing hashes in background: {e}", exc_info=True)
+
+
 async def compute_file_hashes(request: Request):
     """API endpoint to compute MD5 and SHA256 hashes for a file entry"""
     # Require authentication - either session or API key
@@ -338,35 +368,14 @@ async def compute_file_hashes(request: Request):
                 "error": "File not found on server"
             }, status_code=404)
         
-        # Compute hashes
-        logger.info(f"Computing hashes for entry {entry_id}: {filepath}")
-        md5_hash = hashlib.md5()
-        sha256_hash = hashlib.sha256()
-        
-        # Read file in chunks to handle large files
-        chunk_size = 8192
-        with open(filepath, 'rb') as f:
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                md5_hash.update(chunk)
-                sha256_hash.update(chunk)
-        
-        md5_result = md5_hash.hexdigest()
-        sha256_result = sha256_hash.hexdigest()
-        
-        # Store hashes in database
-        await db.update_entry_hashes(entry_id, md5_result, sha256_result)
-        
-        logger.info(f"Computed and stored hashes for entry {entry_id}")
+        # Return immediately and compute hashes in the background
+        background_task = BackgroundTask(_compute_and_store_hashes, entry_id, filepath)
         
         return JSONResponse({
             "success": True,
-            "md5": md5_result,
-            "sha256": sha256_result,
-            "cached": False
-        })
+            "processing": True,
+            "message": "Hash computation started in background. Results will appear automatically when ready."
+        }, background=background_task)
         
     except Exception as e:
         logger.error(f"Hash computation error: {e}", exc_info=True)
