@@ -52,6 +52,26 @@ async def index(request: Request) -> Response:
     return response
 
 
+async def search_page(request: Request) -> Response:
+    """Dedicated search page"""
+    # Check if system is initialized
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is moderator or admin for the search.js script
+    is_moderator = request.session.get('is_moderator', False) or request.session.get('is_admin', False)
+    
+    return templates.TemplateResponse(
+        request,
+        "search.html",
+        {
+            "title": "Search Games",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "is_moderator": is_moderator
+        }
+    )
+
+
 async def api_docs_page(request: Request) -> Response:
     """API documentation page"""
     # Check if system is initialized
