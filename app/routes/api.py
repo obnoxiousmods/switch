@@ -235,21 +235,20 @@ async def submit_report(request: Request):
                 "error": "Entry not found"
             }, status_code=404)
         
-        # Create the report
-        report_id = await db.create_report(
-            entry_id=entry_id,
-            entry_name=entry_name or entry.get('name', 'Unknown'),
-            user_id=user_id,
-            username=username,
-            reason=reason,
-            description=description
-        )
-        
-        if not report_id:
-            return JSONResponse({
-                "success": False,
-                "error": "Failed to create report"
-            }, status_code=500)
+        # Create the report | OLD NOT WORKING REPORT SYSTEM
+        #report_id = await db.create_report(
+        #    entry_id=entry_id,
+        #    entry_name=entry_name or entry.get('name', 'Unknown'),
+        #    user_id=user_id,
+        #    username=username,
+        #    reason=reason,
+        #    description=description
+        #)
+        #if not report_id:
+        #    return JSONResponse({
+        #        "success": False,
+        #        "error": "Failed to create report"
+        #    }, status_code=500)
         
         # Always mark the entry as corrupt when any report is submitted
         await db.mark_entry_corrupt(entry_id, True)
@@ -262,7 +261,7 @@ async def submit_report(request: Request):
             'user_id': user_id,
             'username': username,
             'details': {
-                'report_id': report_id,
+                #'report_id': report_id,
                 'entry_id': entry_id,
                 'entry_name': entry_name or entry.get('name', 'Unknown'),
                 'reason': reason
