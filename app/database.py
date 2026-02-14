@@ -247,7 +247,12 @@ class Database:
             logger.error(f"Error updating entry corrupt status: {e}")
             return False
 
-    async def update_entry_hashes(self, entry_id: str, md5_hash: Optional[str] = None, sha256_hash: Optional[str] = None) -> bool:
+    async def update_entry_hashes(
+        self,
+        entry_id: str,
+        md5_hash: Optional[str] = None,
+        sha256_hash: Optional[str] = None,
+    ) -> bool:
         """Update MD5 and/or SHA256 hashes for an entry"""
         try:
             update_data = {"_key": entry_id}
@@ -255,7 +260,7 @@ class Database:
                 update_data["md5_hash"] = md5_hash
             if sha256_hash:
                 update_data["sha256_hash"] = sha256_hash
-            
+
             if len(update_data) > 1:  # More than just _key
                 await self.entries_collection.update(update_data)
                 logger.info(f"Updated hashes for entry {entry_id}")
@@ -319,20 +324,21 @@ class Database:
                 async for result in cursor:
                     count = result
                     break
-            
+
             # Step 2: Clear the entire reports collection
             delete_query = """
             FOR doc IN reports
             REMOVE doc IN reports
             """
             await self.db.aql.execute(delete_query)
-            
-            logger.info(f"Cleared corrupt flag from {count} entries, moved reports to oldReports, and cleared reports collection")
+
+            logger.info(
+                f"Cleared corrupt flag from {count} entries, moved reports to oldReports, and cleared reports collection"
+            )
             return count
         except Exception as e:
             logger.error(f"Error clearing all corrupt flags: {e}")
             return 0
-
 
     # User management methods
     async def create_user(self, user_data: Dict[str, Any]) -> Optional[str]:
@@ -434,30 +440,32 @@ class Database:
         try:
             directories = await self.get_all_directories()
             result = []
-            
+
             for directory in directories:
-                path = directory.get('path')
+                path = directory.get("path")
                 if not path or not os.path.exists(path):
                     continue
-                
+
                 try:
                     # Get disk usage
                     usage = shutil.disk_usage(path)
                     total_gb = usage.total / BYTES_PER_GB
                     used_gb = usage.used / BYTES_PER_GB
                     free_gb = usage.free / BYTES_PER_GB
-                    
-                    result.append({
-                        '_key': directory.get('_key'),
-                        'path': path,
-                        'total_gb': round(total_gb, 2),
-                        'used_gb': round(used_gb, 2),
-                        'free_gb': round(free_gb, 2),
-                        'added_at': directory.get('added_at')
-                    })
+
+                    result.append(
+                        {
+                            "_key": directory.get("_key"),
+                            "path": path,
+                            "total_gb": round(total_gb, 2),
+                            "used_gb": round(used_gb, 2),
+                            "free_gb": round(free_gb, 2),
+                            "added_at": directory.get("added_at"),
+                        }
+                    )
                 except Exception as e:
                     logger.warning(f"Could not get storage info for {path}: {e}")
-                    
+
             return result
         except Exception as e:
             logger.error(f"Error fetching directories with storage info: {e}")
@@ -694,11 +702,13 @@ class Database:
             results = await self.users_collection.update(
                 {"_key": user_id, "is_moderator": is_moderator}
             )
-            
+
             if not results or results.get("error"):
-                logger.error(f"Error updating moderator status for user {user_id}: {results.get('errorMessage', 'Unknown error')}")
+                logger.error(
+                    f"Error updating moderator status for user {user_id}: {results.get('errorMessage', 'Unknown error')}"
+                )
                 return False
-            
+
             logger.info(f"Updated user {user_id} moderator status to {is_moderator}")
             return True
         except Exception as e:
@@ -708,12 +718,16 @@ class Database:
     async def update_user_admin_status(self, user_id: str, is_admin: bool) -> bool:
         """Update a user's admin status"""
         try:
-            results = await self.users_collection.update({"_key": user_id, "is_admin": is_admin})
-            
+            results = await self.users_collection.update(
+                {"_key": user_id, "is_admin": is_admin}
+            )
+
             if not results or results.get("error"):
-                logger.error(f"Error updating admin status for user {user_id}: {results.get('errorMessage', 'Unknown error')}")
+                logger.error(
+                    f"Error updating admin status for user {user_id}: {results.get('errorMessage', 'Unknown error')}"
+                )
                 return False
-            
+
             logger.info(f"Updated user {user_id} admin status to {is_admin}")
             return True
         except Exception as e:
@@ -729,9 +743,11 @@ class Database:
                 {"_key": user_id, "is_uploader": is_uploader}
             )
             if not results or results.get("error"):
-                logger.error(f"Error updating uploader status for user {user_id}: {results.get('errorMessage', 'Unknown error')}")
+                logger.error(
+                    f"Error updating uploader status for user {user_id}: {results.get('errorMessage', 'Unknown error')}"
+                )
                 return False
-            
+
             logger.info(f"Updated user {user_id} uploader status to {is_uploader}")
             return True
         except Exception as e:
@@ -816,12 +832,16 @@ class Database:
     async def revoke_api_key(self, key_id: str) -> bool:
         """Revoke (deactivate) an API key"""
         try:
-            results = await self.api_keys_collection.update({"_key": key_id, "is_active": False})
-            
+            results = await self.api_keys_collection.update(
+                {"_key": key_id, "is_active": False}
+            )
+
             if not results or results.get("error"):
-                logger.error(f"Error revoking API key {key_id}: {results.get('errorMessage', 'Unknown error')}")
+                logger.error(
+                    f"Error revoking API key {key_id}: {results.get('errorMessage', 'Unknown error')}"
+                )
                 return False
-            
+
             logger.info(f"Revoked API key: {key_id}")
             return True
         except Exception as e:
@@ -838,7 +858,9 @@ class Database:
                 }
             )
             if not results or results.get("error"):
-                logger.error(f"Error updating API key last used {key_id}: {results.get('errorMessage', 'Unknown error')}")
+                logger.error(
+                    f"Error updating API key last used {key_id}: {results.get('errorMessage', 'Unknown error')}"
+                )
                 return False
             return True
         except Exception as e:
@@ -855,7 +877,9 @@ class Database:
 
             result = await self.api_usage_collection.insert(usage_data)
             if not result or result.get("error"):
-                logger.error(f"Error logging API usage: {result.get('errorMessage', 'Unknown error')}")
+                logger.error(
+                    f"Error logging API usage: {result.get('errorMessage', 'Unknown error')}"
+                )
                 return None
             return result["_key"]
         except Exception as e:
@@ -1265,10 +1289,13 @@ class Database:
             return 0
 
     async def get_all_entries_with_download_counts(
-        self, search_query: Optional[str] = None, sort_by: str = "name", exclude_corrupt: bool = True
+        self,
+        search_query: Optional[str] = None,
+        sort_by: str = "name",
+        exclude_corrupt: bool = True,
     ) -> List[Dict[str, Any]]:
         """Get all entries with their download counts and report counts, optionally filtered and sorted
-        
+
         Args:
             search_query: Optional search term to filter entries by name
             sort_by: Sort method - 'name', 'downloads', 'size', or 'recent' (default: 'name')
@@ -1276,8 +1303,12 @@ class Database:
         """
         try:
             # Build base query with corrupt filter
-            corrupt_filter = " AND (entry.corrupt == null OR entry.corrupt == false)" if exclude_corrupt else ""
-            
+            corrupt_filter = (
+                " AND (entry.corrupt == null OR entry.corrupt == false)"
+                if exclude_corrupt
+                else ""
+            )
+
             if search_query:
                 # Search with download counts and report counts
                 query = f"""
@@ -1366,7 +1397,7 @@ class Database:
             }
             result = await self.reports_collection.insert(report_data)
             report_id = result["_key"]
-            
+
             # Add report to entry's reports array
             report_entry_data = {
                 "report_id": report_id,
@@ -1374,9 +1405,9 @@ class Database:
                 "username": username,
                 "reason": reason,
                 "description": description,
-                "created_at": report_data["created_at"]
+                "created_at": report_data["created_at"],
             }
-            
+
             # Add report to entry document
             query = """
             FOR entry IN entries
@@ -1385,11 +1416,11 @@ class Database:
                 reports: APPEND(entry.reports || [], @report_data)
             } IN entries
             """
-            await self.db.aql.execute(query, bind_vars={
-                "entry_id": entry_id,
-                "report_data": report_entry_data
-            })
-            
+            await self.db.aql.execute(
+                query,
+                bind_vars={"entry_id": entry_id, "report_data": report_entry_data},
+            )
+
             logger.info(f"Created report for entry {entry_id} by user {username}")
             return report_id
         except Exception as e:
