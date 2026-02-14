@@ -743,17 +743,19 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('Report submitted successfully. Thank you for helping improve our collection!');
-                    modal.remove();
-                    // Reload entries to update report counts
-                    loadEntries();
+                    Toast.success('Report submitted successfully. Thank you for helping improve our collection!');
+                    setTimeout(() => {
+                        modal.remove();
+                        // Reload entries to update report counts
+                        loadEntries();
+                    }, 1500);
                 } else {
-                    alert('Error: ' + (data.error || 'Failed to submit report'));
+                    Toast.error(data.error || 'Failed to submit report');
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Submit Report';
                 }
             } catch (error) {
-                alert('Error submitting report. Please try again.');
+                Toast.error('Error submitting report. Please try again.');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Report';
             }

@@ -293,12 +293,13 @@
             const data = await response.json();
             
             if (data.success) {
-                location.reload();
+                Toast.success('API key revoked successfully');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                alert('Failed to revoke API key: ' + (data.error || 'Unknown error'));
+                Toast.error('Failed to revoke API key: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
-            alert('An error occurred. Please try again.');
+            Toast.error('An error occurred. Please try again.');
         }
     }
 </script>

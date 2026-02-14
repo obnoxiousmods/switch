@@ -97,13 +97,13 @@ async function approveRequest(requestId) {
         const data = await response.json();
         
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            Toast.success(data.message);
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.error);
+            Toast.error(data.error);
         }
     } catch (error) {
-        alert('Error approving request: ' + error);
+        Toast.error('Error approving request: ' + error);
     }
 }
 
@@ -124,13 +124,13 @@ async function rejectRequest(requestId) {
         const data = await response.json();
         
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            Toast.success(data.message);
+            setTimeout(() => location.reload(), 1000);
         } else {
-            alert('Error: ' + data.error);
+            Toast.error(data.error);
         }
     } catch (error) {
-        alert('Error rejecting request: ' + error);
+        Toast.error('Error rejecting request: ' + error);
     }
 }
 </script>

@@ -117,13 +117,13 @@ document.getElementById('requestForm').addEventListener('submit', async (e) => {
         const data = await response.json();
         
         if (data.success) {
-            alert(data.message);
-            window.location.reload();
+            Toast.success(data.message);
+            setTimeout(() => window.location.reload(), 1000);
         } else {
-            alert('Error: ' + data.error);
+            Toast.error(data.error);
         }
     } catch (error) {
-        alert('Error submitting request: ' + error.message);
+        Toast.error('Error submitting request: ' + error.message);
     }
 });
 </script>

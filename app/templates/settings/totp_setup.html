@@ -403,12 +403,12 @@ async function enableTOTP() {
             setupForm.style.display = 'block';
             enableBtn.style.display = 'none';
         } else {
-            alert('Error: ' + (data.error || 'Failed to generate 2FA setup'));
+            Toast.error(data.error || 'Failed to generate 2FA setup');
             enableBtn.disabled = false;
             enableBtn.textContent = 'Enable 2FA';
         }
     } catch (error) {
-        alert('An error occurred. Please try again.');
+        Toast.error('An error occurred. Please try again.');
         enableBtn.disabled = false;
         enableBtn.textContent = 'Enable 2FA';
     }
