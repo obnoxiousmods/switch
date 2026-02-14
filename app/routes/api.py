@@ -248,6 +248,11 @@ async def submit_report(request: Request):
                 "error": "Failed to create report"
             }, status_code=500)
         
+        # If reason is "corrupted", mark the entry as corrupt
+        if reason == "corrupted":
+            await db.mark_entry_corrupt(entry_id, True)
+            logger.info(f"Entry {entry_id} marked as corrupt due to corruption report")
+        
         # Log the report activity
         ip_info = get_ip_info(request)
         activity_data = {
