@@ -6,7 +6,7 @@
     let filteredEntries = [];
     let currentPage = 1;
     let itemsPerPage = 10;
-    let sortBy = 'name'; // 'name', 'downloads', or 'size'
+    let sortBy = 'name'; // 'name', 'downloads', 'size', or 'recent'
     
     // DOM Elements
     const searchInput = document.getElementById('search-input');

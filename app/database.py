@@ -1200,7 +1200,7 @@ class Database:
         
         Args:
             search_query: Optional search term to filter entries by name
-            sort_by: Sort method - 'name', 'downloads', or 'size' (default: 'name')
+            sort_by: Sort method - 'name', 'downloads', 'size', or 'recent' (default: 'name')
             exclude_corrupt: If True, exclude entries marked as corrupt (default: True)
         """
         try:
@@ -1251,6 +1251,8 @@ class Database:
                 query += " SORT download_count DESC"
             elif sort_by == "size":
                 query += " SORT entry.size DESC"
+            elif sort_by == "recent":
+                query += " SORT entry.created_at DESC"
             else:  # default to name
                 query += " SORT entry.name ASC"
 

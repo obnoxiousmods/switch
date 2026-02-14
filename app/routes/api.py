@@ -27,8 +27,8 @@ async def list_entries(request: Request):
         search_query = request.query_params.get('search')
         sort_by = request.query_params.get('sort_by', 'name')
         
-        # Validate sort_by parameter (name, downloads, or size)
-        if sort_by not in ['name', 'downloads', 'size']:
+        # Validate sort_by parameter (name, downloads, size, or recent)
+        if sort_by not in ['name', 'downloads', 'size', 'recent']:
             sort_by = 'name'
         
         # Get entries with download counts
