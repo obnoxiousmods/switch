@@ -1269,19 +1269,30 @@
             const data = await response.json();
             
             if (data.success) {
-                // Check if vote was added or removed based on user_vote in response
-                const action = data.user_vote === voteType ? 'added' : 'removed';
-                const message = action === 'added' 
-                    ? `${voteType === 'like' ? 'Liked' : 'Disliked'} comment successfully`
-                    : `${voteType === 'like' ? 'Like' : 'Dislike'} removed from comment`;
+                // Determine the action and show appropriate message
+                let message;
+                if (data.user_vote === null) {
+                    // Vote was removed
+                    message = `${voteType === 'like' ? 'Like' : 'Dislike'} removed from comment`;
+                } else if (data.user_vote === voteType) {
+                    // Vote was added
+                    message = `${voteType === 'like' ? 'Liked' : 'Disliked'} comment successfully`;
+                } else {
+                    // Vote was changed
+                    message = `Changed to ${data.user_vote === 'like' ? 'like' : 'dislike'}`;
+                }
                 Toast.success(message);
                 
-                // Update the vote counts in the DOM
+                // Update the vote counts in the DOM using specific selectors
                 const commentItem = button.closest('.comment-item');
-                const voteCounts = commentItem.querySelectorAll('.vote-count');
-                if (voteCounts.length >= 2) {
-                    voteCounts[0].textContent = data.vote_stats.likes;
-                    voteCounts[1].textContent = data.vote_stats.dislikes;
+                const likeCount = commentItem.querySelector('.vote-button[data-vote="like"] + .vote-count');
+                const dislikeCount = commentItem.querySelector('.vote-button[data-vote="dislike"] + .vote-count');
+                
+                if (likeCount) {
+                    likeCount.textContent = data.vote_stats.likes;
+                }
+                if (dislikeCount) {
+                    dislikeCount.textContent = data.vote_stats.dislikes;
                 }
                 
                 button.disabled = false;
