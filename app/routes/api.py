@@ -625,9 +625,10 @@ async def get_entry_comments(request: Request):
     """
     try:
         entry_id = request.path_params.get("entry_id")
+        user_id = request.session.get("user_id")
 
-        # Get comments for the entry
-        comments = await db.get_comments_for_entry(entry_id)
+        # Get comments for the entry with vote stats
+        comments = await db.get_comments_for_entry(entry_id, user_id)
 
         return JSONResponse({"success": True, "comments": comments})
 
@@ -807,6 +808,116 @@ async def get_entry_vote_stats(request: Request):
 
     except Exception as e:
         logger.error(f"Error fetching vote stats: {e}", exc_info=True)
+        return JSONResponse(
+            {"success": False, "error": "Failed to fetch vote stats"},
+            status_code=500,
+        )
+
+
+async def vote_comment(request: Request):
+    """API endpoint to vote (like/dislike) on a comment
+
+    Route: POST /api/comments/{comment_id}/vote
+    """
+    # Check if user is logged in
+    user_id = request.session.get("user_id")
+
+    if not user_id:
+        return JSONResponse(
+            {"success": False, "error": "Authentication required"},
+            status_code=401,
+        )
+
+    try:
+        comment_id = request.path_params.get("comment_id")
+
+        # Get form data
+        form_data = await request.form()
+        vote_type = form_data.get("vote_type", "").strip().lower()
+
+        # Validate vote type
+        if vote_type not in ["like", "dislike"]:
+            return JSONResponse(
+                {"success": False, "error": "Invalid vote type. Must be 'like' or 'dislike'"},
+                status_code=400,
+            )
+
+        # Verify comment exists
+        query = "FOR comment IN comments FILTER comment._key == @comment_id RETURN comment"
+        cursor = await db.db.aql.execute(query, bind_vars={"comment_id": comment_id})
+        comment = None
+        async with cursor:
+            async for c in cursor:
+                comment = c
+                break
+
+        if not comment:
+            return JSONResponse(
+                {"success": False, "error": "Comment not found"},
+                status_code=404,
+            )
+
+        # Add or update vote
+        success = await db.add_or_update_comment_vote(
+            comment_id=comment_id,
+            user_id=user_id,
+            vote_type=vote_type,
+        )
+
+        if success:
+            # Get updated vote stats
+            vote_stats = await db.get_comment_vote_stats(comment_id)
+            user_vote = await db.get_user_vote_for_comment(comment_id, user_id)
+
+            return JSONResponse(
+                {
+                    "success": True,
+                    "message": "Vote recorded successfully",
+                    "vote_stats": vote_stats,
+                    "user_vote": user_vote,
+                }
+            )
+        else:
+            return JSONResponse(
+                {"success": False, "error": "Failed to record vote"},
+                status_code=500,
+            )
+
+    except Exception as e:
+        logger.error(f"Error recording comment vote: {e}", exc_info=True)
+        return JSONResponse(
+            {"success": False, "error": "Failed to record vote"},
+            status_code=500,
+        )
+
+
+async def get_comment_vote_stats(request: Request):
+    """API endpoint to get vote statistics for a comment
+
+    Route: GET /api/comments/{comment_id}/votes
+    """
+    try:
+        comment_id = request.path_params.get("comment_id")
+        user_id = request.session.get("user_id")
+
+        # Get vote stats
+        vote_stats = await db.get_comment_vote_stats(comment_id)
+
+        # Get user's vote if logged in
+        user_vote = None
+        if user_id:
+            user_vote = await db.get_user_vote_for_comment(comment_id, user_id)
+
+        return JSONResponse(
+            {
+                "success": True,
+                "vote_stats": vote_stats,
+                "user_vote": user_vote,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching comment vote stats: {e}", exc_info=True)
         return JSONResponse(
             {"success": False, "error": "Failed to fetch vote stats"},
             status_code=500,

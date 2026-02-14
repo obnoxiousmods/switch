@@ -1240,6 +1240,84 @@
         }
     }
     
+    // Attach event listeners to comment vote buttons
+    function attachCommentVoteListeners(container) {
+        const voteButtons = container.querySelectorAll('.comment-actions .vote-button');
+        voteButtons.forEach(button => {
+            // Click handler
+            button.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const commentId = button.getAttribute('data-comment-id');
+                const voteType = button.getAttribute('data-vote');
+                await handleCommentVote(commentId, voteType, button);
+            });
+            
+            // Keyboard handler for accessibility
+            button.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const commentId = button.getAttribute('data-comment-id');
+                    const voteType = button.getAttribute('data-vote');
+                    await handleCommentVote(commentId, voteType, button);
+                }
+            });
+        });
+    }
+    
+    // Handle vote (like/dislike) on a comment
+    async function handleCommentVote(commentId, voteType, button) {
+        try {
+            button.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('vote_type', voteType);
+            
+            const response = await fetch(`/api/comments/${encodeURIComponent(commentId)}/vote`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Determine the action and show appropriate message
+                let message;
+                if (data.user_vote === null) {
+                    // Vote was removed
+                    message = `${voteType === 'like' ? 'Like' : 'Dislike'} removed from comment`;
+                } else if (data.user_vote === voteType) {
+                    // Vote was added
+                    message = `${voteType === 'like' ? 'Liked' : 'Disliked'} comment successfully`;
+                } else {
+                    // Vote was changed
+                    message = `Changed to ${data.user_vote === 'like' ? 'like' : 'dislike'}`;
+                }
+                Toast.success(message);
+                
+                // Update the vote counts in the DOM using specific class names
+                const commentItem = button.closest('.comment-item');
+                const likeCount = commentItem.querySelector('.like-count');
+                const dislikeCount = commentItem.querySelector('.dislike-count');
+                
+                if (likeCount) {
+                    likeCount.textContent = data.vote_stats.likes;
+                }
+                if (dislikeCount) {
+                    dislikeCount.textContent = data.vote_stats.dislikes;
+                }
+                
+                button.disabled = false;
+            } else {
+                Toast.error(data.error || 'Failed to vote on comment');
+                button.disabled = false;
+            }
+        } catch (error) {
+            Toast.error('Error voting on comment. Please try again.');
+            button.disabled = false;
+        }
+    }
+    
     // Show comments modal for an entry
     async function showComments(entry) {
         // Create modal
@@ -1351,6 +1429,9 @@
                 });
                 
                 commentsList.innerHTML = html;
+                
+                // Attach vote button event listeners
+                attachCommentVoteListeners(commentsList);
             } else {
                 commentsList.innerHTML = '<div class="no-comments">No comments yet. Be the first to comment!</div>';
             }
@@ -1385,14 +1466,26 @@
             roleBadge = '<span class="user-badge badge-downloader">⬇️ DOWNLOADER</span>';
         }
         
+        // Vote counts
+        const likesCount = comment.likes_count || 0;
+        const dislikesCount = comment.dislikes_count || 0;
+        
         return `
-            <div class="comment-item">
+            <div class="comment-item" data-comment-id="${comment.id}">
                 <div class="comment-header">
                     <span class="comment-author ${roleClass}">${escapeHtml(comment.username)}</span>
                     ${roleBadge}
                     <span class="comment-date">${date}</span>
                 </div>
                 <div class="comment-text">${escapeHtml(comment.text)}</div>
+                <div class="comment-actions">
+                    <span class="vote-button" data-vote="like" data-comment-id="${comment.id}" 
+                          role="button" tabindex="0" aria-label="Like this comment" title="Like this comment">👍</span>
+                    <span class="vote-count like-count">${likesCount}</span>
+                    <span class="vote-button" data-vote="dislike" data-comment-id="${comment.id}" 
+                          role="button" tabindex="0" aria-label="Dislike this comment" title="Dislike this comment">👎</span>
+                    <span class="vote-count dislike-count">${dislikesCount}</span>
+                </div>
             </div>
         `;
     }
