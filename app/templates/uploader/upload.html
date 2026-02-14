@@ -109,7 +109,7 @@ async function loadDirectories() {
                 // Set initial info for default directory
                 directoryInfo.innerHTML = `
                     <strong>Storage:</strong> ${data.default_dir_info.free_gb} GB free / ${data.default_dir_info.total_gb} GB total 
-                    (${Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100)}% used)
+                    (${data.default_dir_info.total_gb > 0 ? Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100) : 0}% used)
                 `;
             } else {
                 directoryInfo.textContent = 'Using default upload directory';
@@ -135,13 +135,13 @@ async function loadDirectories() {
                     const usedGb = selected.dataset.usedGb;
                     directoryInfo.innerHTML = `
                         <strong>Storage:</strong> ${freeGb} GB free / ${totalGb} GB total 
-                        (${Math.round((usedGb / totalGb) * 100)}% used)
+                        (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
                     `;
                 } else if (data.default_dir_info && data.default_dir_info.free_gb !== undefined) {
                     // Show default directory info
                     directoryInfo.innerHTML = `
                         <strong>Storage:</strong> ${data.default_dir_info.free_gb} GB free / ${data.default_dir_info.total_gb} GB total 
-                        (${Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100)}% used)
+                        (${data.default_dir_info.total_gb > 0 ? Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100) : 0}% used)
                     `;
                 } else {
                     directoryInfo.textContent = 'Using default upload directory';
