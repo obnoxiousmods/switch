@@ -70,7 +70,7 @@
                         {% if directory.exists %}
                         <button class="btn btn-primary btn-scan" data-id="{{ directory._key }}">🔍 Scan</button>
                         {% endif %}
-                        <button class="btn btn-danger btn-delete" data-id="{{ directory._key }}">🗑️ Delete</button>
+                        <button class="btn btn-danger btn-delete" data-id="{{ directory._key }}">🗑️</button>
                     </div>
                 </div>
                 {% endfor %}
@@ -444,12 +444,12 @@ document.querySelectorAll('.btn-delete').forEach(btn => {
             } else {
                 showMessage(data.error || 'Failed to delete directory', 'error');
                 e.target.disabled = false;
-                e.target.textContent = '🗑️ Delete';
+                e.target.textContent = '🗑️';
             }
         } catch (error) {
             showMessage('Error: ' + error.message, 'error');
             e.target.disabled = false;
-            e.target.textContent = '🗑️ Delete';
+            e.target.textContent = '🗑️';
         }
     });
 });

@@ -665,7 +665,7 @@
         if (isModerator) {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-delete';
-            deleteBtn.textContent = '🗑️ Delete';
+            deleteBtn.textContent = '🗑️';
             deleteBtn.title = 'Delete this entry (Moderator)';
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1166,7 +1166,7 @@
                             Cancel
                         </button>
                         <button type="button" class="btn-delete-confirm" style="background: #ef4444;">
-                            🗑️ Delete Entry
+                            🗑️
                         </button>
                     </div>
                 </div>
@@ -1196,12 +1196,12 @@
                 } else {
                     Toast.error(data.error || 'Failed to delete entry');
                     deleteBtn.disabled = false;
-                    deleteBtn.textContent = '🗑️ Delete Entry';
+                    deleteBtn.textContent = '🗑️';
                 }
             } catch (error) {
                 Toast.error('Error deleting entry. Please try again.');
                 deleteBtn.disabled = false;
-                deleteBtn.textContent = '🗑️ Delete Entry';
+                deleteBtn.textContent = '🗑️';
             }
         });
     }
