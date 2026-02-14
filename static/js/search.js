@@ -99,7 +99,7 @@
         } catch (error) {
             console.error('Error loading entries:', error);
             hideLoading();
-            showError('Failed to load entries. Please try again later.');
+            showError('Are you signed in? - Failed to load entries. Please try again later.');
         }
     }
     
