@@ -17,6 +17,9 @@ from app.utils.ip_utils import get_ip_info, format_ip_for_log
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
 
+# Upload configuration
+UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming uploads
+
 
 async def uploader_dashboard(request: Request) -> Response:
     """Uploader control panel dashboard"""
@@ -350,12 +353,17 @@ async def uploader_upload_submit(request: Request) -> Response:
                 return JSONResponse({"success": False, "error": "Invalid file path"}, status_code=400)
             counter += 1
         
-        # Read and save file
-        content = await file.read()
-        size = len(content)
+        # Stream file in chunks to avoid reading entire file into memory
+        # This prevents "Read-only file system" errors with large files
+        size = 0
         
         with open(file_path, 'wb') as f:
-            f.write(content)
+            while True:
+                chunk = await file.read(UPLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
+                size += len(chunk)
         
         source = file_path
         logger.info(f"File saved to {file_path}, size: {size} bytes")
