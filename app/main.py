@@ -1,51 +1,103 @@
+import asyncio
 import logging
+import os
+
 from starlette.applications import Starlette
-from starlette.routing import Route, Mount
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
 from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
-import asyncio
-import os
+from starlette.routing import Mount, Route
+from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
 
 from app.routes.pages import index, api_docs_page, search_page
 from app.routes.api import list_entries, download_entry, submit_report, compute_file_hashes, get_entry_info, delete_entry, get_user_stats
 from app.routes.admin import (
-    admin_init_page, admin_init_submit, admin_dashboard,
-    admin_directories, admin_add_directory, admin_delete_directory,
-    admin_scan_directory, admin_clear_entries, admin_rescan_all,
-    admin_users, admin_update_user_role, admin_force_password_change,
-    admin_api_keys, admin_revoke_api_key, admin_user_api_usage,
-    admin_audit_logs, admin_activity_logs, admin_storage_info,
-    admin_upload_statistics, admin_reports, admin_resolve_report,
-    admin_migrate_passwords, admin_password_migration_status
+    admin_activity_logs,
+    admin_add_directory,
+    admin_api_keys,
+    admin_audit_logs,
+    admin_clear_entries,
+    admin_dashboard,
+    admin_delete_directory,
+    admin_directories,
+    admin_force_password_change,
+    admin_init_page,
+    admin_init_submit,
+    admin_migrate_passwords,
+    admin_password_migration_status,
+    admin_reports,
+    admin_rescan_all,
+    admin_resolve_report,
+    admin_revoke_api_key,
+    admin_scan_directory,
+    admin_storage_info,
+    admin_update_user_role,
+    admin_upload_statistics,
+    admin_user_api_usage,
+    admin_users,
 )
-from app.routes.auth import login_page, login_submit, register_page, register_submit, logout
-from app.routes.settings import settings_page, change_password, download_history_page, totp_setup_page, totp_enable, totp_verify_and_enable, totp_disable
-from app.routes.api_keys import api_keys_page, generate_api_key, revoke_api_key, api_usage_page
+from app.routes.api import (
+    compute_file_hashes,
+    delete_entry,
+    download_entry,
+    get_entry_info,
+    list_entries,
+    submit_report,
+)
+from app.routes.api_keys import (
+    api_keys_page,
+    api_usage_page,
+    generate_api_key,
+    revoke_api_key,
+)
+from app.routes.auth import (
+    login_page,
+    login_submit,
+    logout,
+    register_page,
+    register_submit,
+)
 from app.routes.mod import (
-    mod_dashboard, mod_requests, mod_approve_request, mod_reject_request,
-    mod_force_password_change, user_submit_request, user_requests_page,
-    mod_corrupt_games, mod_mark_entry_valid, mod_clear_all_corrupt_flags
+    mod_approve_request,
+    mod_clear_all_corrupt_flags,
+    mod_corrupt_games,
+    mod_dashboard,
+    mod_force_password_change,
+    mod_mark_entry_valid,
+    mod_reject_request,
+    mod_requests,
+    user_requests_page,
+    user_submit_request,
+)
+from app.routes.pages import api_docs_page, index, search_page
+from app.routes.settings import (
+    change_password,
+    download_history_page,
+    settings_page,
+    totp_disable,
+    totp_enable,
+    totp_setup_page,
+    totp_verify_and_enable,
 )
 from app.routes.uploader import (
-    uploader_dashboard, uploader_game_requests, uploader_approve_request,
-    uploader_reject_request, uploader_upload_page, uploader_upload_submit,
-    uploader_get_directories
+    uploader_approve_request,
+    uploader_dashboard,
+    uploader_game_requests,
+    uploader_get_directories,
+    uploader_reject_request,
+    uploader_upload_page,
+    uploader_upload_submit,
 )
-from app.database import db
-from app.config import Config
-from app.middleware.api_auth import APIAuthMiddleware
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 # Background task control
 background_hash_task = None
+
 
 # Background hash computation service
 async def compute_hashes_for_unhashed_entries():
@@ -54,12 +106,12 @@ async def compute_hashes_for_unhashed_entries():
         try:
             # Wait 10 minutes between runs
             await asyncio.sleep(600)  # 600 seconds = 10 minutes
-            
+
             if not Config.is_initialized():
                 continue
-            
+
             logger.info("→ Starting background hash computation cycle...")
-            
+
             # Query for entries without hashes or stuck in processing
             cursor = await db.db.aql.execute("""
                 FOR doc IN entries
@@ -77,68 +129,85 @@ async def compute_hashes_for_unhashed_entries():
                     sha256_hash: doc.sha256_hash
                 }
             """)
-            
+
             entries_to_process = []
             async with cursor:
                 async for doc in cursor:
                     entries_to_process.append(doc)
-            
+
             if not entries_to_process:
                 logger.info("→ No entries need hash computation")
                 continue
-            
-            logger.info(f"→ Found {len(entries_to_process)} entries needing hash computation")
-            
+
+            logger.info(
+                f"→ Found {len(entries_to_process)} entries needing hash computation"
+            )
+
             # Process each entry
             for entry in entries_to_process:
                 try:
-                    entry_id = entry.get('_key')
-                    filepath = entry.get('source')
-                    entry_name = entry.get('name', 'Unknown')
-                    
+                    entry_id = entry.get("_key")
+                    filepath = entry.get("source")
+                    entry_name = entry.get("name", "Unknown")
+
                     # Verify file exists
-                    if not filepath or not os.path.exists(filepath) or not os.path.isfile(filepath):
-                        logger.warning(f"→ Skipping {entry_name} ({entry_id}): File not found at {filepath}")
+                    if (
+                        not filepath
+                        or not os.path.exists(filepath)
+                        or not os.path.isfile(filepath)
+                    ):
+                        logger.warning(
+                            f"→ Skipping {entry_name} ({entry_id}): File not found at {filepath}"
+                        )
                         # Clear processing markers for missing files
-                        if entry.get('md5_hash') == 'processing' or entry.get('sha256_hash') == 'processing':
+                        if (
+                            entry.get("md5_hash") == "processing"
+                            or entry.get("sha256_hash") == "processing"
+                        ):
                             await db.update_entry_hashes(entry_id, None, None)
                         continue
-                    
+
                     logger.info(f"→ Computing hashes for: {entry_name} ({entry_id})")
-                    
+
                     # Import here to avoid circular import
                     from app.routes.api import _compute_hashes_sync
-                    
+
                     # Mark as processing
                     await db.update_entry_hashes(entry_id, "processing", "processing")
-                    
+
                     # Compute hashes in thread pool
-                    md5_result, sha256_result = await asyncio.to_thread(_compute_hashes_sync, filepath)
-                    
+                    md5_result, sha256_result = await asyncio.to_thread(
+                        _compute_hashes_sync, filepath
+                    )
+
                     # Store results
                     await db.update_entry_hashes(entry_id, md5_result, sha256_result)
-                    
+
                     logger.info(f"→ Successfully computed hashes for: {entry_name}")
-                    
+
                     # Small delay to avoid overwhelming the system
                     await asyncio.sleep(1)
-                    
+
                 except Exception as e:
-                    logger.error(f"→ Error computing hashes for entry {entry.get('_key')}: {e}", exc_info=True)
+                    logger.error(
+                        f"→ Error computing hashes for entry {entry.get('_key')}: {e}",
+                        exc_info=True,
+                    )
                     # Clear processing markers on error
                     try:
-                        await db.update_entry_hashes(entry.get('_key'), None, None)
-                    except:
+                        await db.update_entry_hashes(entry.get("_key"), None, None)
+                    except Exception:
                         pass
-            
+
             logger.info("→ Background hash computation cycle completed")
-            
+
         except asyncio.CancelledError:
             logger.info("→ Background hash computation service cancelled")
             break
         except Exception as e:
             logger.error(f"→ Error in background hash computation: {e}", exc_info=True)
             # Continue running even if there's an error
+
 
 # Templates
 templates = Jinja2Templates(directory="app/templates")
@@ -177,14 +246,24 @@ routes = [
     Route("/modcp/requests", mod_requests, methods=["GET"]),
     Route("/modcp/requests/approve", mod_approve_request, methods=["POST"]),
     Route("/modcp/requests/reject", mod_reject_request, methods=["POST"]),
-    Route("/modcp/users/force-change-password", mod_force_password_change, methods=["POST"]),
+    Route(
+        "/modcp/users/force-change-password",
+        mod_force_password_change,
+        methods=["POST"],
+    ),
     Route("/modcp/corrupt-games", mod_corrupt_games, methods=["GET"]),
     Route("/modcp/corrupt-games/mark-valid", mod_mark_entry_valid, methods=["POST"]),
-    Route("/modcp/corrupt-games/clear-all", mod_clear_all_corrupt_flags, methods=["POST"]),
+    Route(
+        "/modcp/corrupt-games/clear-all", mod_clear_all_corrupt_flags, methods=["POST"]
+    ),
     Route("/uploadercp", uploader_dashboard),
     Route("/uploadercp/game-requests", uploader_game_requests, methods=["GET"]),
-    Route("/uploadercp/game-requests/approve", uploader_approve_request, methods=["POST"]),
-    Route("/uploadercp/game-requests/reject", uploader_reject_request, methods=["POST"]),
+    Route(
+        "/uploadercp/game-requests/approve", uploader_approve_request, methods=["POST"]
+    ),
+    Route(
+        "/uploadercp/game-requests/reject", uploader_reject_request, methods=["POST"]
+    ),
     Route("/uploadercp/upload", uploader_upload_page, methods=["GET"]),
     Route("/uploadercp/upload", uploader_upload_submit, methods=["POST"]),
     Route("/uploadercp/directories", uploader_get_directories, methods=["GET"]),
@@ -199,7 +278,11 @@ routes = [
     Route("/admincp/directories/rescan", admin_rescan_all, methods=["POST"]),
     Route("/admincp/users", admin_users, methods=["GET"]),
     Route("/admincp/users/update-role", admin_update_user_role, methods=["POST"]),
-    Route("/admincp/users/force-change-password", admin_force_password_change, methods=["POST"]),
+    Route(
+        "/admincp/users/force-change-password",
+        admin_force_password_change,
+        methods=["POST"],
+    ),
     Route("/admincp/api-keys", admin_api_keys, methods=["GET"]),
     Route("/admincp/api-keys/revoke", admin_revoke_api_key, methods=["POST"]),
     Route("/admincp/api-usage", admin_user_api_usage, methods=["GET"]),
@@ -209,15 +292,21 @@ routes = [
     Route("/admincp/upload-statistics", admin_upload_statistics, methods=["GET"]),
     Route("/admincp/reports", admin_reports, methods=["GET"]),
     Route("/admincp/reports/resolve", admin_resolve_report, methods=["POST"]),
-    Route("/admincp/password-migration/status", admin_password_migration_status, methods=["GET"]),
-    Route("/admincp/password-migration/migrate", admin_migrate_passwords, methods=["POST"]),
+    Route(
+        "/admincp/password-migration/status",
+        admin_password_migration_status,
+        methods=["GET"],
+    ),
+    Route(
+        "/admincp/password-migration/migrate", admin_migrate_passwords, methods=["POST"]
+    ),
     Mount("/static", StaticFiles(directory="static"), name="static"),
 ]
 
 # Middleware
 middleware = [
     Middleware(SessionMiddleware, secret_key=Config.SECRET_KEY()),
-    Middleware(APIAuthMiddleware)
+    Middleware(APIAuthMiddleware),
 ]
 
 # Create Starlette application
@@ -227,37 +316,41 @@ app = Starlette(
     middleware=middleware,
 )
 
+
 # Startup event
 @app.on_event("startup")
 async def startup():
     global background_hash_task
     logger.info("→ App starting...")
-    
+
     # Only try to connect to database if initialized
     if Config.is_initialized():
         try:
             await db.connect()
             logger.info("→ Database connected successfully")
-            
+
             # Start background hash computation service
-            background_hash_task = asyncio.create_task(compute_hashes_for_unhashed_entries())
+            background_hash_task = asyncio.create_task(
+                compute_hashes_for_unhashed_entries()
+            )
             logger.info("→ Background hash computation service started")
-            
+
             # Run initial hash computation immediately (in background, don't wait)
             asyncio.create_task(run_initial_hash_computation())
-            
+
         except Exception as e:
             logger.error(f"→ Failed to connect to database: {e}")
             logger.warning("→ App will continue but database features won't work")
     else:
         logger.info("→ System not initialized. Please visit /admincp/init to set up.")
 
+
 async def run_initial_hash_computation():
     """Run hash computation immediately on startup"""
     try:
         await asyncio.sleep(5)  # Wait 5 seconds after startup to let things settle
         logger.info("→ Running initial hash computation...")
-        
+
         # Query for entries without hashes or stuck in processing
         cursor = await db.db.aql.execute("""
             FOR doc IN entries
@@ -275,71 +368,88 @@ async def run_initial_hash_computation():
                 sha256_hash: doc.sha256_hash
             }
         """)
-        
+
         entries_to_process = []
         async with cursor:
             async for doc in cursor:
                 entries_to_process.append(doc)
-        
+
         if not entries_to_process:
             logger.info("→ No entries need initial hash computation")
             return
-        
-        logger.info(f"→ Found {len(entries_to_process)} entries needing initial hash computation")
-        
+
+        logger.info(
+            f"→ Found {len(entries_to_process)} entries needing initial hash computation"
+        )
+
         # Process each entry
         for entry in entries_to_process:
             try:
-                entry_id = entry.get('_key')
-                filepath = entry.get('source')
-                entry_name = entry.get('name', 'Unknown')
-                
+                entry_id = entry.get("_key")
+                filepath = entry.get("source")
+                entry_name = entry.get("name", "Unknown")
+
                 # Verify file exists
-                if not filepath or not os.path.exists(filepath) or not os.path.isfile(filepath):
-                    logger.warning(f"→ Skipping {entry_name} ({entry_id}): File not found at {filepath}")
+                if (
+                    not filepath
+                    or not os.path.exists(filepath)
+                    or not os.path.isfile(filepath)
+                ):
+                    logger.warning(
+                        f"→ Skipping {entry_name} ({entry_id}): File not found at {filepath}"
+                    )
                     # Clear processing markers for missing files
-                    if entry.get('md5_hash') == 'processing' or entry.get('sha256_hash') == 'processing':
+                    if (
+                        entry.get("md5_hash") == "processing"
+                        or entry.get("sha256_hash") == "processing"
+                    ):
                         await db.update_entry_hashes(entry_id, None, None)
                     continue
-                
+
                 logger.info(f"→ Computing hashes for: {entry_name} ({entry_id})")
-                
+
                 # Import here to avoid circular import
                 from app.routes.api import _compute_hashes_sync
-                
+
                 # Mark as processing
                 await db.update_entry_hashes(entry_id, "processing", "processing")
-                
+
                 # Compute hashes in thread pool
-                md5_result, sha256_result = await asyncio.to_thread(_compute_hashes_sync, filepath)
-                
+                md5_result, sha256_result = await asyncio.to_thread(
+                    _compute_hashes_sync, filepath
+                )
+
                 # Store results
                 await db.update_entry_hashes(entry_id, md5_result, sha256_result)
-                
+
                 logger.info(f"→ Successfully computed hashes for: {entry_name}")
-                
+
                 # Small delay to avoid overwhelming the system
                 await asyncio.sleep(1)
-                
+
             except Exception as e:
-                logger.error(f"→ Error computing hashes for entry {entry.get('_key')}: {e}", exc_info=True)
+                logger.error(
+                    f"→ Error computing hashes for entry {entry.get('_key')}: {e}",
+                    exc_info=True,
+                )
                 # Clear processing markers on error
                 try:
-                    await db.update_entry_hashes(entry.get('_key'), None, None)
-                except:
+                    await db.update_entry_hashes(entry.get("_key"), None, None)
+                except Exception:
                     pass
-        
+
         logger.info("→ Initial hash computation completed")
-        
+
     except Exception as e:
         logger.error(f"→ Error in initial hash computation: {e}", exc_info=True)
+
 
 # Shutdown event
 @app.on_event("shutdown")
 async def shutdown():
     global background_hash_task
     logger.info("→ App shutting down...")
-    
+
     # Cancel background hash task
     if background_hash_task:
         background_hash_task.cancel()
@@ -348,7 +458,7 @@ async def shutdown():
         except asyncio.CancelledError:
             pass
         logger.info("→ Background hash computation service stopped")
-    
+
     if Config.is_initialized():
         try:
             await db.disconnect()
