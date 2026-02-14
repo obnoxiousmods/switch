@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/custom-dropdown.css') }}">
 <div class="container">
     <!-- Search Section -->
     <div class="search-section">
@@ -62,5 +63,6 @@ window.userRole = {
 };
 </script>
 
+<script src="{{ url_for('static', path='js/custom-dropdown.js') }}"></script>
 <script src="{{ url_for('static', path='js/search.js') }}"></script>
 {% endblock %}

@@ -223,7 +223,8 @@ class CustomDropdown {
 
 // Initialize all custom dropdowns
 function initCustomDropdowns() {
-    const selects = document.querySelectorAll('.filter-select');
+    // Target filter-select class and sort-select class, and selects in forms with specific IDs
+    const selects = document.querySelectorAll('.filter-select, .sort-select, #type, #directory_id, #request_type');
     selects.forEach(select => {
         new CustomDropdown(select);
     });

@@ -34,7 +34,7 @@
                 >
             </div>
 
-            <div class="form-group" id="totp-group" style="display: none;">
+            <div class="form-group totp-group" id="totp-group">
                 <label for="totp_code">Two-Factor Code</label>
                 <input 
                     type="text" 
@@ -46,7 +46,7 @@
                     autocomplete="one-time-code"
                     class="totp-input"
                 >
-                <small style="color: #888; margin-top: 4px; display: block;">Enter the 6-digit code from your authenticator app</small>
+                <small class="totp-hint">Enter the 6-digit code from your authenticator app</small>
             </div>
 
             <div id="error-message" class="error-message hidden"></div>
@@ -189,11 +189,36 @@
     text-decoration: underline;
 }
 
+.totp-group {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                margin 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 0;
+}
+
+.totp-group.visible {
+    max-height: 150px;
+    opacity: 1;
+    margin-bottom: 20px;
+}
+
 .totp-input {
     font-size: 24px !important;
     text-align: center;
     letter-spacing: 6px;
     font-family: 'Courier New', monospace !important;
+    font-weight: 600;
+}
+
+.totp-hint {
+    color: #888;
+    margin-top: 8px;
+    display: block;
+    font-size: 13px;
+    text-align: center;
 }
 </style>
 
@@ -226,12 +251,12 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         if (data.success) {
             window.location.href = data.redirect || '/';
         } else if (data.requires_totp) {
-            // Show TOTP field
-            totpGroup.style.display = 'block';
+            // Show TOTP field with smooth animation
+            totpGroup.classList.add('visible');
             totpInput.required = true;
-            totpInput.focus();
+            setTimeout(() => totpInput.focus(), 400);
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Login';
+            submitBtn.textContent = 'Verify & Login';
             errorMsg.textContent = data.message || 'Please enter your 2FA code';
             errorMsg.classList.remove('hidden');
             errorMsg.style.background = '#ff9d1a';

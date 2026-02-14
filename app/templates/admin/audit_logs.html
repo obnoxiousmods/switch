@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/custom-dropdown.css') }}">
 <div class="container">
     <div class="logs-page">
         <div class="page-header">
@@ -413,4 +414,6 @@ function showDetails(logKey) {
     color: #666;
 }
 </style>
+
+<script src="{{ url_for('static', path='js/custom-dropdown.js') }}"></script>
 {% endblock %}
