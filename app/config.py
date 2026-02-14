@@ -21,9 +21,7 @@ class Config:
                     "debug": True,
                 },
                 "database": {},
-                "upload": {
-                    "endpoint": "http://lucy.obnoxious.lol:6069"
-                },
+                "upload": {},
                 "security": {
                     "secret_key": "change-this-to-a-very-long-random-secret-2026!"
                 }
@@ -91,9 +89,7 @@ class Config:
                 "password": data.get('db_password', ''),
                 "database": data.get('db_name', 'switch_db'),
             },
-            "upload": {
-                "endpoint": "http://lucy.obnoxious.lol:6069"
-            },
+            "upload": {},
             "security": {
                 "secret_key": data.get('secret_key', os.urandom(32).hex())
             }
@@ -150,5 +146,5 @@ class Config:
     
     @classmethod
     def UPLOAD_ENDPOINT(cls) -> str:
-        """Get upload endpoint URL"""
-        return cls.get('upload.endpoint', 'http://lucy.obnoxious.lol:6069')
+        """Get upload endpoint URL - now returns empty string to use relative URLs"""
+        return ''

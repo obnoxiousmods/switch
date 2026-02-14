@@ -62,7 +62,7 @@
 </div>
 
 <script>
-// Upload endpoint from backend configuration
+// Upload endpoint from backend configuration (empty means use relative URL)
 const UPLOAD_ENDPOINT = "{{ upload_endpoint }}";
 
 // Load directories on page load
@@ -153,7 +153,9 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     const formData = new FormData(e.target);
     
     try {
-        const response = await fetch(UPLOAD_ENDPOINT + '/uploadercp/upload', {
+        // Use relative URL if UPLOAD_ENDPOINT is empty, otherwise prepend it
+        const uploadUrl = UPLOAD_ENDPOINT ? UPLOAD_ENDPOINT + '/uploadercp/upload' : '/uploadercp/upload';
+        const response = await fetch(uploadUrl, {
             method: 'POST',
             body: formData
         });
