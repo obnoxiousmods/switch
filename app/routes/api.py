@@ -565,3 +565,25 @@ async def delete_entry(request: Request):
             "success": False,
             "error": "An error occurred while deleting the entry"
         }, status_code=500)
+
+async def get_user_stats(request: Request):
+    """API endpoint to get current user statistics"""
+    user_id = request.session.get('user_id')
+    
+    if not user_id:
+        return JSONResponse({
+            "error": "Authentication required"
+        }, status_code=401)
+    
+    try:
+        stats = await db.get_user_statistics(user_id)
+        return JSONResponse({
+            "success": True,
+            "stats": stats
+        })
+    except Exception as e:
+        logger.error(f"Error fetching user stats: {e}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": "An error occurred while fetching user statistics"
+        }, status_code=500)

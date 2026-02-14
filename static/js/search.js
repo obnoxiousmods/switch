@@ -19,6 +19,7 @@
     const searchInput = document.getElementById('search-input');
     const resultsGrid = document.getElementById('results-grid');
     const resultsCount = document.getElementById('results-count');
+    const hashCount = document.getElementById('hash-count');
     const loadingState = document.getElementById('loading-state');
     const emptyState = document.getElementById('empty-state');
     const sortSelect = document.getElementById('sort-select');
@@ -176,6 +177,17 @@
         // Update count
         const count = filteredEntries.length;
         resultsCount.textContent = `${count} ${count === 1 ? 'result' : 'results'} found`;
+        
+        // Update hash count
+        if (hashCount) {
+            const totalGames = allEntries.length;
+            const hashedGames = allEntries.filter(entry => {
+                const hasMD5 = entry.md5_hash && entry.md5_hash !== 'processing' && entry.md5_hash !== '';
+                const hasSHA256 = entry.sha256_hash && entry.sha256_hash !== 'processing' && entry.sha256_hash !== '';
+                return hasMD5 || hasSHA256;
+            }).length;
+            hashCount.textContent = `🔐 Hashed: ${hashedGames}/${totalGames}`;
+        }
         
         // Clear previous results
         resultsGrid.innerHTML = '';
@@ -547,7 +559,7 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">Downloads:</span>
-                            <span class="info-value">${entry.downloads || 0} times</span>
+                            <span class="info-value">${entry.download_count || 0} times</span>
                         </div>
                         ${entry.report_count > 0 ? `
                         <div class="info-row warning">
