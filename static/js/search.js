@@ -35,11 +35,22 @@
         const searchQuery = urlParams.get('search') || urlParams.get('q');
         const sortParam = urlParams.get('sort');
         
-        // Apply sort filter from URL
+        // Apply sort filter from URL first, then from localStorage if no URL param
         if (sortParam && ['name', 'recent', 'downloads', 'size'].includes(sortParam)) {
             sortBy = sortParam;
             if (sortSelect) {
                 sortSelect.value = sortBy;
+            }
+            // Save to localStorage when coming from URL
+            localStorage.setItem('preferredSort', sortBy);
+        } else {
+            // Load from localStorage if no URL parameter
+            const savedSort = localStorage.getItem('preferredSort');
+            if (savedSort && ['name', 'recent', 'downloads', 'size'].includes(savedSort)) {
+                sortBy = savedSort;
+                if (sortSelect) {
+                    sortSelect.value = sortBy;
+                }
             }
         }
         
@@ -153,6 +164,8 @@
     function handleSortChange(event) {
         sortBy = event.target.value;
         currentPage = 1;
+        // Save preference to localStorage
+        localStorage.setItem('preferredSort', sortBy);
         loadEntries();
     }
     

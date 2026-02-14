@@ -75,6 +75,11 @@
                     <button class="btn-mark-valid" onclick="markAsValid('{{ entry._key }}', '{{ entry.name }}')">
                         ✓ Mark as Valid
                     </button>
+                    {% if entry.type == 'filepath' %}
+                    <button class="btn-recheck-hash" onclick="recheckHashes('{{ entry._key }}', '{{ entry.name }}')">
+                        🔐 Recheck Hashes
+                    </button>
+                    {% endif %}
                     <a href="/uploadercp/upload" class="btn-upload-replacement">
                         📤 Upload Replacement
                     </a>
@@ -285,7 +290,7 @@
     border-top: 1px solid #444;
 }
 
-.btn-mark-valid, .btn-upload-replacement, .btn-delete-entry {
+.btn-mark-valid, .btn-upload-replacement, .btn-delete-entry, .btn-recheck-hash {
     padding: 10px 20px;
     border: none;
     border-radius: 6px;
@@ -304,6 +309,15 @@
 
 .btn-mark-valid:hover {
     background: #3a9960;
+}
+
+.btn-recheck-hash {
+    background: #9333ea;
+    color: #fff;
+}
+
+.btn-recheck-hash:hover {
+    background: #7e22ce;
 }
 
 .btn-upload-replacement {
@@ -410,6 +424,153 @@ async function markAsValid(entryId, entryName) {
     } catch (error) {
         showNotification('Error marking game as valid', 'error');
     }
+}
+
+async function recheckHashes(entryId, entryName) {
+    // First, check if hashes exist in cache
+    try {
+        const checkResponse = await fetch(`/api/entries/${encodeURIComponent(entryId)}/hash`);
+        const checkData = await checkResponse.json();
+        
+        let forceRecheck = false;
+        
+        if (checkData.success && checkData.cached) {
+            // Hashes exist in cache - ask user if they want to force recheck
+            // confirm() treats content as plain text, so no escaping needed
+            // Hash values are from API and should be validated server-side
+            const message = `Hash data found in cache for "${entryName}":\n\nMD5: ${checkData.md5}\nSHA256: ${checkData.sha256}\n\nDo you want to force recheck and bypass the cache?`;
+            if (!confirm(message)) {
+                return;
+            }
+            forceRecheck = true;
+        }
+        
+        // Compute or recompute hashes
+        const url = forceRecheck 
+            ? `/api/entries/${encodeURIComponent(entryId)}/hash?force_recheck=true`
+            : `/api/entries/${encodeURIComponent(entryId)}/hash`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.processing) {
+                showNotification(data.message, 'success');
+                
+                // Poll for results
+                setTimeout(() => pollForHashes(entryId, entryName), 2000);
+            } else if (data.cached) {
+                // showNotification uses textContent, so this is safe
+                showNotification(`Hashes retrieved from cache:\nMD5: ${data.md5}\nSHA256: ${data.sha256}`, 'success');
+            }
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Error checking hashes', 'error');
+    }
+}
+
+async function pollForHashes(entryId, entryName, attempts = 0) {
+    const maxAttempts = 30; // Poll for up to 60 seconds (30 * 2s)
+    
+    try {
+        const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/hash`);
+        const data = await response.json();
+        
+        if (data.success && !data.processing && data.md5 && data.sha256 && 
+            data.md5 !== 'processing' && data.sha256 !== 'processing') {
+            // Hashes are ready
+            showHashResults(entryName, data.md5, data.sha256);
+        } else if (attempts < maxAttempts) {
+            // Continue polling
+            setTimeout(() => pollForHashes(entryId, entryName, attempts + 1), 2000);
+        } else {
+            showNotification('Hash computation is taking longer than expected. Please check back later.', 'error');
+        }
+    } catch (error) {
+        if (attempts < maxAttempts) {
+            setTimeout(() => pollForHashes(entryId, entryName, attempts + 1), 2000);
+        }
+    }
+}
+
+function showHashResults(entryName, md5, sha256) {
+    // Create modal for hash results
+    const modal = document.createElement('div');
+    modal.className = 'hash-results-modal';
+    modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2a2a2a; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 2000; min-width: 500px; max-width: 600px;';
+    
+    // Create structure using DOM methods for security
+    const title = document.createElement('h3');
+    title.style.cssText = 'color: #9333ea; margin-bottom: 20px;';
+    title.textContent = '🔐 Hash Results';
+    
+    const fileLabel = document.createElement('p');
+    fileLabel.style.cssText = 'color: #ddd; margin-bottom: 15px;';
+    const fileLabelStrong = document.createElement('strong');
+    fileLabelStrong.textContent = 'File: ';
+    fileLabel.appendChild(fileLabelStrong);
+    fileLabel.appendChild(document.createTextNode(entryName));
+    
+    // MD5 section
+    const md5Container = document.createElement('div');
+    md5Container.style.cssText = 'background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 10px;';
+    const md5Label = document.createElement('p');
+    md5Label.style.cssText = 'color: #888; font-size: 12px; margin-bottom: 5px;';
+    md5Label.textContent = 'MD5:';
+    const md5Value = document.createElement('p');
+    md5Value.style.cssText = 'color: #fff; font-family: monospace; word-break: break-all; font-size: 14px;';
+    md5Value.textContent = md5;
+    md5Container.appendChild(md5Label);
+    md5Container.appendChild(md5Value);
+    
+    // SHA256 section
+    const sha256Container = document.createElement('div');
+    sha256Container.style.cssText = 'background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 20px;';
+    const sha256Label = document.createElement('p');
+    sha256Label.style.cssText = 'color: #888; font-size: 12px; margin-bottom: 5px;';
+    sha256Label.textContent = 'SHA256:';
+    const sha256Value = document.createElement('p');
+    sha256Value.style.cssText = 'color: #fff; font-family: monospace; word-break: break-all; font-size: 14px;';
+    sha256Value.textContent = sha256;
+    sha256Container.appendChild(sha256Label);
+    sha256Container.appendChild(sha256Value);
+    
+    // Button section
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+    const closeButton = document.createElement('button');
+    closeButton.id = 'close-hash-modal';
+    closeButton.style.cssText = 'padding: 10px 20px; background: #9333ea; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;';
+    closeButton.textContent = 'Close';
+    buttonContainer.appendChild(closeButton);
+    
+    // Assemble modal
+    modal.appendChild(title);
+    modal.appendChild(fileLabel);
+    modal.appendChild(md5Container);
+    modal.appendChild(sha256Container);
+    modal.appendChild(buttonContainer);
+    
+    // Add backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1999;';
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    
+    // Close button handler
+    closeButton.addEventListener('click', () => {
+        backdrop.remove();
+        modal.remove();
+    });
+    
+    // Click backdrop to close
+    backdrop.addEventListener('click', () => {
+        backdrop.remove();
+        modal.remove();
+    });
 }
 
 async function clearAllCorruptFlags() {

@@ -2,6 +2,8 @@ import logging
 import os
 import re
 import secrets
+import hashlib
+import asyncio
 from datetime import datetime
 from starlette.requests import Request
 from starlette.responses import Response, RedirectResponse, JSONResponse
@@ -19,6 +21,22 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Upload configuration
 UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB chunks for streaming uploads
+
+
+def _compute_sha256_sync(filepath: str) -> str:
+    """Synchronous SHA256 hash computation to run in a separate thread"""
+    sha256_hash = hashlib.sha256()
+    
+    # Read file in chunks to handle large files
+    chunk_size = 8192
+    with open(filepath, 'rb') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            sha256_hash.update(chunk)
+    
+    return sha256_hash.hexdigest()
 
 
 async def uploader_dashboard(request: Request) -> Response:
@@ -368,6 +386,64 @@ async def uploader_upload_submit(request: Request) -> Response:
         source = file_path
         logger.info(f"File saved to {file_path}, size: {size} bytes")
         
+        # Check for duplicate filename in database
+        duplicate_by_name = await db.db.aql.execute("""
+            FOR doc IN entries
+            FILTER doc.name == @name
+            LIMIT 1
+            RETURN doc
+        """, bind_vars={'name': name})
+        
+        has_duplicate_name = False
+        async with duplicate_by_name:
+            async for _ in duplicate_by_name:
+                has_duplicate_name = True
+                break
+        
+        if has_duplicate_name:
+            # Delete the uploaded file
+            try:
+                os.remove(file_path)
+            except:
+                pass
+            return JSONResponse({
+                "success": False, 
+                "error": f"A file with the name '{name}' already exists in the database"
+            }, status_code=400)
+        
+        # Compute SHA256 hash of uploaded file
+        logger.info(f"Computing SHA256 hash for {safe_filename}...")
+        sha256_hash = await asyncio.to_thread(_compute_sha256_sync, file_path)
+        
+        # Check for duplicate SHA256 hash in database
+        duplicate_by_hash = await db.db.aql.execute("""
+            FOR doc IN entries
+            FILTER doc.sha256_hash == @sha256_hash
+            LIMIT 1
+            RETURN doc
+        """, bind_vars={'sha256_hash': sha256_hash})
+        
+        has_duplicate_hash = False
+        duplicate_entry_name = None
+        async with duplicate_by_hash:
+            async for doc in duplicate_by_hash:
+                has_duplicate_hash = True
+                duplicate_entry_name = doc.get('name', 'Unknown')
+                break
+        
+        if has_duplicate_hash:
+            # Delete the uploaded file
+            try:
+                os.remove(file_path)
+            except:
+                pass
+            return JSONResponse({
+                "success": False, 
+                "error": f"A file with the same content already exists: '{duplicate_entry_name}'. SHA256: {sha256_hash}"
+            }, status_code=400)
+        
+        logger.info(f"No duplicates found. SHA256: {sha256_hash}")
+        
         # Create entry with directory metadata
         entry_metadata = {}
         if directory_id:
@@ -386,7 +462,15 @@ async def uploader_upload_submit(request: Request) -> Response:
         # Add to database
         entry_id = await db.add_entry(entry.to_dict())
         if not entry_id:
+            # Delete the uploaded file if database entry creation failed
+            try:
+                os.remove(file_path)
+            except:
+                pass
             return JSONResponse({"success": False, "error": "Failed to create entry"}, status_code=500)
+        
+        # Store the SHA256 hash in the database
+        await db.update_entry_hashes(entry_id, None, sha256_hash)
         
         # Record upload statistics
         await db.record_upload(user_id, username, entry_id, size)
