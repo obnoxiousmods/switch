@@ -318,10 +318,15 @@ class Database:
             delete_query = """
             FOR doc IN reports
             REMOVE doc IN reports
+            RETURN 1
             """
-            await self.db.aql.execute(delete_query)
+            delete_cursor = await self.db.aql.execute(delete_query)
+            deleted_count = 0
+            async with delete_cursor:
+                async for _ in delete_cursor:
+                    deleted_count += 1
             
-            logger.info(f"Cleared corrupt flag from {count} entries, moved reports to oldReports, and cleared reports collection")
+            logger.info(f"Cleared corrupt flag from {count} entries, moved reports to oldReports, and deleted {deleted_count} reports from collection")
             return count
         except Exception as e:
             logger.error(f"Error clearing all corrupt flags: {e}")

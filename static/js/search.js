@@ -453,7 +453,7 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">Downloads:</span>
-                            <span class="info-value">${entry.downloads || 0} times</span>
+                            <span class="info-value">${entry.downloads || entry.download_count || 0} times</span>
                         </div>
                         ${entry.report_count > 0 ? `
                         <div class="info-row warning">

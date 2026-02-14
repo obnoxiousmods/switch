@@ -329,8 +329,8 @@ async def _compute_and_store_hashes(entry_id: str, filepath: str):
         # Clear processing markers on error
         try:
             await db.update_entry_hashes(entry_id, None, None)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to clear processing markers: {e}")
 
 
 async def compute_file_hashes(request: Request):
