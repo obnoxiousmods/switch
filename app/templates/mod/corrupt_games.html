@@ -427,6 +427,9 @@ async function markAsValid(entryId, entryName) {
 }
 
 async function recheckHashes(entryId, entryName) {
+    // Escape entryName to prevent injection
+    const escapedName = entryName.replace(/[\\'"]/g, '\\$&');
+    
     // First, check if hashes exist in cache
     try {
         const checkResponse = await fetch(`/api/entries/${encodeURIComponent(entryId)}/hash`);
@@ -436,7 +439,9 @@ async function recheckHashes(entryId, entryName) {
         
         if (checkData.success && checkData.cached) {
             // Hashes exist in cache - ask user if they want to force recheck
-            if (!confirm(`Hash data found in cache for "${entryName}":\n\nMD5: ${checkData.md5}\nSHA256: ${checkData.sha256}\n\nDo you want to force recheck and bypass the cache?`)) {
+            // Use textContent to safely display hash data
+            const message = `Hash data found in cache for "${escapedName}":\n\nMD5: ${checkData.md5}\nSHA256: ${checkData.sha256}\n\nDo you want to force recheck and bypass the cache?`;
+            if (!confirm(message)) {
                 return;
             }
             forceRecheck = true;
@@ -468,7 +473,7 @@ async function recheckHashes(entryId, entryName) {
 }
 
 async function pollForHashes(entryId, entryName, attempts = 0) {
-    const maxAttempts = 30; // Poll for up to 60 seconds
+    const maxAttempts = 30; // Poll for up to 62 seconds (2s initial + 30 * 2s)
     
     try {
         const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/hash`);
@@ -496,23 +501,58 @@ function showHashResults(entryName, md5, sha256) {
     const modal = document.createElement('div');
     modal.className = 'hash-results-modal';
     modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2a2a2a; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 2000; min-width: 500px; max-width: 600px;';
-    modal.innerHTML = `
-        <h3 style="color: #9333ea; margin-bottom: 20px;">🔐 Hash Results</h3>
-        <p style="color: #ddd; margin-bottom: 15px;"><strong>File:</strong> ${entryName}</p>
-        <div style="background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-            <p style="color: #888; font-size: 12px; margin-bottom: 5px;">MD5:</p>
-            <p style="color: #fff; font-family: monospace; word-break: break-all; font-size: 14px;">${md5}</p>
-        </div>
-        <div style="background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <p style="color: #888; font-size: 12px; margin-bottom: 5px;">SHA256:</p>
-            <p style="color: #fff; font-family: monospace; word-break: break-all; font-size: 14px;">${sha256}</p>
-        </div>
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button id="close-hash-modal" style="padding: 10px 20px; background: #9333ea; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                Close
-            </button>
-        </div>
-    `;
+    
+    // Create structure using DOM methods for security
+    const title = document.createElement('h3');
+    title.style.cssText = 'color: #9333ea; margin-bottom: 20px;';
+    title.textContent = '🔐 Hash Results';
+    
+    const fileLabel = document.createElement('p');
+    fileLabel.style.cssText = 'color: #ddd; margin-bottom: 15px;';
+    const fileLabelStrong = document.createElement('strong');
+    fileLabelStrong.textContent = 'File: ';
+    fileLabel.appendChild(fileLabelStrong);
+    fileLabel.appendChild(document.createTextNode(entryName));
+    
+    // MD5 section
+    const md5Container = document.createElement('div');
+    md5Container.style.cssText = 'background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 10px;';
+    const md5Label = document.createElement('p');
+    md5Label.style.cssText = 'color: #888; font-size: 12px; margin-bottom: 5px;';
+    md5Label.textContent = 'MD5:';
+    const md5Value = document.createElement('p');
+    md5Value.style.cssText = 'color: #fff; font-family: monospace; word-break: break-all; font-size: 14px;';
+    md5Value.textContent = md5;
+    md5Container.appendChild(md5Label);
+    md5Container.appendChild(md5Value);
+    
+    // SHA256 section
+    const sha256Container = document.createElement('div');
+    sha256Container.style.cssText = 'background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 20px;';
+    const sha256Label = document.createElement('p');
+    sha256Label.style.cssText = 'color: #888; font-size: 12px; margin-bottom: 5px;';
+    sha256Label.textContent = 'SHA256:';
+    const sha256Value = document.createElement('p');
+    sha256Value.style.cssText = 'color: #fff; font-family: monospace; word-break: break-all; font-size: 14px;';
+    sha256Value.textContent = sha256;
+    sha256Container.appendChild(sha256Label);
+    sha256Container.appendChild(sha256Value);
+    
+    // Button section
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+    const closeButton = document.createElement('button');
+    closeButton.id = 'close-hash-modal';
+    closeButton.style.cssText = 'padding: 10px 20px; background: #9333ea; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;';
+    closeButton.textContent = 'Close';
+    buttonContainer.appendChild(closeButton);
+    
+    // Assemble modal
+    modal.appendChild(title);
+    modal.appendChild(fileLabel);
+    modal.appendChild(md5Container);
+    modal.appendChild(sha256Container);
+    modal.appendChild(buttonContainer);
     
     // Add backdrop
     const backdrop = document.createElement('div');
@@ -522,7 +562,7 @@ function showHashResults(entryName, md5, sha256) {
     document.body.appendChild(modal);
     
     // Close button handler
-    document.getElementById('close-hash-modal').addEventListener('click', () => {
+    closeButton.addEventListener('click', () => {
         backdrop.remove();
         modal.remove();
     });
