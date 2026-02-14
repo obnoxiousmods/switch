@@ -614,7 +614,7 @@
         const hashSection = document.getElementById(`hash-section-${entryId}`);
         if (!hashSection) return;
         
-        // Stop polling after 60 attempts at 3-second intervals (approximately 3 minutes)
+        // Stop polling after 60 attempts at 3-second intervals (3 minutes)
         if (attempts >= 60) {
             hashSection.innerHTML = `
                 <div class="info-row warning">
@@ -653,7 +653,8 @@
                 setTimeout(() => pollForHashes(entryId, attempts + 1), 3000);
             }
         } catch (error) {
-            // Continue polling on error
+            // Log error but continue polling
+            console.error('Error polling for hashes:', error);
             setTimeout(() => pollForHashes(entryId, attempts + 1), 3000);
         }
     }
