@@ -8,7 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import asyncio
 import os
 
-from app.routes.pages import index, api_docs_page
+from app.routes.pages import index, api_docs_page, search_page
 from app.routes.api import list_entries, download_entry, submit_report, compute_file_hashes, get_entry_info, delete_entry
 from app.routes.admin import (
     admin_init_page, admin_init_submit, admin_dashboard,
@@ -146,6 +146,7 @@ templates = Jinja2Templates(directory="app/templates")
 # Routes
 routes = [
     Route("/", index),
+    Route("/search", search_page),
     Route("/api-docs", api_docs_page),
     Route("/api/list", list_entries),
     Route("/api/download/{entry_id}", download_entry),

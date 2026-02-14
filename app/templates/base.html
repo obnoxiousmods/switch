@@ -11,6 +11,10 @@
         <div class="container header-content">
             <h1><a href="/" class="site-name">🎮 {{ app_name|default('Switch Game Repository') }}</a></h1>
             <div class="header-actions">
+                <a href="/search" class="btn-search" title="Search Games">
+                    <span class="search-icon">🔍</span>
+                    <span class="search-text">Search</span>
+                </a>
                 {% if request.session.get('username') %}
                     <div class="user-menu-container">
                         <button class="user-menu-button" id="userMenuButton" aria-expanded="false" aria-haspopup="true">
@@ -111,6 +115,29 @@
         .auth-links {
             display: flex;
             gap: 10px;
+        }
+        
+        .btn-search {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .search-icon {
+            font-size: 16px;
         }
         
         .btn-login, .btn-register {
@@ -295,6 +322,10 @@
         
         /* Responsive adjustments */
         @media (max-width: 768px) {
+            .search-text {
+                display: none;
+            }
+            
             .user-name {
                 display: none;
             }
