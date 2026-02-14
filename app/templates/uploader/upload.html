@@ -22,6 +22,14 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="directory_id">Upload Directory</label>
+                        <select id="directory_id" name="directory_id">
+                            <option value="">Default Upload Directory</option>
+                        </select>
+                        <small class="form-help" id="directoryInfo">Loading directory information...</small>
+                    </div>
+
+                    <div class="form-group">
                         <label for="file">Game File *</label>
                         <input type="file" id="file" name="file" 
                                accept=".nsp,.nsz,.xci"
@@ -54,6 +62,58 @@
 </div>
 
 <script>
+// Load directories on page load
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadDirectories();
+});
+
+async function loadDirectories() {
+    const directorySelect = document.getElementById('directory_id');
+    const directoryInfo = document.getElementById('directoryInfo');
+    
+    try {
+        const response = await fetch('/uploadercp/directories');
+        const data = await response.json();
+        
+        if (data.success && data.directories) {
+            // Clear loading message
+            directoryInfo.textContent = 'Select a directory to see available storage';
+            
+            // Add directories to select
+            data.directories.forEach(dir => {
+                const option = document.createElement('option');
+                option.value = dir._key;
+                option.textContent = `${dir.path} (${dir.free_gb} GB free)`;
+                option.dataset.totalGb = dir.total_gb;
+                option.dataset.freeGb = dir.free_gb;
+                option.dataset.usedGb = dir.used_gb;
+                directorySelect.appendChild(option);
+            });
+            
+            // Update info when directory is selected
+            directorySelect.addEventListener('change', function() {
+                const selected = this.options[this.selectedIndex];
+                if (selected.value) {
+                    const freeGb = selected.dataset.freeGb;
+                    const totalGb = selected.dataset.totalGb;
+                    const usedGb = selected.dataset.usedGb;
+                    directoryInfo.innerHTML = `
+                        <strong>Storage:</strong> ${freeGb} GB free / ${totalGb} GB total 
+                        (${Math.round((usedGb / totalGb) * 100)}% used)
+                    `;
+                } else {
+                    directoryInfo.textContent = 'Using default upload directory';
+                }
+            });
+        } else {
+            directoryInfo.textContent = 'No additional directories available. Using default.';
+        }
+    } catch (error) {
+        console.error('Error loading directories:', error);
+        directoryInfo.textContent = 'Could not load directories. Using default.';
+    }
+}
+
 function updateFileInfo() {
     const fileInput = document.getElementById('file');
     const fileInfo = document.getElementById('fileInfo');

@@ -359,6 +359,15 @@ class Database:
             logger.error(f"Error fetching directory: {e}")
             return None
 
+    async def get_directory_by_id(self, directory_id: str) -> Optional[Dict[str, Any]]:
+        """Get a directory by ID"""
+        try:
+            doc = await self.directories_collection.get(directory_id)
+            return doc
+        except Exception as e:
+            logger.error(f"Error fetching directory by ID: {e}")
+            return None
+
     async def get_all_directories(self) -> List[Dict[str, Any]]:
         """Get all directories"""
         try:
@@ -372,6 +381,40 @@ class Database:
             return directories
         except Exception as e:
             logger.error(f"Error fetching directories: {e}")
+            return []
+
+    async def get_directories_with_storage_info(self) -> List[Dict[str, Any]]:
+        """Get all directories with storage information"""
+        try:
+            directories = await self.get_all_directories()
+            result = []
+            
+            for directory in directories:
+                path = directory.get('path')
+                if not path or not os.path.exists(path):
+                    continue
+                
+                try:
+                    # Get disk usage
+                    usage = shutil.disk_usage(path)
+                    total_gb = usage.total / BYTES_PER_GB
+                    used_gb = usage.used / BYTES_PER_GB
+                    free_gb = usage.free / BYTES_PER_GB
+                    
+                    result.append({
+                        '_key': directory.get('_key'),
+                        'path': path,
+                        'total_gb': round(total_gb, 2),
+                        'used_gb': round(used_gb, 2),
+                        'free_gb': round(free_gb, 2),
+                        'added_at': directory.get('added_at')
+                    })
+                except Exception as e:
+                    logger.warning(f"Could not get storage info for {path}: {e}")
+                    
+            return result
+        except Exception as e:
+            logger.error(f"Error fetching directories with storage info: {e}")
             return []
 
     async def delete_directory(self, directory_id: str) -> bool:

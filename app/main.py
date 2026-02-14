@@ -28,7 +28,8 @@ from app.routes.mod import (
 )
 from app.routes.uploader import (
     uploader_dashboard, uploader_game_requests, uploader_approve_request,
-    uploader_reject_request, uploader_upload_page, uploader_upload_submit
+    uploader_reject_request, uploader_upload_page, uploader_upload_submit,
+    uploader_get_directories
 )
 from app.database import db
 from app.config import Config
@@ -82,6 +83,7 @@ routes = [
     Route("/uploadercp/game-requests/reject", uploader_reject_request, methods=["POST"]),
     Route("/uploadercp/upload", uploader_upload_page, methods=["GET"]),
     Route("/uploadercp/upload", uploader_upload_submit, methods=["POST"]),
+    Route("/uploadercp/directories", uploader_get_directories, methods=["GET"]),
     Route("/admincp/init", admin_init_page, methods=["GET"]),
     Route("/admincp/init", admin_init_submit, methods=["POST"]),
     Route("/admincp", admin_dashboard),
