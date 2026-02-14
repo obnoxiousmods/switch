@@ -476,10 +476,6 @@ async def run_initial_hash_computation():
                 await db.update_entry_hashes(entry_id, md5_result, sha256_result)
 
                 logger.info(f"→ Successfully computed hashes for: {entry_name}")
-
-                # Small delay to avoid overwhelming the system
-                await asyncio.sleep(1)
-
             except Exception as e:
                 logger.error(
                     f"→ Error computing hashes for entry {entry.get('_key')}: {e}",
