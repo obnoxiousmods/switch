@@ -9,9 +9,8 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
-from app.config import Config
-from app.database import db
-from app.middleware.api_auth import APIAuthMiddleware
+from app.routes.pages import index, api_docs_page, search_page
+from app.routes.api import list_entries, download_entry, submit_report, compute_file_hashes, get_entry_info, delete_entry, get_user_stats
 from app.routes.admin import (
     admin_activity_logs,
     admin_add_directory,
@@ -224,6 +223,7 @@ routes = [
     Route("/api/entries/{entry_id}/hashes", compute_file_hashes, methods=["GET"]),
     Route("/api/entries/{entry_id}/info", get_entry_info, methods=["GET"]),
     Route("/api/entries/{entry_id}/delete", delete_entry, methods=["POST"]),
+    Route("/api/user/stats", get_user_stats, methods=["GET"]),
     Route("/login", login_page, methods=["GET"]),
     Route("/login", login_submit, methods=["POST"]),
     Route("/register", register_page, methods=["GET"]),

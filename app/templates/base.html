@@ -62,6 +62,10 @@
                                 <span class="item-text">Settings</span>
                             </a>
                             <div class="dropdown-divider"></div>
+                            <div id="user-stats-dropdown" class="dropdown-stats">
+                                <div class="stats-loading">Loading stats...</div>
+                            </div>
+                            <div class="dropdown-divider"></div>
                             <a href="/logout" class="dropdown-item dropdown-logout" role="menuitem">
                                 <span class="item-icon">🚪</span>
                                 <span class="item-text">Logout</span>
@@ -320,6 +324,44 @@
             margin: 4px 0;
         }
         
+        .dropdown-stats {
+            padding: 12px 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .stats-loading {
+            text-align: center;
+            opacity: 0.6;
+            font-style: italic;
+        }
+        
+        .stats-grid-dropdown {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .stat-item-dropdown {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+        
+        .stat-label-dropdown {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .stat-value-dropdown {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .stat-ratio {
+            color: var(--primary-color);
+        }
+        
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .search-text {
@@ -576,6 +618,9 @@
             const dropdown = document.getElementById('userDropdown');
             
             if (menuButton && dropdown) {
+                // Load user stats
+                loadUserStats();
+                
                 // Toggle dropdown on button click
                 menuButton.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -616,6 +661,45 @@
                         items[prevIndex].focus();
                     }
                 });
+            }
+            
+            // Load and display user statistics
+            async function loadUserStats() {
+                const statsContainer = document.getElementById('user-stats-dropdown');
+                if (!statsContainer) return;
+                
+                try {
+                    const response = await fetch('/api/user/stats');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch stats');
+                    }
+                    
+                    const data = await response.json();
+                    if (data.success && data.stats) {
+                        const stats = data.stats;
+                        statsContainer.innerHTML = `
+                            <div class="stats-grid-dropdown">
+                                <div class="stat-item-dropdown">
+                                    <span class="stat-label-dropdown">⬆️ Uploaded:</span>
+                                    <span class="stat-value-dropdown">${stats.total_uploaded_gb} GB</span>
+                                </div>
+                                <div class="stat-item-dropdown">
+                                    <span class="stat-label-dropdown">⬇️ Downloaded:</span>
+                                    <span class="stat-value-dropdown">${stats.total_downloaded_gb} GB</span>
+                                </div>
+                                <div class="stat-item-dropdown">
+                                    <span class="stat-label-dropdown">📊 Ratio:</span>
+                                    <span class="stat-value-dropdown stat-ratio">${stats.ratio}</span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        statsContainer.innerHTML = '<div class="stats-loading">Stats unavailable</div>';
+                    }
+                } catch (error) {
+                    console.error('Error loading user stats:', error);
+                    statsContainer.innerHTML = '<div class="stats-loading">Stats unavailable</div>';
+                }
             }
         });
     </script>
