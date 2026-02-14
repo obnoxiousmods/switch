@@ -374,7 +374,7 @@ async def compute_file_hashes(request: Request):
         return JSONResponse({
             "success": True,
             "processing": True,
-            "message": "Hash computation started in background. Refresh to see results."
+            "message": "Hash computation started in background. Results will appear automatically when ready."
         }, background=background_task)
         
     except Exception as e:

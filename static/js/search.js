@@ -614,7 +614,7 @@
         const hashSection = document.getElementById(`hash-section-${entryId}`);
         if (!hashSection) return;
         
-        // Stop polling after 60 attempts (3 minutes)
+        // Stop polling after 60 attempts at 3-second intervals (approximately 3 minutes)
         if (attempts >= 60) {
             hashSection.innerHTML = `
                 <div class="info-row warning">
