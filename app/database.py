@@ -694,6 +694,11 @@ class Database:
             results = await self.users_collection.update(
                 {"_key": user_id, "is_moderator": is_moderator}
             )
+            
+            if not results or results.get("error"):
+                logger.error(f"Error updating moderator status for user {user_id}: {results.get('errorMessage', 'Unknown error')}")
+                return False
+            
             logger.info(f"Updated user {user_id} moderator status to {is_moderator}")
             return True
         except Exception as e:
@@ -703,7 +708,12 @@ class Database:
     async def update_user_admin_status(self, user_id: str, is_admin: bool) -> bool:
         """Update a user's admin status"""
         try:
-            await self.users_collection.update({"_key": user_id, "is_admin": is_admin})
+            results = await self.users_collection.update({"_key": user_id, "is_admin": is_admin})
+            
+            if not results or results.get("error"):
+                logger.error(f"Error updating admin status for user {user_id}: {results.get('errorMessage', 'Unknown error')}")
+                return False
+            
             logger.info(f"Updated user {user_id} admin status to {is_admin}")
             return True
         except Exception as e:
@@ -715,9 +725,13 @@ class Database:
     ) -> bool:
         """Update a user's uploader status"""
         try:
-            await self.users_collection.update(
+            results = await self.users_collection.update(
                 {"_key": user_id, "is_uploader": is_uploader}
             )
+            if not results or results.get("error"):
+                logger.error(f"Error updating uploader status for user {user_id}: {results.get('errorMessage', 'Unknown error')}")
+                return False
+            
             logger.info(f"Updated user {user_id} uploader status to {is_uploader}")
             return True
         except Exception as e:
@@ -802,7 +816,12 @@ class Database:
     async def revoke_api_key(self, key_id: str) -> bool:
         """Revoke (deactivate) an API key"""
         try:
-            await self.api_keys_collection.update({"_key": key_id, "is_active": False})
+            results = await self.api_keys_collection.update({"_key": key_id, "is_active": False})
+            
+            if not results or results.get("error"):
+                logger.error(f"Error revoking API key {key_id}: {results.get('errorMessage', 'Unknown error')}")
+                return False
+            
             logger.info(f"Revoked API key: {key_id}")
             return True
         except Exception as e:
@@ -812,12 +831,15 @@ class Database:
     async def update_api_key_last_used(self, key_id: str) -> bool:
         """Update the last used timestamp for an API key"""
         try:
-            await self.api_keys_collection.update(
+            results = await self.api_keys_collection.update(
                 {
                     "_key": key_id,
                     "last_used_at": datetime.now(datetime.timezone.utc).isoformat(),
                 }
             )
+            if not results or results.get("error"):
+                logger.error(f"Error updating API key last used {key_id}: {results.get('errorMessage', 'Unknown error')}")
+                return False
             return True
         except Exception as e:
             logger.error(f"Error updating API key last used: {e}")
@@ -832,6 +854,9 @@ class Database:
                 ).isoformat()
 
             result = await self.api_usage_collection.insert(usage_data)
+            if not result or result.get("error"):
+                logger.error(f"Error logging API usage: {result.get('errorMessage', 'Unknown error')}")
+                return None
             return result["_key"]
         except Exception as e:
             logger.error(f"Error logging API usage: {e}")
