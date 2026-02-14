@@ -37,7 +37,7 @@
         const sortParam = urlParams.get('sort');
         
         // Apply sort filter from URL first, then from localStorage if no URL param
-        if (sortParam && ['name', 'recent', 'downloads', 'size', 'likes', 'dislikes'].includes(sortParam)) {
+        if (sortParam && ['name', 'recent', 'downloads', 'size', 'likes', 'dislikes', 'comments'].includes(sortParam)) {
             sortBy = sortParam;
             if (sortSelect) {
                 sortSelect.value = sortBy;
@@ -47,7 +47,7 @@
         } else {
             // Load from localStorage if no URL parameter
             const savedSort = localStorage.getItem('preferredSort');
-            if (savedSort && ['name', 'recent', 'downloads', 'size', 'likes', 'dislikes'].includes(savedSort)) {
+            if (savedSort && ['name', 'recent', 'downloads', 'size', 'likes', 'dislikes', 'comments'].includes(savedSort)) {
                 sortBy = savedSort;
                 if (sortSelect) {
                     sortSelect.value = sortBy;
@@ -525,6 +525,15 @@
         const card = document.createElement('div');
         card.className = 'result-card';
         
+        // Make card clickable to open info
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', (e) => {
+            // Don't trigger if clicking on action buttons or interactive elements
+            if (!e.target.closest('.result-actions') && !e.target.closest('.meta-item-interactive')) {
+                showFileInfo(entry);
+            }
+        });
+        
         const title = document.createElement('div');
         title.className = 'result-title';
         title.textContent = entry.name;
@@ -557,21 +566,35 @@
         const downloadItem = document.createElement('div');
         downloadItem.className = 'meta-item';
         const downloadCount = entry.download_count || 0;
-        downloadItem.innerHTML = `⬇️ ${downloadCount} download${downloadCount !== 1 ? 's' : ''}`;
+        downloadItem.innerHTML = `⬇️ ${downloadCount}`;
+        downloadItem.title = `${downloadCount} download${downloadCount !== 1 ? 's' : ''}`;
         
-        // Likes count
+        // Likes count with clickable thumbs up
         const likesItem = document.createElement('div');
-        likesItem.className = 'meta-item';
+        likesItem.className = 'meta-item meta-item-interactive';
         const likesCount = entry.likes_count || 0;
-        likesItem.innerHTML = `👍 ${likesCount}`;
-        likesItem.title = `${likesCount} like${likesCount !== 1 ? 's' : ''}`;
+        likesItem.innerHTML = `<span class="vote-button" data-vote="like" title="Like this entry">👍</span> ${likesCount}`;
+        likesItem.querySelector('.vote-button').addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleVote(entry, 'like', e.target);
+        });
         
-        // Dislikes count
+        // Dislikes count with clickable thumbs down
         const dislikesItem = document.createElement('div');
-        dislikesItem.className = 'meta-item';
+        dislikesItem.className = 'meta-item meta-item-interactive';
         const dislikesCount = entry.dislikes_count || 0;
-        dislikesItem.innerHTML = `👎 ${dislikesCount}`;
-        dislikesItem.title = `${dislikesCount} dislike${dislikesCount !== 1 ? 's' : ''}`;
+        dislikesItem.innerHTML = `<span class="vote-button" data-vote="dislike" title="Dislike this entry">👎</span> ${dislikesCount}`;
+        dislikesItem.querySelector('.vote-button').addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleVote(entry, 'dislike', e.target);
+        });
+        
+        // Comment count
+        const commentItem = document.createElement('div');
+        commentItem.className = 'meta-item';
+        const commentCount = entry.comment_count || 0;
+        commentItem.innerHTML = `💬 ${commentCount}`;
+        commentItem.title = `${commentCount} comment${commentCount !== 1 ? 's' : ''}`;
         
         meta.appendChild(fileTypeItem);
         meta.appendChild(sizeItem);
@@ -579,6 +602,7 @@
         meta.appendChild(downloadItem);
         meta.appendChild(likesItem);
         meta.appendChild(dislikesItem);
+        meta.appendChild(commentItem);
         
         // Report warning badge if there are open reports
         if (entry.report_count && entry.report_count > 0) {
@@ -622,26 +646,6 @@
             handleReport(entry);
         });
         
-        // Like button
-        const likeBtn = document.createElement('button');
-        likeBtn.className = 'btn-like';
-        likeBtn.textContent = '👍 Like';
-        likeBtn.title = 'Like this entry';
-        likeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleVote(entry, 'like', likeBtn);
-        });
-        
-        // Dislike button
-        const dislikeBtn = document.createElement('button');
-        dislikeBtn.className = 'btn-dislike';
-        dislikeBtn.textContent = '👎 Dislike';
-        dislikeBtn.title = 'Dislike this entry';
-        dislikeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleVote(entry, 'dislike', dislikeBtn);
-        });
-        
         // Comments button
         const commentsBtn = document.createElement('button');
         commentsBtn.className = 'btn-comments';
@@ -655,8 +659,6 @@
         actions.appendChild(downloadBtn);
         actions.appendChild(infoBtn);
         actions.appendChild(reportBtn);
-        actions.appendChild(likeBtn);
-        actions.appendChild(dislikeBtn);
         actions.appendChild(commentsBtn);
         
         // Add delete button for moderators/admins
@@ -1364,10 +1366,30 @@
     // Render a single comment
     function renderComment(comment) {
         const date = formatDate(comment.created_at);
+        
+        // Determine user role and styling
+        let roleClass = '';
+        let roleBadge = '';
+        
+        if (comment.user_is_admin) {
+            roleClass = 'comment-author-admin';
+            roleBadge = '<span class="user-badge badge-admin">👑 ADMIN</span>';
+        } else if (comment.user_is_moderator) {
+            roleClass = 'comment-author-mod';
+            roleBadge = '<span class="user-badge badge-mod">🛡️ MOD</span>';
+        } else if (comment.user_is_uploader) {
+            roleClass = 'comment-author-uploader';
+            roleBadge = '<span class="user-badge badge-uploader">⬆️ UPLOADER</span>';
+        } else {
+            roleClass = 'comment-author-downloader';
+            roleBadge = '<span class="user-badge badge-downloader">⬇️ DOWNLOADER</span>';
+        }
+        
         return `
             <div class="comment-item">
                 <div class="comment-header">
-                    <span class="comment-author">${comment.username}</span>
+                    <span class="comment-author ${roleClass}">${escapeHtml(comment.username)}</span>
+                    ${roleBadge}
                     <span class="comment-date">${date}</span>
                 </div>
                 <div class="comment-text">${escapeHtml(comment.text)}</div>
