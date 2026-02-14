@@ -8,7 +8,6 @@
     let itemsPerPage = 10;
     let sortBy = 'name'; // 'name', 'downloads', 'size', or 'recent'
     let autoRefreshInterval = null;
-    let hashPollingIntervals = {};
     
     // Check if user is moderator or admin
     const isModerator = window.userRole && (window.userRole.isModerator || window.userRole.isAdmin);
@@ -505,8 +504,8 @@
         const fileModified = entry.file_modified_at ? formatFullDate(entry.file_modified_at) : 'N/A';
         
         // Check if hashes exist or are being processed
-        const hasMD5 = entry.md5_hash && entry.md5_hash !== 'processing' && entry.md5_hash.length > 0;
-        const hasSHA256 = entry.sha256_hash && entry.sha256_hash !== 'processing' && entry.sha256_hash.length > 0;
+        const hasMD5 = isHashValid(entry.md5_hash);
+        const hasSHA256 = isHashValid(entry.sha256_hash);
         const isProcessing = entry.md5_hash === 'processing' || entry.sha256_hash === 'processing';
         const canComputeHashes = entry.type === 'filepath';
         
@@ -763,8 +762,8 @@
             
             if (data.success && data.entry) {
                 const entry = data.entry;
-                const hasMD5 = entry.md5_hash && entry.md5_hash !== 'processing' && entry.md5_hash.length > 0;
-                const hasSHA256 = entry.sha256_hash && entry.sha256_hash !== 'processing' && entry.sha256_hash.length > 0;
+                const hasMD5 = isHashValid(entry.md5_hash);
+                const hasSHA256 = isHashValid(entry.sha256_hash);
                 const isProcessing = entry.md5_hash === 'processing' || entry.sha256_hash === 'processing';
                 
                 if (hasMD5 && hasSHA256) {
@@ -1077,6 +1076,11 @@
             `;
             resultsGrid.classList.remove('hidden');
         }
+    }
+    
+    // Helper function to validate if a hash is valid (not empty, null, or 'processing')
+    function isHashValid(hash) {
+        return hash && hash !== 'processing' && hash.length > 0;
     }
     
     // Initialize when DOM is ready

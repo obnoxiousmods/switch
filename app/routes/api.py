@@ -482,13 +482,31 @@ async def delete_entry(request: Request):
             filepath = entry.get("source")
             if filepath and os.path.exists(filepath):
                 try:
-                    os.remove(filepath)
-                    logger.info(f"Deleted file from disk: {filepath}")
+                    # Validate that filepath is an absolute path and exists
+                    abs_filepath = os.path.abspath(filepath)
+                    
+                    # Additional security: Ensure file is not a symlink to prevent directory traversal
+                    if os.path.islink(abs_filepath):
+                        logger.warning(f"Attempted to delete symlink: {abs_filepath}")
+                        return JSONResponse({
+                            "success": False,
+                            "error": "Cannot delete symbolic links for security reasons"
+                        }, status_code=400)
+                    
+                    # Delete the file
+                    os.remove(abs_filepath)
+                    logger.info(f"Deleted file from disk: {abs_filepath}")
+                except PermissionError:
+                    logger.error(f"Permission denied when deleting file: {filepath}")
+                    return JSONResponse({
+                        "success": False,
+                        "error": "Permission denied when deleting file"
+                    }, status_code=500)
                 except Exception as e:
                     logger.error(f"Error deleting file from disk: {e}")
                     return JSONResponse({
                         "success": False,
-                        "error": f"Failed to delete file from disk: {str(e)}"
+                        "error": "Failed to delete file from disk"
                     }, status_code=500)
             elif filepath:
                 logger.warning(f"File not found on disk: {filepath}")
