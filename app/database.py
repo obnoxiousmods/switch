@@ -1094,9 +1094,14 @@ class Database:
             return 0
 
     async def get_all_entries_with_download_counts(
-        self, search_query: Optional[str] = None, sort_by_downloads: bool = False
+        self, search_query: Optional[str] = None, sort_by: str = "name"
     ) -> List[Dict[str, Any]]:
-        """Get all entries with their download counts and report counts, optionally filtered and sorted"""
+        """Get all entries with their download counts and report counts, optionally filtered and sorted
+        
+        Args:
+            search_query: Optional search term to filter entries by name
+            sort_by: Sort method - 'name', 'downloads', or 'size' (default: 'name')
+        """
         try:
             if search_query:
                 # Search with download counts and report counts
@@ -1139,7 +1144,9 @@ class Database:
             # Add sorting
             if sort_by_downloads:
                 query += " SORT download_count DESC"
-            else:
+            elif sort_by == "size":
+                query += " SORT entry.size DESC"
+            else:  # default to name
                 query += " SORT entry.name ASC"
 
             query += " RETURN MERGE(entry, {download_count: download_count, report_count: report_count})"
