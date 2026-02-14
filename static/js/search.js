@@ -1240,6 +1240,61 @@
         }
     }
     
+    // Attach event listeners to comment vote buttons
+    function attachCommentVoteListeners(container) {
+        const voteButtons = container.querySelectorAll('.comment-actions .vote-button');
+        voteButtons.forEach(button => {
+            button.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const commentId = button.getAttribute('data-comment-id');
+                const voteType = button.getAttribute('data-vote');
+                await handleCommentVote(commentId, voteType, button);
+            });
+        });
+    }
+    
+    // Handle vote (like/dislike) on a comment
+    async function handleCommentVote(commentId, voteType, button) {
+        try {
+            button.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('vote_type', voteType);
+            
+            const response = await fetch(`/api/comments/${encodeURIComponent(commentId)}/vote`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Check if vote was added or removed based on user_vote in response
+                const action = data.user_vote === voteType ? 'added' : 'removed';
+                const message = action === 'added' 
+                    ? `${voteType === 'like' ? 'Liked' : 'Disliked'} comment successfully`
+                    : `${voteType === 'like' ? 'Like' : 'Dislike'} removed from comment`;
+                Toast.success(message);
+                
+                // Update the vote counts in the DOM
+                const commentItem = button.closest('.comment-item');
+                const voteCounts = commentItem.querySelectorAll('.vote-count');
+                if (voteCounts.length >= 2) {
+                    voteCounts[0].textContent = data.vote_stats.likes;
+                    voteCounts[1].textContent = data.vote_stats.dislikes;
+                }
+                
+                button.disabled = false;
+            } else {
+                Toast.error(data.error || 'Failed to vote on comment');
+                button.disabled = false;
+            }
+        } catch (error) {
+            Toast.error('Error voting on comment. Please try again.');
+            button.disabled = false;
+        }
+    }
+    
     // Show comments modal for an entry
     async function showComments(entry) {
         // Create modal
@@ -1351,6 +1406,9 @@
                 });
                 
                 commentsList.innerHTML = html;
+                
+                // Attach vote button event listeners
+                attachCommentVoteListeners(commentsList);
             } else {
                 commentsList.innerHTML = '<div class="no-comments">No comments yet. Be the first to comment!</div>';
             }
@@ -1385,14 +1443,24 @@
             roleBadge = '<span class="user-badge badge-downloader">⬇️ DOWNLOADER</span>';
         }
         
+        // Vote counts
+        const likesCount = comment.likes_count || 0;
+        const dislikesCount = comment.dislikes_count || 0;
+        
         return `
-            <div class="comment-item">
+            <div class="comment-item" data-comment-id="${comment.id}">
                 <div class="comment-header">
                     <span class="comment-author ${roleClass}">${escapeHtml(comment.username)}</span>
                     ${roleBadge}
                     <span class="comment-date">${date}</span>
                 </div>
                 <div class="comment-text">${escapeHtml(comment.text)}</div>
+                <div class="comment-actions">
+                    <span class="vote-button" data-vote="like" data-comment-id="${comment.id}" title="Like this comment">👍</span>
+                    <span class="vote-count">${likesCount}</span>
+                    <span class="vote-button" data-vote="dislike" data-comment-id="${comment.id}" title="Dislike this comment">👎</span>
+                    <span class="vote-count">${dislikesCount}</span>
+                </div>
             </div>
         `;
     }

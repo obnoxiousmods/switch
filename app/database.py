@@ -36,6 +36,7 @@ class Database:
         self.reports_collection: Optional[StandardCollection] = None
         self.comments_collection: Optional[StandardCollection] = None
         self.likes_collection: Optional[StandardCollection] = None
+        self.comment_likes_collection: Optional[StandardCollection] = None
 
     async def connect(self):
         """Connect to ArangoDB and initialize database/collections"""
@@ -163,6 +164,13 @@ class Database:
                 logger.info("Created collection: likes")
             else:
                 self.likes_collection = self.db.collection("likes")
+
+            # Create comment_likes collection if it doesn't exist
+            if not await self.db.has_collection("comment_likes"):
+                self.comment_likes_collection = await self.db.create_collection("comment_likes")
+                logger.info("Created collection: comment_likes")
+            else:
+                self.comment_likes_collection = self.db.collection("comment_likes")
 
             logger.info("Successfully connected to ArangoDB")
 
@@ -1729,9 +1737,9 @@ class Database:
             return None
 
     async def get_comments_for_entry(
-        self, entry_id: str
+        self, entry_id: str, user_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Get all comments for an entry with user role information"""
+        """Get all comments for an entry with user role information and vote stats"""
         try:
             query = """
             FOR comment IN comments
@@ -1745,15 +1753,41 @@ class Database:
                     is_uploader: u.is_uploader
                 }
             )
+            LET vote_stats = (
+                FOR vote IN comment_likes
+                FILTER vote.comment_id == comment._key
+                COLLECT vote_type = vote.vote_type WITH COUNT INTO count
+                RETURN {vote_type: vote_type, count: count}
+            )
+            LET likes_count = FIRST(
+                FOR stat IN vote_stats
+                FILTER stat.vote_type == "like"
+                RETURN stat.count
+            ) || 0
+            LET dislikes_count = FIRST(
+                FOR stat IN vote_stats
+                FILTER stat.vote_type == "dislike"
+                RETURN stat.count
+            ) || 0
+            LET user_vote = @user_id ? FIRST(
+                FOR vote IN comment_likes
+                FILTER vote.comment_id == comment._key AND vote.user_id == @user_id
+                RETURN vote.vote_type
+            ) : null
             SORT comment.created_at ASC
             RETURN MERGE(comment, {
                 id: comment._key,
                 user_is_admin: user.is_admin || false,
                 user_is_moderator: user.is_moderator || false,
-                user_is_uploader: user.is_uploader || false
+                user_is_uploader: user.is_uploader || false,
+                likes_count: likes_count,
+                dislikes_count: dislikes_count,
+                user_vote: user_vote
             })
             """
-            cursor = await self.db.aql.execute(query, bind_vars={"entry_id": entry_id})
+            cursor = await self.db.aql.execute(
+                query, bind_vars={"entry_id": entry_id, "user_id": user_id}
+            )
             comments = []
             async with cursor:
                 async for comment in cursor:
@@ -1863,6 +1897,98 @@ class Database:
             return None
         except Exception as e:
             logger.error(f"Error fetching user vote: {e}")
+            return None
+
+    async def add_or_update_comment_vote(
+        self, comment_id: str, user_id: str, vote_type: str
+    ) -> bool:
+        """Add or update a user's vote on a comment"""
+        try:
+            # Check if user already voted
+            query = """
+            FOR vote IN comment_likes
+            FILTER vote.comment_id == @comment_id AND vote.user_id == @user_id
+            RETURN vote
+            """
+            cursor = await self.db.aql.execute(
+                query, bind_vars={"comment_id": comment_id, "user_id": user_id}
+            )
+            existing_vote = None
+            async with cursor:
+                async for vote in cursor:
+                    existing_vote = vote
+                    break
+
+            if existing_vote:
+                # Update existing vote
+                if existing_vote.get("vote_type") == vote_type:
+                    # Same vote, remove it (toggle off)
+                    await self.comment_likes_collection.delete(existing_vote["_key"])
+                else:
+                    # Different vote, update it
+                    await self.comment_likes_collection.update(
+                        existing_vote["_key"],
+                        {
+                            "vote_type": vote_type,
+                            "updated_at": datetime.utcnow().isoformat(),
+                        },
+                    )
+            else:
+                # Create new vote
+                vote_data = {
+                    "comment_id": comment_id,
+                    "user_id": user_id,
+                    "vote_type": vote_type,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+                await self.comment_likes_collection.insert(vote_data)
+
+            return True
+        except Exception as e:
+            logger.error(f"Error adding/updating comment vote: {e}")
+            return False
+
+    async def get_comment_vote_stats(self, comment_id: str) -> Dict[str, int]:
+        """Get like and dislike counts for a comment"""
+        try:
+            query = """
+            FOR vote IN comment_likes
+            FILTER vote.comment_id == @comment_id
+            COLLECT vote_type = vote.vote_type WITH COUNT INTO count
+            RETURN {vote_type: vote_type, count: count}
+            """
+            cursor = await self.db.aql.execute(query, bind_vars={"comment_id": comment_id})
+            stats = {"likes": 0, "dislikes": 0}
+            async with cursor:
+                async for stat in cursor:
+                    if stat["vote_type"] == "like":
+                        stats["likes"] = stat["count"]
+                    elif stat["vote_type"] == "dislike":
+                        stats["dislikes"] = stat["count"]
+            return stats
+        except Exception as e:
+            logger.error(f"Error fetching comment vote stats: {e}")
+            return {"likes": 0, "dislikes": 0}
+
+    async def get_user_vote_for_comment(
+        self, comment_id: str, user_id: str
+    ) -> Optional[str]:
+        """Get a user's vote on a comment (like, dislike, or None)"""
+        try:
+            query = """
+            FOR vote IN comment_likes
+            FILTER vote.comment_id == @comment_id AND vote.user_id == @user_id
+            RETURN vote.vote_type
+            """
+            cursor = await self.db.aql.execute(
+                query, bind_vars={"comment_id": comment_id, "user_id": user_id}
+            )
+            async with cursor:
+                async for vote_type in cursor:
+                    return vote_type
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching user comment vote: {e}")
             return None
 
 

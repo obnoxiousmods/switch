@@ -42,12 +42,14 @@ from app.routes.api import (
     create_entry_comment,
     delete_entry,
     download_entry,
+    get_comment_vote_stats,
     get_entry_comments,
     get_entry_info,
     get_entry_vote_stats,
     get_user_stats,
     list_entries,
     submit_report,
+    vote_comment,
     vote_entry,
 )
 from app.routes.api_keys import (
@@ -233,6 +235,8 @@ routes = [
     Route("/api/entries/{entry_id}/comments", create_entry_comment, methods=["POST"]),
     Route("/api/entries/{entry_id}/vote", vote_entry, methods=["POST"]),
     Route("/api/entries/{entry_id}/votes", get_entry_vote_stats, methods=["GET"]),
+    Route("/api/comments/{comment_id}/vote", vote_comment, methods=["POST"]),
+    Route("/api/comments/{comment_id}/votes", get_comment_vote_stats, methods=["GET"]),
     Route("/api/user/stats", get_user_stats, methods=["GET"]),
     Route("/login", login_page, methods=["GET"]),
     Route("/login", login_submit, methods=["POST"]),
