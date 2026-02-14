@@ -231,6 +231,63 @@ class Database:
             logger.error(f"Error deleting entry: {e}")
             return False
 
+    async def mark_entry_corrupt(self, entry_id: str, corrupt: bool = True) -> bool:
+        """Mark an entry as corrupt or not corrupt"""
+        try:
+            await self.entries_collection.update(entry_id, {"corrupt": corrupt})
+            logger.info(f"Updated entry {entry_id} corrupt status to {corrupt}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating entry corrupt status: {e}")
+            return False
+
+    async def update_entry_hashes(self, entry_id: str, md5_hash: Optional[str] = None, sha256_hash: Optional[str] = None) -> bool:
+        """Update MD5 and/or SHA256 hashes for an entry"""
+        try:
+            update_data = {}
+            if md5_hash:
+                update_data["md5_hash"] = md5_hash
+            if sha256_hash:
+                update_data["sha256_hash"] = sha256_hash
+            
+            if update_data:
+                await self.entries_collection.update(entry_id, update_data)
+                logger.info(f"Updated hashes for entry {entry_id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating entry hashes: {e}")
+            return False
+
+    async def get_corrupt_entries(self) -> List[Dict[str, Any]]:
+        """Get all entries marked as corrupt with their report information"""
+        try:
+            query = """
+            FOR entry IN entries
+            FILTER entry.corrupt == true
+            LET open_reports = (
+                FOR report IN reports
+                FILTER report.entry_id == entry._key AND report.status == 'open'
+                SORT report.created_at DESC
+                RETURN report
+            )
+            LET report_count = LENGTH(open_reports)
+            SORT entry.name ASC
+            RETURN MERGE(entry, {
+                open_reports: open_reports,
+                report_count: report_count
+            })
+            """
+            cursor = await self.db.aql.execute(query)
+            entries = []
+            async with cursor:
+                async for entry in cursor:
+                    entries.append(entry)
+            return entries
+        except Exception as e:
+            logger.error(f"Error fetching corrupt entries: {e}")
+            return []
+
     # User management methods
     async def create_user(self, user_data: Dict[str, Any]) -> Optional[str]:
         """Create a new user"""
@@ -302,6 +359,15 @@ class Database:
             logger.error(f"Error fetching directory: {e}")
             return None
 
+    async def get_directory_by_id(self, directory_id: str) -> Optional[Dict[str, Any]]:
+        """Get a directory by ID"""
+        try:
+            doc = await self.directories_collection.get(directory_id)
+            return doc
+        except Exception as e:
+            logger.error(f"Error fetching directory by ID: {e}")
+            return None
+
     async def get_all_directories(self) -> List[Dict[str, Any]]:
         """Get all directories"""
         try:
@@ -315,6 +381,40 @@ class Database:
             return directories
         except Exception as e:
             logger.error(f"Error fetching directories: {e}")
+            return []
+
+    async def get_directories_with_storage_info(self) -> List[Dict[str, Any]]:
+        """Get all directories with storage information"""
+        try:
+            directories = await self.get_all_directories()
+            result = []
+            
+            for directory in directories:
+                path = directory.get('path')
+                if not path or not os.path.exists(path):
+                    continue
+                
+                try:
+                    # Get disk usage
+                    usage = shutil.disk_usage(path)
+                    total_gb = usage.total / BYTES_PER_GB
+                    used_gb = usage.used / BYTES_PER_GB
+                    free_gb = usage.free / BYTES_PER_GB
+                    
+                    result.append({
+                        '_key': directory.get('_key'),
+                        'path': path,
+                        'total_gb': round(total_gb, 2),
+                        'used_gb': round(used_gb, 2),
+                        'free_gb': round(free_gb, 2),
+                        'added_at': directory.get('added_at')
+                    })
+                except Exception as e:
+                    logger.warning(f"Could not get storage info for {path}: {e}")
+                    
+            return result
+        except Exception as e:
+            logger.error(f"Error fetching directories with storage info: {e}")
             return []
 
     async def delete_directory(self, directory_id: str) -> bool:
@@ -1094,20 +1194,24 @@ class Database:
             return 0
 
     async def get_all_entries_with_download_counts(
-        self, search_query: Optional[str] = None, sort_by: str = "name"
+        self, search_query: Optional[str] = None, sort_by: str = "name", exclude_corrupt: bool = True
     ) -> List[Dict[str, Any]]:
         """Get all entries with their download counts and report counts, optionally filtered and sorted
         
         Args:
             search_query: Optional search term to filter entries by name
             sort_by: Sort method - 'name', 'downloads', or 'size' (default: 'name')
+            exclude_corrupt: If True, exclude entries marked as corrupt (default: True)
         """
         try:
+            # Build base query with corrupt filter
+            corrupt_filter = " AND (entry.corrupt == null OR entry.corrupt == false)" if exclude_corrupt else ""
+            
             if search_query:
                 # Search with download counts and report counts
-                query = """
+                query = f"""
                 FOR entry IN entries
-                FILTER LOWER(entry.name) LIKE LOWER(CONCAT('%', @search, '%'))
+                FILTER LOWER(entry.name) LIKE LOWER(CONCAT('%', @search, '%')){corrupt_filter}
                 LET download_count = (
                     FOR doc IN download_history
                     FILTER doc.entry_id == entry._key
@@ -1124,8 +1228,9 @@ class Database:
                 bind_vars = {"search": search_query}
             else:
                 # Get all entries with download counts and report counts
-                query = """
+                query = f"""
                 FOR entry IN entries
+                FILTER true{corrupt_filter}
                 LET download_count = (
                     FOR doc IN download_history
                     FILTER doc.entry_id == entry._key

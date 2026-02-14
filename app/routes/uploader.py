@@ -268,6 +268,7 @@ async def uploader_upload_submit(request: Request) -> Response:
         
         # Get form fields
         entry_type = form_data.get('type', '').strip()
+        directory_id = form_data.get('directory_id', '').strip()
         
         # Validate required fields
         if not entry_type or entry_type != 'filepath':
@@ -308,8 +309,20 @@ async def uploader_upload_submit(request: Request) -> Response:
         safe_filename = f"{safe_basename}.{file_ext}"
         name = safe_basename  # Use sanitized name for entry
         
-        # Create uploads directory if it doesn't exist
-        upload_dir = Config.get('upload.directory', '/app/uploads')
+        # Determine upload directory
+        if directory_id:
+            # Get the selected directory from database
+            directory = await db.get_directory_by_id(directory_id)
+            if not directory:
+                return JSONResponse({"success": False, "error": "Selected directory not found"}, status_code=400)
+            
+            upload_dir = directory.get('path')
+            if not upload_dir or not os.path.exists(upload_dir):
+                return JSONResponse({"success": False, "error": "Selected directory does not exist"}, status_code=400)
+        else:
+            # Use default upload directory
+            upload_dir = Config.get('upload.directory', '/app/uploads')
+        
         os.makedirs(upload_dir, exist_ok=True)
         
         # Construct file path safely
@@ -346,7 +359,11 @@ async def uploader_upload_submit(request: Request) -> Response:
         source = file_path
         logger.info(f"File saved to {file_path}, size: {size} bytes")
         
-        # Create entry
+        # Create entry with directory metadata
+        entry_metadata = {}
+        if directory_id:
+            entry_metadata['directory_id'] = directory_id
+        
         entry = Entry(
             name=name,
             source=source,
@@ -354,7 +371,7 @@ async def uploader_upload_submit(request: Request) -> Response:
             file_type=FileType(file_type),
             size=size,
             created_by=username,
-            metadata={}
+            metadata=entry_metadata
         )
         
         # Add to database
@@ -391,4 +408,36 @@ async def uploader_upload_submit(request: Request) -> Response:
     
     except Exception as e:
         logger.error(f"Error uploading game: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+async def uploader_get_directories(request: Request) -> Response:
+    """Get available directories with storage information"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is uploader, moderator or admin
+    user_id = request.session.get('user_id')
+    is_uploader = request.session.get('is_uploader', False)
+    is_mod = request.session.get('is_moderator', False)
+    is_admin = request.session.get('is_admin', False)
+    
+    if not user_id or not (is_uploader or is_mod or is_admin):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        # Get directories with storage info
+        directories = await db.get_directories_with_storage_info()
+        
+        # Also include the default upload directory
+        upload_dir = Config.get('upload.directory', '/app/uploads')
+        
+        return JSONResponse({
+            "success": True,
+            "directories": directories,
+            "default_upload_dir": upload_dir
+        })
+    
+    except Exception as e:
+        logger.error(f"Error fetching directories: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)

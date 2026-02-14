@@ -341,3 +341,104 @@ async def user_requests_page(request: Request) -> Response:
             "requests": user_requests
         }
     )
+
+
+async def mod_corrupt_games(request: Request) -> Response:
+    """View corrupt games that need attention"""
+    if not Config.is_initialized():
+        return RedirectResponse(url="/admincp/init", status_code=303)
+    
+    # Check if user is logged in
+    if not request.session.get('user_id'):
+        return RedirectResponse(url="/login", status_code=303)
+    
+    # Check if user is moderator or admin
+    is_mod = request.session.get('is_moderator', False)
+    is_admin = request.session.get('is_admin', False)
+    
+    if not (is_mod or is_admin):
+        return templates.TemplateResponse(
+            request,
+            "error.html",
+            {
+                "title": "Access Denied",
+                "error_message": "You do not have permission to access this page.",
+                "app_name": Config.get('app.name', 'Switch Game Repository')
+            },
+            status_code=403
+        )
+    
+    # Get corrupt entries with their reports
+    corrupt_entries = await db.get_corrupt_entries()
+    
+    return templates.TemplateResponse(
+        request,
+        "mod/corrupt_games.html",
+        {
+            "title": "Corrupt Games",
+            "app_name": Config.get('app.name', 'Switch Game Repository'),
+            "entries": corrupt_entries,
+            "is_admin": is_admin
+        }
+    )
+
+
+async def mod_mark_entry_valid(request: Request) -> Response:
+    """Mark an entry as valid (not corrupt) after replacement"""
+    if not Config.is_initialized():
+        return JSONResponse({"success": False, "error": "System not initialized"}, status_code=400)
+    
+    # Check if user is logged in and is moderator or admin
+    user_id = request.session.get('user_id')
+    username = request.session.get('username')
+    is_mod = request.session.get('is_moderator', False)
+    is_admin = request.session.get('is_admin', False)
+    
+    if not user_id or not (is_mod or is_admin):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    try:
+        form_data = await request.form()
+        entry_id = form_data.get('entry_id', '').strip()
+        
+        if not entry_id:
+            return JSONResponse({"success": False, "error": "Entry ID is required"}, status_code=400)
+        
+        # Get the entry
+        entry = await db.get_entry_by_id(entry_id)
+        if not entry:
+            return JSONResponse({"success": False, "error": "Entry not found"}, status_code=404)
+        
+        # Mark entry as not corrupt
+        success = await db.mark_entry_corrupt(entry_id, False)
+        if not success:
+            return JSONResponse({"success": False, "error": "Failed to update entry"}, status_code=500)
+        
+        # Log the action
+        ip_info = get_ip_info(request)
+        activity_data = {
+            'event_type': 'entry_marked_valid',
+            'user_id': user_id,
+            'username': username,
+            'details': {
+                'entry_id': entry_id,
+                'entry_name': entry.get('name', 'Unknown')
+            },
+            'ip_address': ip_info['ip_address'],
+            'client_ip': ip_info['client_ip']
+        }
+        if 'forwarded_ip' in ip_info:
+            activity_data['forwarded_ip'] = ip_info['forwarded_ip']
+        
+        await db.add_activity_log(activity_data)
+        
+        logger.info(f"{'Admin' if is_admin else 'Moderator'} {username} marked entry {entry_id} as valid from {format_ip_for_log(request)}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": "Entry marked as valid successfully"
+        })
+    
+    except Exception as e:
+        logger.error(f"Error marking entry as valid: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)

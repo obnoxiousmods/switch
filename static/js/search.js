@@ -411,6 +411,11 @@
         const fileCreated = entry.file_created_at ? formatFullDate(entry.file_created_at) : 'N/A';
         const fileModified = entry.file_modified_at ? formatFullDate(entry.file_modified_at) : 'N/A';
         
+        // Check if hashes exist
+        const hasMD5 = entry.md5_hash && entry.md5_hash.length > 0;
+        const hasSHA256 = entry.sha256_hash && entry.sha256_hash.length > 0;
+        const canComputeHashes = entry.type === 'filepath';
+        
         modal.innerHTML = `
             <div class="info-modal">
                 <div class="info-modal-header">
@@ -456,6 +461,34 @@
                         <div class="info-row">
                             <span class="info-label">Last Modified:</span>
                             <span class="info-value">${fileModified}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h5>🔐 File Hashes</h5>
+                        <div id="hash-section-${entry._key}">
+                            ${hasMD5 ? `
+                            <div class="info-row">
+                                <span class="info-label">MD5:</span>
+                                <span class="info-value hash-value">${entry.md5_hash}</span>
+                            </div>
+                            ` : ''}
+                            ${hasSHA256 ? `
+                            <div class="info-row">
+                                <span class="info-label">SHA256:</span>
+                                <span class="info-value hash-value">${entry.sha256_hash}</span>
+                            </div>
+                            ` : ''}
+                            ${!hasMD5 && !hasSHA256 ? `
+                            <div class="info-row">
+                                <span class="info-value">
+                                    ${canComputeHashes ? 
+                                        '<button class="btn-compute-hash" onclick="computeHashes(\'' + entry._key + '\')">🔐 Compute Hashes</button>' :
+                                        'Hashes not available for URL entries'
+                                    }
+                                </span>
+                            </div>
+                            ` : ''}
                         </div>
                     </div>
                     
@@ -508,6 +541,60 @@
         };
         document.body.appendChild(downloadTrigger);
     }
+    
+    // Compute hashes for a file
+    window.computeHashes = async function(entryId) {
+        const hashSection = document.getElementById(`hash-section-${entryId}`);
+        if (!hashSection) return;
+        
+        // Show loading state
+        hashSection.innerHTML = `
+            <div class="info-row">
+                <span class="info-value">⏳ Computing hashes... This may take a while for large files.</span>
+            </div>
+        `;
+        
+        try {
+            const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/hashes`);
+            const data = await response.json();
+            
+            if (data.success) {
+                hashSection.innerHTML = `
+                    ${data.cached ? '<div class="info-row"><span class="info-value" style="color: #5a9fd4;">✓ Retrieved from cache</span></div>' : ''}
+                    <div class="info-row">
+                        <span class="info-label">MD5:</span>
+                        <span class="info-value hash-value">${data.md5}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">SHA256:</span>
+                        <span class="info-value hash-value">${data.sha256}</span>
+                    </div>
+                `;
+            } else {
+                hashSection.innerHTML = `
+                    <div class="info-row warning">
+                        <span class="info-value">✗ Error: ${data.error}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-value">
+                            <button class="btn-compute-hash" onclick="computeHashes('${entryId}')">🔐 Try Again</button>
+                        </span>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            hashSection.innerHTML = `
+                <div class="info-row warning">
+                    <span class="info-value">✗ Failed to compute hashes</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-value">
+                        <button class="btn-compute-hash" onclick="computeHashes('${entryId}')">🔐 Try Again</button>
+                    </span>
+                </div>
+            `;
+        }
+    };
     
     // Format full date
     function formatFullDate(dateString) {

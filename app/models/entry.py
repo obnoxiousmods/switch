@@ -28,6 +28,9 @@ class Entry:
         created_at: Optional[str] = None,
         file_created_at: Optional[str] = None,
         file_modified_at: Optional[str] = None,
+        corrupt: bool = False,
+        md5_hash: Optional[str] = None,
+        sha256_hash: Optional[str] = None,
     ):
         self.name = name
         self.source = source
@@ -39,6 +42,9 @@ class Entry:
         self.created_at = created_at or datetime.utcnow().isoformat()
         self.file_created_at = file_created_at
         self.file_modified_at = file_modified_at
+        self.corrupt = corrupt
+        self.md5_hash = md5_hash
+        self.sha256_hash = sha256_hash
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert entry to dictionary for database storage"""
@@ -51,11 +57,16 @@ class Entry:
             "created_by": self.created_by,
             "metadata": self.metadata,
             "created_at": self.created_at,
+            "corrupt": self.corrupt,
         }
         if self.file_created_at:
             data["file_created_at"] = self.file_created_at
         if self.file_modified_at:
             data["file_modified_at"] = self.file_modified_at
+        if self.md5_hash:
+            data["md5_hash"] = self.md5_hash
+        if self.sha256_hash:
+            data["sha256_hash"] = self.sha256_hash
         return data
     
     @classmethod
@@ -72,4 +83,7 @@ class Entry:
             created_at=data.get("created_at"),
             file_created_at=data.get("file_created_at"),
             file_modified_at=data.get("file_modified_at"),
+            corrupt=data.get("corrupt", False),
+            md5_hash=data.get("md5_hash"),
+            sha256_hash=data.get("sha256_hash"),
         )

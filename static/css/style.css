@@ -896,3 +896,37 @@ footer {
         width: 100%;
     }
 }
+
+/* Hash Display Styles */
+.hash-value {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    word-break: break-all;
+    padding: 6px;
+    background: #1a1a1a;
+    border-radius: 4px;
+    display: block;
+    margin-top: 4px;
+}
+
+.btn-compute-hash {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #5a9fd4, #4a7fb4);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+}
+
+.btn-compute-hash:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(90, 159, 212, 0.4);
+}
+
+.btn-compute-hash:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
