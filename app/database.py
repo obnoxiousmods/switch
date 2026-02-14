@@ -292,16 +292,20 @@ class Database:
         """Clear corrupt flag from all entries and return count of updated entries"""
         try:
             query = """
-            FOR entry IN entries
-            FILTER entry.corrupt == true
-            UPDATE entry WITH { corrupt: false } IN entries
-            RETURN OLD
+            LET updated = (
+                FOR entry IN entries
+                FILTER entry.corrupt == true
+                UPDATE entry WITH { corrupt: false } IN entries
+                RETURN NEW
+            )
+            RETURN LENGTH(updated)
             """
             cursor = await self.db.aql.execute(query)
             count = 0
             async with cursor:
-                async for _ in cursor:
-                    count += 1
+                async for result in cursor:
+                    count = result
+                    break
             logger.info(f"Cleared corrupt flag from {count} entries")
             return count
         except Exception as e:
