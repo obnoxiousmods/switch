@@ -62,6 +62,9 @@
 </div>
 
 <script>
+// Upload endpoint from backend configuration
+const UPLOAD_ENDPOINT = "{{ upload_endpoint }}";
+
 // Load directories on page load
 document.addEventListener('DOMContentLoaded', async function() {
     await loadDirectories();
@@ -150,7 +153,7 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     const formData = new FormData(e.target);
     
     try {
-        const response = await fetch('/uploadercp/upload', {
+        const response = await fetch(UPLOAD_ENDPOINT + '/uploadercp/upload', {
             method: 'POST',
             body: formData
         });
