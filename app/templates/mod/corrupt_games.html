@@ -78,6 +78,9 @@
                     <a href="/uploadercp/upload" class="btn-upload-replacement">
                         📤 Upload Replacement
                     </a>
+                    <button class="btn-delete-entry" onclick="deleteEntry('{{ entry._key }}', '{{ entry.name }}')">
+                        🗑️ Delete Entry
+                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -282,7 +285,7 @@
     border-top: 1px solid #444;
 }
 
-.btn-mark-valid, .btn-upload-replacement {
+.btn-mark-valid, .btn-upload-replacement, .btn-delete-entry {
     padding: 10px 20px;
     border: none;
     border-radius: 6px;
@@ -310,6 +313,15 @@
 
 .btn-upload-replacement:hover {
     background: #4a8fc4;
+}
+
+.btn-delete-entry {
+    background: #ef4444;
+    color: #fff;
+}
+
+.btn-delete-entry:hover {
+    background: #dc2626;
 }
 
 .empty-state {
@@ -424,6 +436,73 @@ async function clearAllCorruptFlags() {
     } catch (error) {
         showNotification('Error clearing corrupt flags', 'error');
     }
+}
+
+async function deleteEntry(entryId, entryName) {
+    // Create confirmation modal
+    const modal = document.createElement('div');
+    modal.className = 'notification';
+    modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2a2a2a; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 2000; min-width: 400px; max-width: 500px;';
+    modal.innerHTML = `
+        <h3 style="color: #ef4444; margin-bottom: 15px;">⚠️ Delete Entry</h3>
+        <p style="color: #ddd; margin-bottom: 10px;"><strong>File:</strong> ${entryName}</p>
+        <p style="color: #ef4444; margin-bottom: 20px;">
+            <strong>Warning:</strong> This will permanently delete the entry and remove the file from disk. 
+            This action cannot be undone!
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="cancel-delete" style="padding: 10px 20px; background: #444; color: #fff; border: none; border-radius: 6px; cursor: pointer;">
+                Cancel
+            </button>
+            <button id="confirm-delete" style="padding: 10px 20px; background: #ef4444; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                🗑️ Delete Entry
+            </button>
+        </div>
+    `;
+    
+    // Add backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1999;';
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    
+    // Cancel button handler
+    document.getElementById('cancel-delete').addEventListener('click', () => {
+        backdrop.remove();
+        modal.remove();
+    });
+    
+    // Confirm button handler
+    document.getElementById('confirm-delete').addEventListener('click', async () => {
+        const confirmBtn = document.getElementById('confirm-delete');
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Deleting...';
+        
+        try {
+            const response = await fetch(`/api/entries/${encodeURIComponent(entryId)}/delete`, {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            backdrop.remove();
+            modal.remove();
+            
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification('Error: ' + data.error, 'error');
+            }
+        } catch (error) {
+            backdrop.remove();
+            modal.remove();
+            showNotification('Error deleting entry', 'error');
+        }
+    });
 }
 
 function showNotification(message, type) {
