@@ -235,6 +235,24 @@ class CustomDropdown {
                 break;
         }
     }
+    
+    destroy() {
+        // Remove from instances array
+        const index = CustomDropdown.instances.indexOf(this);
+        if (index > -1) {
+            CustomDropdown.instances.splice(index, 1);
+        }
+        
+        // Clean up DOM
+        if (this.wrapper && this.wrapper.parentNode) {
+            this.wrapper.parentNode.removeChild(this.wrapper);
+        }
+        
+        // Restore original select
+        if (this.select) {
+            this.select.style.display = '';
+        }
+    }
 }
 
 // Initialize all custom dropdowns

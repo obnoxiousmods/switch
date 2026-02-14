@@ -6,21 +6,21 @@
 }
 
 :root {
-    --primary-color: #4c9ee0;
-    --primary-hover: #5aaeef;
-    --background: #2a2a2a;
-    --surface: #353535;
-    --surface-hover: #404040;
+    --primary-color: #9c88ff;
+    --primary-hover: #b8a7ff;
+    --background: #0a0a0a;
+    --surface: #1a1a1a;
+    --surface-hover: #252525;
     --text-primary: #f1f5f9;
-    --text-secondary: #b0b0b0;
-    --border: #4a4a4a;
+    --text-secondary: #a0a0a0;
+    --border: #2a2a2a;
     --shadow: rgba(0, 0, 0, 0.3);
     --success: #10b981;
     --warning: #f59e0b;
     --error: #ef4444;
-    --pastel-bg-1: #2f2f2f;
-    --pastel-bg-2: #383838;
-    --pastel-border: #525252;
+    --pastel-purple: #9c88ff;
+    --pastel-purple-light: #b8a7ff;
+    --pastel-purple-dark: #8a76f0;
 }
 
 body {

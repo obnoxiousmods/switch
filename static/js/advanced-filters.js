@@ -27,7 +27,6 @@
     // Initialize the module
     function init() {
         // Get DOM elements
-        filtersToggle = document.getElementById('filters-toggle');
         filtersContent = document.getElementById('filters-content');
         fileTypeFilter = document.getElementById('file-type-filter');
         sizeFilter = document.getElementById('size-filter');
@@ -36,13 +35,12 @@
         applyFiltersBtn = document.getElementById('apply-filters');
         clearFiltersBtn = document.getElementById('clear-filters');
         
-        if (!filtersToggle || !filtersContent) return;
+        if (!filtersContent) return;
         
         // Load saved filters from localStorage
         loadSavedFilters();
         
         // Set up event listeners
-        filtersToggle.addEventListener('click', toggleFiltersPanel);
         applyFiltersBtn.addEventListener('click', applyFilters);
         clearFiltersBtn.addEventListener('click', clearFilters);
         
@@ -51,16 +49,6 @@
             applyFilters(true);
             updateActiveIndicator();
         }
-    }
-    
-    // Toggle filters panel
-    function toggleFiltersPanel() {
-        filtersToggle.classList.toggle('active');
-        filtersContent.classList.toggle('open');
-        
-        // Save state to localStorage
-        const isOpen = filtersContent.classList.contains('open');
-        localStorage.setItem('filtersOpen', isOpen);
     }
     
     // Apply filters
@@ -134,13 +122,6 @@
                 console.error('Error loading saved filters:', e);
             }
         }
-        
-        // Load panel state
-        const filtersOpen = localStorage.getItem('filtersOpen');
-        if (filtersOpen === 'true') {
-            filtersContent.classList.add('open');
-            filtersToggle.classList.add('active');
-        }
     }
     
     // Check if any filters are active
@@ -153,20 +134,8 @@
     
     // Update active indicator on toggle button
     function updateActiveIndicator() {
-        const existing = filtersToggle.querySelector('.active-indicator');
-        
-        if (hasActiveFilters()) {
-            if (!existing) {
-                const indicator = document.createElement('span');
-                indicator.className = 'active-indicator';
-                indicator.title = 'Filters are active';
-                filtersToggle.appendChild(indicator);
-            }
-        } else {
-            if (existing) {
-                existing.remove();
-            }
-        }
+        // Indicator removed since panel is always open
+        // This function can be used for other UI updates if needed
     }
     
     // Export function to get current filters

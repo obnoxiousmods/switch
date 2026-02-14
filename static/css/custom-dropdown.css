@@ -16,8 +16,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: linear-gradient(145deg, #2f2f2f, #353535);
-    border: 1px solid #4a4a4a;
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+    border: 1px solid #2a2a2a;
     border-radius: 10px;
     color: #fff;
     cursor: pointer;
@@ -35,15 +35,15 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, rgba(76, 158, 224, 0.1), rgba(74, 127, 180, 0.1));
+    background: linear-gradient(135deg, rgba(156, 136, 255, 0.1), rgba(184, 167, 255, 0.1));
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .custom-dropdown-selected:hover {
-    border-color: #4c9ee0;
+    border-color: #9c88ff;
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(76, 158, 224, 0.3);
+    box-shadow: 0 4px 16px rgba(156, 136, 255, 0.3);
 }
 
 .custom-dropdown-selected:hover::before {
@@ -51,10 +51,10 @@
 }
 
 .custom-dropdown.open .custom-dropdown-selected {
-    border-color: #4c9ee0;
+    border-color: #9c88ff;
     border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
-    box-shadow: 0 2px 8px rgba(76, 158, 224, 0.4);
+    box-shadow: 0 2px 8px rgba(156, 136, 255, 0.4);
 }
 
 .selected-text {
@@ -74,7 +74,7 @@
 
 .custom-dropdown.open .dropdown-icon {
     transform: rotate(180deg);
-    color: #4c9ee0;
+    color: #9c88ff;
 }
 
 .custom-dropdown-menu {
@@ -82,10 +82,10 @@
     top: calc(100% + 4px);
     left: 0;
     width: 100%;
-    background: #353535;
-    border: 1px solid #4c9ee0;
+    background: #1a1a1a;
+    border: 1px solid #9c88ff;
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(76, 158, 224, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(156, 136, 255, 0.2);
     z-index: 1000;
     display: none;
     overflow: hidden;
@@ -106,9 +106,9 @@
 .dropdown-search {
     width: 100%;
     padding: 12px 16px;
-    background: #2f2f2f;
+    background: #0f0f0f;
     border: none;
-    border-bottom: 1px solid #4a4a4a;
+    border-bottom: 1px solid #2a2a2a;
     color: #fff;
     font-size: 14px;
     outline: none;
@@ -116,8 +116,8 @@
 }
 
 .dropdown-search:focus {
-    background: #383838;
-    border-bottom-color: #4c9ee0;
+    background: #151515;
+    border-bottom-color: #9c88ff;
 }
 
 .dropdown-search::placeholder {
@@ -136,17 +136,17 @@
 }
 
 .dropdown-options::-webkit-scrollbar-track {
-    background: #2f2f2f;
+    background: #0f0f0f;
     border-radius: 4px;
 }
 
 .dropdown-options::-webkit-scrollbar-thumb {
-    background: #4c9ee0;
+    background: #9c88ff;
     border-radius: 4px;
 }
 
 .dropdown-options::-webkit-scrollbar-thumb:hover {
-    background: #5aaeef;
+    background: #b8a7ff;
 }
 
 .dropdown-option {
@@ -175,13 +175,13 @@
     top: 0;
     width: 3px;
     height: 100%;
-    background: #4c9ee0;
+    background: #9c88ff;
     transform: scaleY(0);
     transition: transform 0.2s ease;
 }
 
 .dropdown-option:hover {
-    background: linear-gradient(90deg, rgba(76, 158, 224, 0.15), rgba(76, 158, 224, 0.05));
+    background: linear-gradient(90deg, rgba(156, 136, 255, 0.15), rgba(156, 136, 255, 0.05));
     color: #fff;
     transform: translateX(4px);
 }
@@ -191,7 +191,7 @@
 }
 
 .dropdown-option.selected {
-    background: linear-gradient(90deg, rgba(76, 158, 224, 0.25), rgba(76, 158, 224, 0.1));
+    background: linear-gradient(90deg, rgba(156, 136, 255, 0.25), rgba(156, 136, 255, 0.1));
     color: #fff;
     font-weight: 600;
     padding-left: 18px;
@@ -199,14 +199,14 @@
 
 .dropdown-option.selected::before {
     transform: scaleY(1);
-    background: #4c9ee0;
+    background: #9c88ff;
 }
 
 .dropdown-option.selected::after {
     content: '✓';
     position: absolute;
     right: 14px;
-    color: #4c9ee0;
+    color: #9c88ff;
     font-weight: bold;
     animation: checkMark 0.3s ease;
 }
@@ -255,11 +255,11 @@
 
 /* Focus styles for accessibility */
 .custom-dropdown-selected:focus-visible {
-    outline: 2px solid #4c9ee0;
+    outline: 2px solid #9c88ff;
     outline-offset: 2px;
 }
 
 .dropdown-option:focus-visible {
-    outline: 2px solid #4c9ee0;
+    outline: 2px solid #9c88ff;
     outline-offset: -2px;
 }
