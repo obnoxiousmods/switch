@@ -350,7 +350,7 @@ async function uploadSingleFile(file, progressFill, progressText, progressSpeed)
             } else {
                 resolve({
                     success: false,
-                    error: `Upload failed with status: ${xhr.status} & message: ${xhr.statusText}`
+                    error: `Upload failed with status: ${xhr.status} & json.error: ${xhr.responseText}`
                 });
             }
         });
