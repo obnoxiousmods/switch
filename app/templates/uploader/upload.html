@@ -6,6 +6,12 @@
         <div class="page-header">
             <h2>📤 Upload Game</h2>
             <p class="page-subtitle">Upload a new game to the repository</p>
+            <div class="alternative-upload">
+                <a href="https://swdld.obnoxious.lol" target="_blank" class="btn-alt-upload">
+                    🚀 Use Alternative Upload (Bypasses Cloudflare Limit)
+                </a>
+                <small class="alt-upload-help">For files larger than 100MB, use the alternative uploader which has no file size restrictions.</small>
+            </div>
         </div>
 
         <div class="upload-form-container">
@@ -30,11 +36,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="file">Game File *</label>
+                        <label for="file">Game File(s) *</label>
                         <input type="file" id="file" name="file" 
                                accept=".nsp,.nsz,.xci"
-                               onchange="updateFileInfo()" required>
-                        <small class="form-help">Supported formats: NSP, NSZ, XCI</small>
+                               onchange="updateFileInfo()" 
+                               multiple
+                               required>
+                        <small class="form-help">Supported formats: NSP, NSZ, XCI. You can select multiple files to upload sequentially.</small>
                         <div id="fileInfo" class="file-info"></div>
                     </div>
                 </div>
@@ -52,11 +60,20 @@
             </form>
 
             <div id="uploadProgress" class="upload-progress" style="display: none;">
+                <div class="upload-queue-info" id="queueInfo">
+                    <p class="queue-text" id="queueText">Uploading file 1 of 1</p>
+                    <p class="current-file" id="currentFile">Current file: example.nsp</p>
+                </div>
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
                 <p class="progress-text" id="progressText">Preparing upload...</p>
                 <p class="progress-speed" id="progressSpeed"></p>
+            </div>
+            
+            <div id="uploadResults" class="upload-results" style="display: none;">
+                <h4>Upload Results</h4>
+                <div id="resultsList"></div>
             </div>
         </div>
     </div>
@@ -123,13 +140,23 @@ function updateFileInfo() {
     const fileInfo = document.getElementById('fileInfo');
     
     if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+        let totalSize = 0;
+        let fileList = '<strong>Selected Files:</strong><br>';
+        
+        for (let i = 0; i < fileInput.files.length; i++) {
+            const file = fileInput.files[i];
+            totalSize += file.size;
+            const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+            fileList += `${i + 1}. ${file.name} (${sizeGB} GB)<br>`;
+        }
+        
+        const totalSizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
+        const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
         
         fileInfo.innerHTML = `
-            <strong>Selected:</strong> ${file.name}<br>
-            <strong>Size:</strong> ${sizeGB} GB (${sizeMB} MB)
+            ${fileList}
+            <strong>Total Size:</strong> ${totalSizeGB} GB (${totalSizeMB} MB)<br>
+            <strong>Files to Upload:</strong> ${fileInput.files.length}
         `;
         fileInfo.style.display = 'block';
     } else {
@@ -147,104 +174,208 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
     const progressSpeed = document.getElementById('progressSpeed');
+    const queueText = document.getElementById('queueText');
+    const currentFileText = document.getElementById('currentFile');
+    const uploadResults = document.getElementById('uploadResults');
+    const resultsList = document.getElementById('resultsList');
+    
+    const fileInput = document.getElementById('file');
+    const files = fileInput.files;
+    
+    if (files.length === 0) {
+        Toast.error('Please select at least one file');
+        return;
+    }
     
     // Disable submit button
     submitBtn.disabled = true;
     submitText.style.display = 'none';
     uploadingText.style.display = 'inline';
     progressDiv.style.display = 'block';
+    uploadResults.style.display = 'none';
+    resultsList.innerHTML = '';
     
-    const formData = new FormData(e.target);
+    const uploadResultsData = [];
     
-    // Track upload progress with XMLHttpRequest
-    const xhr = new XMLHttpRequest();
-    
-    let startTime = Date.now();
-    let lastLoaded = 0;
-    let lastTime = startTime;
-    
-    xhr.upload.addEventListener('progress', function(event) {
-        if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            progressFill.style.width = percentComplete + '%';
-            progressText.textContent = `Uploading: ${percentComplete}%`;
+    // Upload files sequentially
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Update queue info
+        queueText.textContent = `Uploading file ${i + 1} of ${files.length}`;
+        currentFileText.textContent = `Current file: ${file.name}`;
+        
+        // Reset progress bar
+        progressFill.style.width = '0%';
+        progressText.textContent = 'Preparing upload...';
+        progressSpeed.textContent = '';
+        
+        try {
+            const result = await uploadSingleFile(file, progressFill, progressText, progressSpeed);
+            uploadResultsData.push({
+                filename: file.name,
+                success: result.success,
+                message: result.message,
+                error: result.error
+            });
             
-            // Calculate upload speed
-            const currentTime = Date.now();
-            const timeDiff = (currentTime - lastTime) / 1000; // seconds
-            const loadedDiff = event.loaded - lastLoaded;
+            // Add result to list
+            const resultItem = document.createElement('div');
+            resultItem.className = result.success ? 'result-item result-success' : 'result-item result-error';
+            resultItem.innerHTML = `
+                <span class="result-icon">${result.success ? '✓' : '✗'}</span>
+                <span class="result-filename">${file.name}</span>
+                <span class="result-message">${result.success ? result.message : result.error}</span>
+            `;
+            resultsList.appendChild(resultItem);
+            uploadResults.style.display = 'block';
             
-            if (timeDiff > 0.5) { // Update speed every 0.5 seconds
-                const speedBps = loadedDiff / timeDiff;
-                const speedMBps = speedBps / (1024 * 1024);
-                
-                // Format size
-                const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(2);
-                const totalMB = (event.total / (1024 * 1024)).toFixed(2);
-                
-                progressSpeed.textContent = `${uploadedMB} MB / ${totalMB} MB (${speedMBps.toFixed(2)} MB/s)`;
-                
-                lastLoaded = event.loaded;
-                lastTime = currentTime;
+            if (result.success) {
+                Toast.success(`${file.name} uploaded successfully!`);
+            } else {
+                Toast.error(`Failed to upload ${file.name}: ${result.error}`);
             }
+        } catch (error) {
+            uploadResultsData.push({
+                filename: file.name,
+                success: false,
+                error: error.message || 'Upload failed'
+            });
+            
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item result-error';
+            resultItem.innerHTML = `
+                <span class="result-icon">✗</span>
+                <span class="result-filename">${file.name}</span>
+                <span class="result-message">${error.message || 'Upload failed'}</span>
+            `;
+            resultsList.appendChild(resultItem);
+            uploadResults.style.display = 'block';
+            
+            Toast.error(`Failed to upload ${file.name}: ${error.message}`);
         }
-    });
+    }
     
-    xhr.addEventListener('load', function() {
-        if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-                const data = JSON.parse(xhr.responseText);
-                
-                if (data.success) {
-                    Toast.success(data.message);
-                    setTimeout(() => {
-                        window.location.href = '/uploadercp';
-                    }, 1000);
-                } else {
-                    Toast.error(data.error || 'Upload failed');
-                    submitBtn.disabled = false;
-                    submitText.style.display = 'inline';
-                    uploadingText.style.display = 'none';
-                    progressDiv.style.display = 'none';
-                }
-            } catch (error) {
-                Toast.error('Failed to parse server response');
-                submitBtn.disabled = false;
-                submitText.style.display = 'inline';
-                uploadingText.style.display = 'none';
-                progressDiv.style.display = 'none';
-            }
-        } else {
-            Toast.error(`Upload failed with status: ${xhr.status}`);
-            submitBtn.disabled = false;
-            submitText.style.display = 'inline';
-            uploadingText.style.display = 'none';
-            progressDiv.style.display = 'none';
-        }
-    });
+    // All uploads complete
+    progressDiv.style.display = 'none';
+    submitBtn.disabled = false;
+    submitText.style.display = 'inline';
+    uploadingText.style.display = 'none';
     
-    xhr.addEventListener('error', function() {
-        Toast.error('Network error occurred during upload');
-        submitBtn.disabled = false;
-        submitText.style.display = 'inline';
-        uploadingText.style.display = 'none';
-        progressDiv.style.display = 'none';
-    });
+    // Show summary
+    const successCount = uploadResultsData.filter(r => r.success).length;
+    const failCount = uploadResultsData.length - successCount;
     
-    xhr.addEventListener('abort', function() {
-        Toast.warning('Upload was cancelled');
-        submitBtn.disabled = false;
-        submitText.style.display = 'inline';
-        uploadingText.style.display = 'none';
-        progressDiv.style.display = 'none';
-    });
-    
-    // Use relative URL if UPLOAD_ENDPOINT is empty, otherwise prepend it
-    const uploadUrl = UPLOAD_ENDPOINT ? UPLOAD_ENDPOINT + '/uploadercp/upload' : '/uploadercp/upload';
-    
-    xhr.open('POST', uploadUrl);
-    xhr.send(formData);
+    if (successCount === files.length) {
+        Toast.success(`All ${files.length} file(s) uploaded successfully!`);
+        setTimeout(() => {
+            window.location.href = '/uploadercp';
+        }, 2000);
+    } else if (successCount > 0) {
+        Toast.warning(`${successCount} file(s) uploaded, ${failCount} failed`);
+    } else {
+        Toast.error(`All uploads failed`);
+    }
 });
+
+async function uploadSingleFile(file, progressFill, progressText, progressSpeed) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        
+        // Get form values
+        const type = document.getElementById('type').value;
+        const directoryId = document.getElementById('directory_id').value;
+        
+        formData.append('type', type);
+        if (directoryId) {
+            formData.append('directory_id', directoryId);
+        }
+        formData.append('file', file);
+        
+        const xhr = new XMLHttpRequest();
+        
+        let startTime = Date.now();
+        let lastLoaded = 0;
+        let lastTime = startTime;
+        
+        xhr.upload.addEventListener('progress', function(event) {
+            if (event.lengthComputable) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+                progressFill.style.width = percentComplete + '%';
+                progressText.textContent = `Uploading: ${percentComplete}%`;
+                
+                // Calculate upload speed
+                const currentTime = Date.now();
+                const timeDiff = (currentTime - lastTime) / 1000; // seconds
+                const loadedDiff = event.loaded - lastLoaded;
+                
+                if (timeDiff > 0.5) { // Update speed every 0.5 seconds
+                    const speedBps = loadedDiff / timeDiff;
+                    const speedMBps = speedBps / (1024 * 1024);
+                    
+                    // Format size
+                    const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(2);
+                    const totalMB = (event.total / (1024 * 1024)).toFixed(2);
+                    
+                    progressSpeed.textContent = `${uploadedMB} MB / ${totalMB} MB (${speedMBps.toFixed(2)} MB/s)`;
+                    
+                    lastLoaded = event.loaded;
+                    lastTime = currentTime;
+                }
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    
+                    if (data.success) {
+                        resolve({
+                            success: true,
+                            message: data.message || 'Upload successful'
+                        });
+                    } else {
+                        resolve({
+                            success: false,
+                            error: data.error || 'Upload failed'
+                        });
+                    }
+                } catch (error) {
+                    resolve({
+                        success: false,
+                        error: 'Failed to parse server response'
+                    });
+                }
+            } else {
+                resolve({
+                    success: false,
+                    error: `Upload failed with status: ${xhr.status}`
+                });
+            }
+        });
+        
+        xhr.addEventListener('error', function() {
+            resolve({
+                success: false,
+                error: 'Network error occurred during upload'
+            });
+        });
+        
+        xhr.addEventListener('abort', function() {
+            resolve({
+                success: false,
+                error: 'Upload was cancelled'
+            });
+        });
+        
+        // Use relative URL if UPLOAD_ENDPOINT is empty, otherwise prepend it
+        const uploadUrl = UPLOAD_ENDPOINT ? UPLOAD_ENDPOINT + '/uploadercp/upload' : '/uploadercp/upload';
+        
+        xhr.open('POST', uploadUrl);
+        xhr.send(formData);
+    });
+}
 </script>
 
 <style>
@@ -268,6 +399,36 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
 .page-subtitle {
     color: #999;
     font-size: 18px;
+}
+
+.alternative-upload {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.btn-alt-upload {
+    display: inline-block;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.btn-alt-upload:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.5);
+}
+
+.alt-upload-help {
+    display: block;
+    margin-top: 8px;
+    color: #888;
+    font-size: 12px;
 }
 
 .upload-form-container {
@@ -409,6 +570,24 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     border-radius: 8px;
 }
 
+.upload-queue-info {
+    margin-bottom: 15px;
+}
+
+.queue-text {
+    color: #5a9fd4;
+    font-weight: 600;
+    font-size: 14px;
+    margin: 0 0 5px 0;
+}
+
+.current-file {
+    color: #999;
+    font-size: 13px;
+    margin: 0;
+    font-style: italic;
+}
+
 .progress-bar {
     width: 100%;
     height: 20px;
@@ -442,6 +621,72 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     text-align: center;
     margin-top: 5px;
     font-size: 13px;
+}
+
+.upload-results {
+    margin-top: 20px;
+    padding: 20px;
+    background: #1a1a1a;
+    border-radius: 8px;
+}
+
+.upload-results h4 {
+    color: #fff;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.result-item {
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.result-item:last-child {
+    margin-bottom: 0;
+}
+
+.result-success {
+    background: rgba(45, 122, 75, 0.2);
+    border: 1px solid rgba(45, 122, 75, 0.4);
+}
+
+.result-error {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.result-icon {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.result-success .result-icon {
+    color: #10b981;
+}
+
+.result-error .result-icon {
+    color: #ef4444;
+}
+
+.result-filename {
+    color: #fff;
+    font-weight: 600;
+    flex: 0 0 auto;
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.result-message {
+    color: #999;
+    flex: 1;
 }
 
 @media (max-width: 768px) {
