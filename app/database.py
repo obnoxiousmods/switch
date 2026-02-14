@@ -1343,18 +1343,14 @@ class Database:
                     COLLECT WITH COUNT INTO count
                     RETURN count
                 )[0] || 0
-                LET likes_count = (
+                LET vote_stats = (
                     FOR vote IN likes
-                    FILTER vote.entry_id == entry._key AND vote.vote_type == 'like'
-                    COLLECT WITH COUNT INTO count
-                    RETURN count
-                )[0] || 0
-                LET dislikes_count = (
-                    FOR vote IN likes
-                    FILTER vote.entry_id == entry._key AND vote.vote_type == 'dislike'
-                    COLLECT WITH COUNT INTO count
-                    RETURN count
-                )[0] || 0
+                    FILTER vote.entry_id == entry._key
+                    COLLECT vote_type = vote.vote_type WITH COUNT INTO count
+                    RETURN {{vote_type: vote_type, count: count}}
+                )
+                LET likes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'like' RETURN v.count) || 0
+                LET dislikes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'dislike' RETURN v.count) || 0
                 """
                 bind_vars = {"search": search_query}
             else:
@@ -1374,18 +1370,14 @@ class Database:
                     COLLECT WITH COUNT INTO count
                     RETURN count
                 )[0] || 0
-                LET likes_count = (
+                LET vote_stats = (
                     FOR vote IN likes
-                    FILTER vote.entry_id == entry._key AND vote.vote_type == 'like'
-                    COLLECT WITH COUNT INTO count
-                    RETURN count
-                )[0] || 0
-                LET dislikes_count = (
-                    FOR vote IN likes
-                    FILTER vote.entry_id == entry._key AND vote.vote_type == 'dislike'
-                    COLLECT WITH COUNT INTO count
-                    RETURN count
-                )[0] || 0
+                    FILTER vote.entry_id == entry._key
+                    COLLECT vote_type = vote.vote_type WITH COUNT INTO count
+                    RETURN {{vote_type: vote_type, count: count}}
+                )
+                LET likes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'like' RETURN v.count) || 0
+                LET dislikes_count = FIRST(FOR v IN vote_stats FILTER v.vote_type == 'dislike' RETURN v.count) || 0
                 """
                 bind_vars = {}
 

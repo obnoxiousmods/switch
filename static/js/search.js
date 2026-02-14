@@ -1220,7 +1220,12 @@
             const data = await response.json();
             
             if (data.success) {
-                Toast.success(`${voteType === 'like' ? 'Liked' : 'Disliked'} successfully`);
+                // Check if vote was added or removed based on user_vote in response
+                const action = data.user_vote === voteType ? 'added' : 'removed';
+                const message = action === 'added' 
+                    ? `${voteType === 'like' ? 'Liked' : 'Disliked'} successfully`
+                    : `${voteType === 'like' ? 'Like' : 'Dislike'} removed`;
+                Toast.success(message);
                 // Reload entries to reflect updated vote counts
                 await loadEntries();
             } else {
