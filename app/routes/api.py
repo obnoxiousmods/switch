@@ -2,6 +2,7 @@ from starlette.responses import JSONResponse, FileResponse, RedirectResponse
 from starlette.requests import Request
 import os
 import logging
+import hashlib
 
 from app.database import db
 from app.utils.ip_utils import get_ip_info, format_ip_for_log
@@ -285,4 +286,91 @@ async def submit_report(request: Request):
         return JSONResponse({
             "success": False,
             "error": "An error occurred while submitting the report"
+        }, status_code=500)
+
+
+async def compute_file_hashes(request: Request):
+    """API endpoint to compute MD5 and SHA256 hashes for a file entry"""
+    # Require authentication - either session or API key
+    has_session = request.session.get('user_id') is not None
+    has_api_auth = getattr(request.state, 'authenticated', False)
+    
+    if not has_session and not has_api_auth:
+        return JSONResponse({
+            "success": False,
+            "error": "Authentication required. Please log in or use an API key."
+        }, status_code=401)
+    
+    try:
+        entry_id = request.path_params.get('entry_id')
+        
+        # Get the entry from the database
+        entry = await db.get_entry_by_id(entry_id)
+        
+        if not entry:
+            return JSONResponse({
+                "success": False,
+                "error": "Entry not found"
+            }, status_code=404)
+        
+        # Check if hashes already exist
+        if entry.get('md5_hash') and entry.get('sha256_hash'):
+            return JSONResponse({
+                "success": True,
+                "md5": entry.get('md5_hash'),
+                "sha256": entry.get('sha256_hash'),
+                "cached": True
+            })
+        
+        # Only compute hashes for filepath type entries
+        if entry.get('type') != 'filepath':
+            return JSONResponse({
+                "success": False,
+                "error": "Hash computation is only available for uploaded files"
+            }, status_code=400)
+        
+        filepath = entry.get('source')
+        
+        # Validate the filepath exists and is accessible
+        if not filepath or not os.path.exists(filepath) or not os.path.isfile(filepath):
+            return JSONResponse({
+                "success": False,
+                "error": "File not found on server"
+            }, status_code=404)
+        
+        # Compute hashes
+        logger.info(f"Computing hashes for entry {entry_id}: {filepath}")
+        md5_hash = hashlib.md5()
+        sha256_hash = hashlib.sha256()
+        
+        # Read file in chunks to handle large files
+        chunk_size = 8192
+        with open(filepath, 'rb') as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                md5_hash.update(chunk)
+                sha256_hash.update(chunk)
+        
+        md5_result = md5_hash.hexdigest()
+        sha256_result = sha256_hash.hexdigest()
+        
+        # Store hashes in database
+        await db.update_entry_hashes(entry_id, md5_result, sha256_result)
+        
+        logger.info(f"Computed and stored hashes for entry {entry_id}")
+        
+        return JSONResponse({
+            "success": True,
+            "md5": md5_result,
+            "sha256": sha256_result,
+            "cached": False
+        })
+        
+    except Exception as e:
+        logger.error(f"Hash computation error: {e}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": "An error occurred while computing hashes"
         }, status_code=500)
