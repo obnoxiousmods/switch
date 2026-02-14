@@ -192,6 +192,7 @@ class Database:
             doc = await self.entries_collection.get(entry_id)
             if doc:
                 return {
+                    "_key": doc.get("_key"),
                     "id": doc.get("_key"),
                     "name": doc.get("name"),
                     "source": doc.get("source"),
@@ -201,6 +202,9 @@ class Database:
                     "created_at": doc.get("created_at"),
                     "created_by": doc.get("created_by", ""),
                     "metadata": doc.get("metadata", {}),
+                    "corrupt": doc.get("corrupt", False),
+                    "md5_hash": doc.get("md5_hash"),
+                    "sha256_hash": doc.get("sha256_hash"),
                 }
             return None
         except Exception as e:
