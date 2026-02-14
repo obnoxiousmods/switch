@@ -432,6 +432,8 @@ async def get_entry_info(request: Request):
                 "size": entry.get("size"),
                 "created_by": entry.get("created_by"),
                 "created_at": entry.get("created_at"),
+                "file_created_at": entry.get("file_created_at"),
+                "file_modified_at": entry.get("file_modified_at"),
                 "corrupt": entry.get("corrupt", False),
                 "md5_hash": entry.get("md5_hash"),
                 "sha256_hash": entry.get("sha256_hash"),

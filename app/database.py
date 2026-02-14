@@ -205,6 +205,8 @@ class Database:
                     "corrupt": doc.get("corrupt", False),
                     "md5_hash": doc.get("md5_hash"),
                     "sha256_hash": doc.get("sha256_hash"),
+                    "file_created_at": doc.get("file_created_at"),
+                    "file_modified_at": doc.get("file_modified_at"),
                 }
             return None
         except Exception as e:
