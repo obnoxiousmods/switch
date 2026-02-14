@@ -5,6 +5,8 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
+import asyncio
+import os
 
 from app.routes.pages import index, api_docs_page
 from app.routes.api import list_entries, download_entry, submit_report, compute_file_hashes, get_entry_info, delete_entry
@@ -41,6 +43,102 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Background task control
+background_hash_task = None
+
+# Background hash computation service
+async def compute_hashes_for_unhashed_entries():
+    """Background service to compute hashes for entries without hashes"""
+    while True:
+        try:
+            # Wait 10 minutes between runs
+            await asyncio.sleep(600)  # 600 seconds = 10 minutes
+            
+            if not Config.is_initialized():
+                continue
+            
+            logger.info("→ Starting background hash computation cycle...")
+            
+            # Query for entries without hashes or stuck in processing
+            cursor = await db.db.aql.execute("""
+                FOR doc IN entries
+                FILTER doc.type == 'filepath' AND (
+                    doc.md5_hash == null OR 
+                    doc.sha256_hash == null OR
+                    doc.md5_hash == 'processing' OR
+                    doc.sha256_hash == 'processing'
+                )
+                RETURN {
+                    _key: doc._key,
+                    source: doc.source,
+                    name: doc.name,
+                    md5_hash: doc.md5_hash,
+                    sha256_hash: doc.sha256_hash
+                }
+            """)
+            
+            entries_to_process = []
+            async with cursor:
+                async for doc in cursor:
+                    entries_to_process.append(doc)
+            
+            if not entries_to_process:
+                logger.info("→ No entries need hash computation")
+                continue
+            
+            logger.info(f"→ Found {len(entries_to_process)} entries needing hash computation")
+            
+            # Process each entry
+            for entry in entries_to_process:
+                try:
+                    entry_id = entry.get('_key')
+                    filepath = entry.get('source')
+                    entry_name = entry.get('name', 'Unknown')
+                    
+                    # Verify file exists
+                    if not filepath or not os.path.exists(filepath) or not os.path.isfile(filepath):
+                        logger.warning(f"→ Skipping {entry_name} ({entry_id}): File not found at {filepath}")
+                        # Clear processing markers for missing files
+                        if entry.get('md5_hash') == 'processing' or entry.get('sha256_hash') == 'processing':
+                            await db.update_entry_hashes(entry_id, None, None)
+                        continue
+                    
+                    logger.info(f"→ Computing hashes for: {entry_name} ({entry_id})")
+                    
+                    # Import here to avoid circular import
+                    from app.routes.api import _compute_hashes_sync
+                    
+                    # Mark as processing
+                    await db.update_entry_hashes(entry_id, "processing", "processing")
+                    
+                    # Compute hashes in thread pool
+                    md5_result, sha256_result = await asyncio.to_thread(_compute_hashes_sync, filepath)
+                    
+                    # Store results
+                    await db.update_entry_hashes(entry_id, md5_result, sha256_result)
+                    
+                    logger.info(f"→ Successfully computed hashes for: {entry_name}")
+                    
+                    # Small delay to avoid overwhelming the system
+                    await asyncio.sleep(1)
+                    
+                except Exception as e:
+                    logger.error(f"→ Error computing hashes for entry {entry.get('_key')}: {e}", exc_info=True)
+                    # Clear processing markers on error
+                    try:
+                        await db.update_entry_hashes(entry.get('_key'), None, None)
+                    except:
+                        pass
+            
+            logger.info("→ Background hash computation cycle completed")
+            
+        except asyncio.CancelledError:
+            logger.info("→ Background hash computation service cancelled")
+            break
+        except Exception as e:
+            logger.error(f"→ Error in background hash computation: {e}", exc_info=True)
+            # Continue running even if there's an error
 
 # Templates
 templates = Jinja2Templates(directory="app/templates")
@@ -130,6 +228,7 @@ app = Starlette(
 # Startup event
 @app.on_event("startup")
 async def startup():
+    global background_hash_task
     logger.info("→ App starting...")
     
     # Only try to connect to database if initialized
@@ -137,16 +236,117 @@ async def startup():
         try:
             await db.connect()
             logger.info("→ Database connected successfully")
+            
+            # Start background hash computation service
+            background_hash_task = asyncio.create_task(compute_hashes_for_unhashed_entries())
+            logger.info("→ Background hash computation service started")
+            
+            # Run initial hash computation immediately (in background, don't wait)
+            asyncio.create_task(run_initial_hash_computation())
+            
         except Exception as e:
             logger.error(f"→ Failed to connect to database: {e}")
             logger.warning("→ App will continue but database features won't work")
     else:
         logger.info("→ System not initialized. Please visit /admincp/init to set up.")
 
+async def run_initial_hash_computation():
+    """Run hash computation immediately on startup"""
+    try:
+        await asyncio.sleep(5)  # Wait 5 seconds after startup to let things settle
+        logger.info("→ Running initial hash computation...")
+        
+        # Query for entries without hashes or stuck in processing
+        cursor = await db.db.aql.execute("""
+            FOR doc IN entries
+            FILTER doc.type == 'filepath' AND (
+                doc.md5_hash == null OR 
+                doc.sha256_hash == null OR
+                doc.md5_hash == 'processing' OR
+                doc.sha256_hash == 'processing'
+            )
+            RETURN {
+                _key: doc._key,
+                source: doc.source,
+                name: doc.name,
+                md5_hash: doc.md5_hash,
+                sha256_hash: doc.sha256_hash
+            }
+        """)
+        
+        entries_to_process = []
+        async with cursor:
+            async for doc in cursor:
+                entries_to_process.append(doc)
+        
+        if not entries_to_process:
+            logger.info("→ No entries need initial hash computation")
+            return
+        
+        logger.info(f"→ Found {len(entries_to_process)} entries needing initial hash computation")
+        
+        # Process each entry
+        for entry in entries_to_process:
+            try:
+                entry_id = entry.get('_key')
+                filepath = entry.get('source')
+                entry_name = entry.get('name', 'Unknown')
+                
+                # Verify file exists
+                if not filepath or not os.path.exists(filepath) or not os.path.isfile(filepath):
+                    logger.warning(f"→ Skipping {entry_name} ({entry_id}): File not found at {filepath}")
+                    # Clear processing markers for missing files
+                    if entry.get('md5_hash') == 'processing' or entry.get('sha256_hash') == 'processing':
+                        await db.update_entry_hashes(entry_id, None, None)
+                    continue
+                
+                logger.info(f"→ Computing hashes for: {entry_name} ({entry_id})")
+                
+                # Import here to avoid circular import
+                from app.routes.api import _compute_hashes_sync
+                
+                # Mark as processing
+                await db.update_entry_hashes(entry_id, "processing", "processing")
+                
+                # Compute hashes in thread pool
+                md5_result, sha256_result = await asyncio.to_thread(_compute_hashes_sync, filepath)
+                
+                # Store results
+                await db.update_entry_hashes(entry_id, md5_result, sha256_result)
+                
+                logger.info(f"→ Successfully computed hashes for: {entry_name}")
+                
+                # Small delay to avoid overwhelming the system
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logger.error(f"→ Error computing hashes for entry {entry.get('_key')}: {e}", exc_info=True)
+                # Clear processing markers on error
+                try:
+                    await db.update_entry_hashes(entry.get('_key'), None, None)
+                except:
+                    pass
+        
+        logger.info("→ Initial hash computation completed")
+        
+    except Exception as e:
+        logger.error(f"→ Error in initial hash computation: {e}", exc_info=True)
+
 # Shutdown event
 @app.on_event("shutdown")
 async def shutdown():
+    global background_hash_task
     logger.info("→ App shutting down...")
+    
+    # Cancel background hash task
+    if background_hash_task:
+        background_hash_task.cancel()
+        try:
+            await background_hash_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("→ Background hash computation service stopped")
+    
     if Config.is_initialized():
         try:
             await db.disconnect()
