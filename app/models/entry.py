@@ -2,20 +2,25 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 
+
 class EntryType(str, Enum):
     """Entry type enum"""
+
     FILEPATH = "filepath"
     URL = "url"
 
+
 class FileType(str, Enum):
     """File type enum"""
+
     NSP = "nsp"
     NSZ = "nsz"
     XCI = "xci"
 
+
 class Entry:
     """Entry model representing a game file entry"""
-    
+
     def __init__(
         self,
         name: str,
@@ -45,14 +50,16 @@ class Entry:
         self.corrupt = corrupt
         self.md5_hash = md5_hash
         self.sha256_hash = sha256_hash
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert entry to dictionary for database storage"""
         data = {
             "name": self.name,
             "source": self.source,
             "type": self.type.value if isinstance(self.type, EntryType) else self.type,
-            "file_type": self.file_type.value if isinstance(self.file_type, FileType) else self.file_type,
+            "file_type": self.file_type.value
+            if isinstance(self.file_type, FileType)
+            else self.file_type,
             "size": self.size,
             "created_by": self.created_by,
             "metadata": self.metadata,
@@ -68,7 +75,7 @@ class Entry:
         if self.sha256_hash:
             data["sha256_hash"] = self.sha256_hash
         return data
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Entry":
         """Create entry from dictionary"""
