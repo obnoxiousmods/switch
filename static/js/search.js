@@ -156,9 +156,112 @@
             });
         }
         
+        // Apply advanced filters if any
+        applyAdvancedFiltersToResults();
+        
         // Reset to first page when search changes
         currentPage = 1;
         renderResults();
+    }
+    
+    // Apply advanced filters function (called from advanced-filters.js)
+    window.applyAdvancedFilters = function(filters) {
+        // Re-apply search first
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        
+        if (searchTerm === '') {
+            filteredEntries = allEntries;
+        } else {
+            filteredEntries = allEntries.filter(entry => {
+                return entry.name.toLowerCase().includes(searchTerm);
+            });
+        }
+        
+        // Apply advanced filters
+        applyAdvancedFiltersToResults();
+        
+        // Reset to first page
+        currentPage = 1;
+        renderResults();
+    };
+    
+    // Apply advanced filters to current filtered entries
+    function applyAdvancedFiltersToResults() {
+        const filters = window.getActiveFilters ? window.getActiveFilters() : null;
+        if (!filters) return;
+        
+        // File type filter
+        if (filters.fileType !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => {
+                return entry.file_type && entry.file_type.toLowerCase() === filters.fileType.toLowerCase();
+            });
+        }
+        
+        // Size filter
+        if (filters.size !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => {
+                const sizeInGB = entry.size / (1024 * 1024 * 1024);
+                
+                switch (filters.size) {
+                    case 'small':
+                        return sizeInGB < 1;
+                    case 'medium':
+                        return sizeInGB >= 1 && sizeInGB < 5;
+                    case 'large':
+                        return sizeInGB >= 5 && sizeInGB < 10;
+                    case 'xlarge':
+                        return sizeInGB >= 10;
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        // Date filter
+        if (filters.date !== 'all') {
+            const now = new Date();
+            filteredEntries = filteredEntries.filter(entry => {
+                const dateToCheck = entry.file_modified_at || entry.created_at;
+                if (!dateToCheck) return false;
+                
+                const entryDate = new Date(dateToCheck);
+                const diffTime = now - entryDate;
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                
+                switch (filters.date) {
+                    case 'today':
+                        return diffDays < 1;
+                    case 'week':
+                        return diffDays < 7;
+                    case 'month':
+                        return diffDays < 30;
+                    case '3months':
+                        return diffDays < 90;
+                    case 'year':
+                        return diffDays < 365;
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        // Downloads filter
+        if (filters.downloads !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => {
+                const downloads = entry.download_count || 0;
+                
+                switch (filters.downloads) {
+                    case 'popular':
+                        return downloads >= 100;
+                    case 'trending':
+                        return downloads >= 50 && downloads < 100;
+                    case 'new':
+                        return downloads < 50;
+                    default:
+                        return true;
+                }
+            });
+        }
     }
     
     // Handle sort change
