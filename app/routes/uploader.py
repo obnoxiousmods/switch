@@ -243,7 +243,8 @@ async def uploader_upload_page(request: Request) -> Response:
             "title": "Upload Game",
             "app_name": Config.get('app.name', 'Switch Game Repository'),
             "is_admin": is_admin,
-            "is_moderator": is_mod
+            "is_moderator": is_mod,
+            "upload_endpoint": Config.UPLOAD_ENDPOINT()
         }
     )
 
