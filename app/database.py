@@ -1142,7 +1142,7 @@ class Database:
                 bind_vars = {}
 
             # Add sorting
-            if sort_by_downloads:
+            if sort_by == "downloads":
                 query += " SORT download_count DESC"
             elif sort_by == "size":
                 query += " SORT entry.size DESC"

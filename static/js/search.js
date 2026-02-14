@@ -396,7 +396,7 @@
             window.open(entry.source, '_blank');
         } else {
             // For filepaths, use the download API endpoint
-            const downloadUrl = `/api/download/${encodeURIComponent(entry.id)}`;
+            const downloadUrl = `/api/download/${encodeURIComponent(entry._key)}`;
             window.location.href = downloadUrl;
         }
     }
@@ -488,7 +488,7 @@
                     ` : ''}
                     
                     <div class="info-actions">
-                        <button class="btn-download-full" onclick="document.getElementById('download-${entry.id}').click()">
+                        <button class="btn-download-full" onclick="document.getElementById('download-${entry._key}').click()">
                             ⬇️ Download This File
                         </button>
                     </div>
@@ -500,7 +500,7 @@
         
         // Add hidden download trigger
         const downloadTrigger = document.createElement('a');
-        downloadTrigger.id = `download-${entry.id}`;
+        downloadTrigger.id = `download-${entry._key}`;
         downloadTrigger.style.display = 'none';
         downloadTrigger.onclick = () => {
             handleDownload(entry);
@@ -576,7 +576,7 @@
             e.preventDefault();
             
             const formData = new FormData(form);
-            formData.append('entry_id', entry.id);
+            formData.append('entry_id', entry._key);
             formData.append('entry_name', entry.name);
             
             const submitBtn = form.querySelector('.btn-submit');
