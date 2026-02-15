@@ -29,7 +29,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="directory_id">Upload Directory <abbr title="required" aria-label="required">*</abbr></label>
+                        <label for="directory_id">Upload Directory <abbr title="required">*</abbr></label>
                         <select id="directory_id" name="directory_id" required aria-required="true">
                             <!-- Options will be loaded dynamically -->
                         </select>
@@ -133,7 +133,7 @@ async function loadDirectories() {
             
             // If no directories available, show error
             if (directorySelect.options.length === 0) {
-                directoryInfo.innerHTML = '<strong>No upload directories available. Please contact administrator.</strong>';
+                directoryInfo.innerHTML = '<strong>No upload directories available. Please contact an administrator.</strong>';
                 directoryInfo.classList.add('error-message');
                 directorySelect.disabled = true;
                 return;
