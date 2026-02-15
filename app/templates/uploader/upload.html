@@ -98,8 +98,22 @@ async function loadDirectories() {
         const data = await response.json();
         
         if (data.success && data.directories) {
-            // Clear loading message
-            directoryInfo.textContent = 'Select a directory to see available storage';
+            // Update default option with storage info if available
+            const defaultOption = directorySelect.querySelector('option[value=""]');
+            if (data.default_dir_info && data.default_dir_info.free_gb !== undefined) {
+                defaultOption.textContent = `Default Upload Directory (${data.default_dir_info.free_gb} GB free)`;
+                defaultOption.dataset.totalGb = data.default_dir_info.total_gb;
+                defaultOption.dataset.freeGb = data.default_dir_info.free_gb;
+                defaultOption.dataset.usedGb = data.default_dir_info.used_gb;
+                
+                // Set initial info for default directory
+                directoryInfo.innerHTML = `
+                    <strong>Storage:</strong> ${data.default_dir_info.free_gb} GB free / ${data.default_dir_info.total_gb} GB total 
+                    (${data.default_dir_info.total_gb > 0 ? Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100) : 0}% used)
+                `;
+            } else {
+                directoryInfo.textContent = 'Using default upload directory';
+            }
             
             // Add directories to select
             data.directories.forEach(dir => {
@@ -121,7 +135,13 @@ async function loadDirectories() {
                     const usedGb = selected.dataset.usedGb;
                     directoryInfo.innerHTML = `
                         <strong>Storage:</strong> ${freeGb} GB free / ${totalGb} GB total 
-                        (${Math.round((usedGb / totalGb) * 100)}% used)
+                        (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
+                    `;
+                } else if (data.default_dir_info && data.default_dir_info.free_gb !== undefined) {
+                    // Show default directory info
+                    directoryInfo.innerHTML = `
+                        <strong>Storage:</strong> ${data.default_dir_info.free_gb} GB free / ${data.default_dir_info.total_gb} GB total 
+                        (${data.default_dir_info.total_gb > 0 ? Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100) : 0}% used)
                     `;
                 } else {
                     directoryInfo.textContent = 'Using default upload directory';

@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import secrets
+import shutil
 
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
@@ -604,14 +605,29 @@ async def uploader_get_directories(request: Request) -> Response:
         # Get directories with storage info
         directories = await db.get_directories_with_storage_info()
 
-        # Also include the default upload directory
+        # Also include the default upload directory with storage info
         upload_dir = Config.get("upload.directory", "/app/uploads")
+        default_dir_info = None
+        
+        try:
+            if os.path.exists(upload_dir):
+                usage = shutil.disk_usage(upload_dir)
+                bytes_per_gb = 1024 ** 3
+                default_dir_info = {
+                    "path": upload_dir,
+                    "total_gb": round(usage.total / bytes_per_gb, 2),
+                    "used_gb": round(usage.used / bytes_per_gb, 2),
+                    "free_gb": round(usage.free / bytes_per_gb, 2),
+                }
+        except Exception as e:
+            logger.warning(f"Could not get storage info for default directory {upload_dir}: {e}")
 
         return JSONResponse(
             {
                 "success": True,
                 "directories": directories,
                 "default_upload_dir": upload_dir,
+                "default_dir_info": default_dir_info,
             }
         )
 
