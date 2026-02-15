@@ -178,10 +178,12 @@ function updateStorageInfo(option) {
     const validUsedGb = !isNaN(usedGb) ? usedGb : 0;
     const percentUsed = validTotalGb > 0 ? Math.round((validUsedGb / validTotalGb) * 100) : 0;
     
-    directoryInfo.innerHTML = `
-        <strong>Storage:</strong> ${validFreeGb} GB available of ${validTotalGb} GB total 
-        (${percentUsed}% used)
-    `;
+    // Build storage info safely using DOM methods
+    directoryInfo.innerHTML = '';
+    const strong = document.createElement('strong');
+    strong.textContent = 'Storage:';
+    directoryInfo.appendChild(strong);
+    directoryInfo.appendChild(document.createTextNode(` ${validFreeGb} GB available of ${validTotalGb} GB total (${percentUsed}% used)`));
 }
 
 function updateFileInfo() {
