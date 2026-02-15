@@ -859,10 +859,12 @@
                     e.stopPropagation();
                     const isExpanded = mirrorsButton.getAttribute('aria-expanded') === 'true';
                     
-                    // Close user menu if open
-                    if (menuButton && dropdown) {
-                        menuButton.setAttribute('aria-expanded', 'false');
-                        dropdown.classList.remove('show');
+                    // Close user menu if open (defined earlier in this DOMContentLoaded handler)
+                    const userMenuButton = document.getElementById('userMenuButton');
+                    const userDropdown = document.getElementById('userDropdown');
+                    if (userMenuButton && userDropdown) {
+                        userMenuButton.setAttribute('aria-expanded', 'false');
+                        userDropdown.classList.remove('show');
                     }
                     
                     mirrorsButton.setAttribute('aria-expanded', !isExpanded);
