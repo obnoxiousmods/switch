@@ -121,7 +121,10 @@
                         filteredEntries = allEntries;
                     } else {
                         filteredEntries = allEntries.filter(entry => {
-                            return entry.name.toLowerCase().includes(searchTerm);
+                            // Normalize both entry name and search term by replacing underscores with spaces
+                            const normalizedEntryName = entry.name.toLowerCase().replace(/_/g, ' ');
+                            const normalizedSearchTerm = searchTerm.replace(/_/g, ' ');
+                            return normalizedEntryName.includes(normalizedSearchTerm);
                         });
                     }
                     
@@ -152,7 +155,10 @@
         } else {
             // Filter entries by name
             filteredEntries = allEntries.filter(entry => {
-                return entry.name.toLowerCase().includes(searchTerm);
+                // Normalize both entry name and search term by replacing underscores with spaces
+                const normalizedEntryName = entry.name.toLowerCase().replace(/_/g, ' ');
+                const normalizedSearchTerm = searchTerm.replace(/_/g, ' ');
+                return normalizedEntryName.includes(normalizedSearchTerm);
             });
         }
         
@@ -173,7 +179,10 @@
             filteredEntries = allEntries;
         } else {
             filteredEntries = allEntries.filter(entry => {
-                return entry.name.toLowerCase().includes(searchTerm);
+                // Normalize both entry name and search term by replacing underscores with spaces
+                const normalizedEntryName = entry.name.toLowerCase().replace(/_/g, ' ');
+                const normalizedSearchTerm = searchTerm.replace(/_/g, ' ');
+                return normalizedEntryName.includes(normalizedSearchTerm);
             });
         }
         

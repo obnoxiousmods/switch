@@ -1336,9 +1336,10 @@ class Database:
 
             if search_query:
                 # Search with download counts, report counts, and vote stats
+                # Normalize both entry name and search term by replacing underscores with spaces for search
                 query = f"""
                 FOR entry IN entries
-                FILTER LOWER(entry.name) LIKE LOWER(CONCAT('%', @search, '%')){corrupt_filter}
+                FILTER LOWER(SUBSTITUTE(entry.name, '_', ' ')) LIKE LOWER(SUBSTITUTE(CONCAT('%', @search, '%'), '_', ' ')){corrupt_filter}
                 LET download_count = (
                     FOR doc IN download_history
                     FILTER doc.entry_id == entry._key
