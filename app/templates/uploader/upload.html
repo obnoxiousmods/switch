@@ -107,7 +107,7 @@ async function loadDirectories() {
             directorySelect.innerHTML = '';
             
             // Add default directory as first option if it exists
-            if (data.default_dir_info && data.default_dir_info.free_gb !== undefined) {
+            if (data.default_dir_info && data.default_dir_info.free_gb !== undefined && data.default_upload_dir) {
                 const defaultOption = document.createElement('option');
                 defaultOption.value = '';
                 defaultOption.textContent = `${data.default_upload_dir} (${data.default_dir_info.free_gb} GB available)`;
@@ -162,20 +162,20 @@ function showDirectoryError(message) {
     directoryInfo.classList.add('error-message');
 }
 
+function parseStorageValue(value) {
+    const parsed = parseFloat(value);
+    return !isNaN(parsed) ? parsed : 0;
+}
+
 function updateStorageInfo(option) {
     const directoryInfo = document.getElementById('directoryInfo');
     // Remove error class if present
     directoryInfo.classList.remove('error-message');
     
     // Parse and validate numeric values
-    const freeGb = parseFloat(option.dataset.freeGb);
-    const totalGb = parseFloat(option.dataset.totalGb);
-    const usedGb = parseFloat(option.dataset.usedGb);
-    
-    // Handle invalid or missing values
-    const validFreeGb = !isNaN(freeGb) ? freeGb : 0;
-    const validTotalGb = !isNaN(totalGb) ? totalGb : 0;
-    const validUsedGb = !isNaN(usedGb) ? usedGb : 0;
+    const validFreeGb = parseStorageValue(option.dataset.freeGb);
+    const validTotalGb = parseStorageValue(option.dataset.totalGb);
+    const validUsedGb = parseStorageValue(option.dataset.usedGb);
     const percentUsed = validTotalGb > 0 ? Math.round((validUsedGb / validTotalGb) * 100) : 0;
     
     // Build storage info safely using DOM methods
