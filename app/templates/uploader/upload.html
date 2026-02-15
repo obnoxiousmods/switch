@@ -155,7 +155,10 @@ async function loadDirectories() {
 
 function showDirectoryError(message) {
     const directoryInfo = document.getElementById('directoryInfo');
-    directoryInfo.innerHTML = `<strong>${message}</strong>`;
+    const strong = document.createElement('strong');
+    strong.textContent = message;
+    directoryInfo.innerHTML = '';
+    directoryInfo.appendChild(strong);
     directoryInfo.classList.add('error-message');
 }
 
@@ -164,14 +167,19 @@ function updateStorageInfo(option) {
     // Remove error class if present
     directoryInfo.classList.remove('error-message');
     
-    // Use nullish coalescing and handle NaN from parseFloat
-    const freeGb = option.dataset.freeGb != null ? (parseFloat(option.dataset.freeGb) || 0) : 0;
-    const totalGb = option.dataset.totalGb != null ? (parseFloat(option.dataset.totalGb) || 0) : 0;
-    const usedGb = option.dataset.usedGb != null ? (parseFloat(option.dataset.usedGb) || 0) : 0;
-    const percentUsed = totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0;
+    // Parse and validate numeric values
+    const freeGb = parseFloat(option.dataset.freeGb);
+    const totalGb = parseFloat(option.dataset.totalGb);
+    const usedGb = parseFloat(option.dataset.usedGb);
+    
+    // Handle invalid or missing values
+    const validFreeGb = !isNaN(freeGb) ? freeGb : 0;
+    const validTotalGb = !isNaN(totalGb) ? totalGb : 0;
+    const validUsedGb = !isNaN(usedGb) ? usedGb : 0;
+    const percentUsed = validTotalGb > 0 ? Math.round((validUsedGb / validTotalGb) * 100) : 0;
     
     directoryInfo.innerHTML = `
-        <strong>Storage:</strong> ${freeGb} GB available of ${totalGb} GB total 
+        <strong>Storage:</strong> ${validFreeGb} GB available of ${validTotalGb} GB total 
         (${percentUsed}% used)
     `;
 }
