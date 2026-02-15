@@ -133,33 +133,42 @@ async function loadDirectories() {
             
             // If no directories available, show error
             if (directorySelect.options.length === 0) {
-                directoryInfo.innerHTML = '<strong>No upload directories available. Please contact an administrator.</strong>';
-                directoryInfo.classList.add('error-message');
+                showDirectoryError('No upload directories available. Please contact an administrator.');
                 directorySelect.disabled = true;
                 return;
             }
             
             // Select first option and show its info
             directorySelect.selectedIndex = 0;
-            updateStorageInfo(directorySelect.options[0]);
+            if (directorySelect.options[0]) {
+                updateStorageInfo(directorySelect.options[0]);
+            }
         } else {
-            directoryInfo.innerHTML = '<strong>Failed to load directories. Please refresh the page.</strong>';
-            directoryInfo.classList.add('error-message');
+            showDirectoryError('Failed to load directories. Please refresh the page.');
             directorySelect.disabled = true;
         }
     } catch (error) {
         console.error('Error loading directories:', error);
-        directoryInfo.innerHTML = '<strong>Error loading directories. Please refresh the page.</strong>';
-        directoryInfo.classList.add('error-message');
+        showDirectoryError('Error loading directories. Please refresh the page.');
         directorySelect.disabled = true;
     }
 }
 
+function showDirectoryError(message) {
+    const directoryInfo = document.getElementById('directoryInfo');
+    directoryInfo.innerHTML = `<strong>${message}</strong>`;
+    directoryInfo.classList.add('error-message');
+}
+
 function updateStorageInfo(option) {
     const directoryInfo = document.getElementById('directoryInfo');
-    const freeGb = parseFloat(option.dataset.freeGb) || 0;
-    const totalGb = parseFloat(option.dataset.totalGb) || 0;
-    const usedGb = parseFloat(option.dataset.usedGb) || 0;
+    // Remove error class if present
+    directoryInfo.classList.remove('error-message');
+    
+    // Use nullish coalescing to handle 0 as a valid value
+    const freeGb = option.dataset.freeGb != null ? parseFloat(option.dataset.freeGb) : 0;
+    const totalGb = option.dataset.totalGb != null ? parseFloat(option.dataset.totalGb) : 0;
+    const usedGb = option.dataset.usedGb != null ? parseFloat(option.dataset.usedGb) : 0;
     const percentUsed = totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0;
     
     directoryInfo.innerHTML = `
