@@ -536,7 +536,7 @@
         
         const title = document.createElement('div');
         title.className = 'result-title';
-        title.textContent = entry.name;
+        title.textContent = entry.name.replace(/_/g, ' ');
         
         const meta = document.createElement('div');
         meta.className = 'result-meta';
@@ -730,7 +730,7 @@
                     <button class="modal-close" onclick="this.closest('.info-modal-overlay').remove()">✕</button>
                 </div>
                 <div class="info-modal-body">
-                    <h4 class="info-file-name">${entry.name}</h4>
+                    <h4 class="info-file-name">${entry.name.replace(/_/g, ' ')}</h4>
                     
                     <div class="info-section">
                         <div class="info-row">
@@ -1072,7 +1072,7 @@
                     <button class="modal-close" onclick="this.closest('.report-modal-overlay').remove()">✕</button>
                 </div>
                 <div class="report-modal-body">
-                    <p><strong>File:</strong> ${entry.name}</p>
+                    <p><strong>File:</strong> ${entry.name.replace(/_/g, ' ')}</p>
                     <form id="report-form">
                         <div class="form-group">
                             <label for="report-reason">Reason:</label>
@@ -1156,7 +1156,7 @@
                     <button class="modal-close" onclick="this.closest('.report-modal-overlay').remove()">✕</button>
                 </div>
                 <div class="report-modal-body">
-                    <p><strong>File:</strong> ${entry.name}</p>
+                    <p><strong>File:</strong> ${entry.name.replace(/_/g, ' ')}</p>
                     <p style="color: #ef4444; margin-top: 15px;">
                         <strong>Warning:</strong> This will permanently delete the entry and remove the file from disk. 
                         This action cannot be undone!
@@ -1326,7 +1326,7 @@
         modal.innerHTML = `
             <div class="comments-modal">
                 <div class="comments-modal-header">
-                    <h3>💬 Comments - ${entry.name}</h3>
+                    <h3>💬 Comments - ${entry.name.replace(/_/g, ' ')}</h3>
                     <button class="modal-close" onclick="this.closest('.comments-modal-overlay').remove()">✕</button>
                 </div>
                 <div class="comments-modal-body">

@@ -478,44 +478,10 @@ async def uploader_upload_submit(request: Request) -> Response:
                 status_code=400,
             )
 
-        # Compute SHA256 hash of uploaded file
+        # Compute SHA256 hash of uploaded file (but don't check for duplicates)
         logger.info(f"Computing SHA256 hash for {safe_filename}...")
         sha256_hash = await asyncio.to_thread(_compute_sha256_sync, file_path)
-
-        # Check for duplicate SHA256 hash in database
-        duplicate_by_hash = await db.db.aql.execute(
-            """
-            FOR doc IN entries
-            FILTER doc.sha256_hash == @sha256_hash
-            LIMIT 1
-            RETURN doc
-        """,
-            bind_vars={"sha256_hash": sha256_hash},
-        )
-
-        has_duplicate_hash = False
-        duplicate_entry_name = None
-        async with duplicate_by_hash:
-            async for doc in duplicate_by_hash:
-                has_duplicate_hash = True
-                duplicate_entry_name = doc.get("name", "Unknown")
-                break
-
-        if has_duplicate_hash:
-            # Delete the uploaded file
-            try:
-                os.remove(file_path)
-            except OSError:
-                pass
-            return JSONResponse(
-                {
-                    "success": False,
-                    "error": f"A file with the same content already exists: '{duplicate_entry_name}'. SHA256: {sha256_hash}",
-                },
-                status_code=400,
-            )
-
-        logger.info(f"No duplicates found. SHA256: {sha256_hash}")
+        logger.info(f"SHA256 computed: {sha256_hash}")
 
         # Create entry with directory metadata
         entry_metadata = {}
