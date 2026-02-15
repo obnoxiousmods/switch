@@ -15,6 +15,11 @@
     // Check if user is moderator or admin
     const isModerator = window.userRole && (window.userRole.isModerator || window.userRole.isAdmin);
     
+    // Helper function to normalize strings for search (replace underscores with spaces)
+    function normalizeForSearch(text) {
+        return text.toLowerCase().replace(/_/g, ' ');
+    }
+    
     // DOM Elements
     const searchInput = document.getElementById('search-input');
     const resultsGrid = document.getElementById('results-grid');
@@ -121,7 +126,8 @@
                         filteredEntries = allEntries;
                     } else {
                         filteredEntries = allEntries.filter(entry => {
-                            return entry.name.toLowerCase().includes(searchTerm);
+                            // Normalize both entry name and search term by replacing underscores with spaces
+                            return normalizeForSearch(entry.name).includes(normalizeForSearch(searchTerm));
                         });
                     }
                     
@@ -152,7 +158,8 @@
         } else {
             // Filter entries by name
             filteredEntries = allEntries.filter(entry => {
-                return entry.name.toLowerCase().includes(searchTerm);
+                // Normalize both entry name and search term by replacing underscores with spaces
+                return normalizeForSearch(entry.name).includes(normalizeForSearch(searchTerm));
             });
         }
         
@@ -173,7 +180,8 @@
             filteredEntries = allEntries;
         } else {
             filteredEntries = allEntries.filter(entry => {
-                return entry.name.toLowerCase().includes(searchTerm);
+                // Normalize both entry name and search term by replacing underscores with spaces
+                return normalizeForSearch(entry.name).includes(normalizeForSearch(searchTerm));
             });
         }
         
