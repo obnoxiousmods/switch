@@ -165,10 +165,10 @@ function updateStorageInfo(option) {
     // Remove error class if present
     directoryInfo.classList.remove('error-message');
     
-    // Use nullish coalescing to handle 0 as a valid value
-    const freeGb = option.dataset.freeGb != null ? parseFloat(option.dataset.freeGb) : 0;
-    const totalGb = option.dataset.totalGb != null ? parseFloat(option.dataset.totalGb) : 0;
-    const usedGb = option.dataset.usedGb != null ? parseFloat(option.dataset.usedGb) : 0;
+    // Use nullish coalescing and handle NaN from parseFloat
+    const freeGb = option.dataset.freeGb != null ? (parseFloat(option.dataset.freeGb) || 0) : 0;
+    const totalGb = option.dataset.totalGb != null ? (parseFloat(option.dataset.totalGb) || 0) : 0;
+    const usedGb = option.dataset.usedGb != null ? (parseFloat(option.dataset.usedGb) || 0) : 0;
     const percentUsed = totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0;
     
     directoryInfo.innerHTML = `
