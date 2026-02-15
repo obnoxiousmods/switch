@@ -96,7 +96,20 @@
             
             const data = await response.json();
             allEntries = data.entries || [];
-            filteredEntries = allEntries;
+            
+            // Re-apply current search query if exists
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            if (searchTerm === '') {
+                filteredEntries = allEntries;
+            } else {
+                filteredEntries = allEntries.filter(entry => {
+                    // Normalize both entry name and search term by replacing underscores with spaces
+                    return normalizeForSearch(entry.name).includes(normalizeForSearch(searchTerm));
+                });
+            }
+            
+            // Re-apply advanced filters if any are active
+            applyAdvancedFiltersToResults();
             
             hideLoading();
             renderResults();
