@@ -144,6 +144,9 @@
                         });
                     }
                     
+                    // Re-apply advanced filters if any are active
+                    applyAdvancedFiltersToResults();
+                    
                     // Re-render with current page
                     renderResults();
                 }
