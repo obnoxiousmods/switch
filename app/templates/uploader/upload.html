@@ -103,8 +103,8 @@ async function loadDirectories() {
         const data = await response.json();
         
         if (data.success) {
-            // Clear existing options
-            directorySelect.innerHTML = '';
+            // Clear existing options using DOM method
+            clearElement(directorySelect);
             
             // Add default directory as first option if it exists
             if (data.default_dir_info && data.default_dir_info.free_gb !== undefined && data.default_upload_dir) {
@@ -153,16 +153,23 @@ async function loadDirectories() {
     }
 }
 
+function clearElement(element) {
+    while (element.firstChild) {
+        element.removeChild(element.firstChild);
+    }
+}
+
 function showDirectoryError(message) {
     const directoryInfo = document.getElementById('directoryInfo');
     const strong = document.createElement('strong');
     strong.textContent = message;
-    directoryInfo.innerHTML = '';
+    clearElement(directoryInfo);
     directoryInfo.appendChild(strong);
     directoryInfo.classList.add('error-message');
 }
 
 function parseStorageValue(value) {
+    if (value == null) return 0;
     const parsed = parseFloat(value);
     return !isNaN(parsed) ? parsed : 0;
 }
@@ -179,7 +186,7 @@ function updateStorageInfo(option) {
     const percentUsed = validTotalGb > 0 ? Math.round((validUsedGb / validTotalGb) * 100) : 0;
     
     // Build storage info safely using DOM methods
-    directoryInfo.innerHTML = '';
+    clearElement(directoryInfo);
     const strong = document.createElement('strong');
     strong.textContent = 'Storage:';
     directoryInfo.appendChild(strong);
