@@ -29,9 +29,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="directory_id">Upload Directory</label>
-                        <select id="directory_id" name="directory_id">
-                            <option value="">Default Upload Directory</option>
+                        <label for="directory_id">Upload Directory *</label>
+                        <select id="directory_id" name="directory_id" required>
+                            <!-- Options will be loaded dynamically -->
                         </select>
                         <small class="form-help" id="directoryInfo">Loading directory information...</small>
                     </div>
@@ -97,62 +97,71 @@ async function loadDirectories() {
         const response = await fetch('/uploadercp/directories');
         const data = await response.json();
         
-        if (data.success && data.directories) {
-            // Update default option with storage info if available
-            const defaultOption = directorySelect.querySelector('option[value=""]');
+        if (data.success) {
+            // Clear existing options
+            directorySelect.innerHTML = '';
+            
+            // Add default directory as first option if it exists
             if (data.default_dir_info && data.default_dir_info.free_gb !== undefined) {
-                defaultOption.textContent = `Default Upload Directory (${data.default_dir_info.free_gb} GB free)`;
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = `${data.default_upload_dir} (${data.default_dir_info.free_gb} GB available)`;
                 defaultOption.dataset.totalGb = data.default_dir_info.total_gb;
                 defaultOption.dataset.freeGb = data.default_dir_info.free_gb;
                 defaultOption.dataset.usedGb = data.default_dir_info.used_gb;
-                
-                // Set initial info for default directory
-                directoryInfo.innerHTML = `
-                    <strong>Storage:</strong> ${data.default_dir_info.free_gb} GB free / ${data.default_dir_info.total_gb} GB total 
-                    (${data.default_dir_info.total_gb > 0 ? Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100) : 0}% used)
-                `;
-            } else {
-                directoryInfo.textContent = 'Using default upload directory';
+                directorySelect.appendChild(defaultOption);
             }
             
-            // Add directories to select
-            data.directories.forEach(dir => {
-                const option = document.createElement('option');
-                option.value = dir._key;
-                option.textContent = `${dir.path} (${dir.free_gb} GB free)`;
-                option.dataset.totalGb = dir.total_gb;
-                option.dataset.freeGb = dir.free_gb;
-                option.dataset.usedGb = dir.used_gb;
-                directorySelect.appendChild(option);
-            });
+            // Add other directories to select
+            if (data.directories && data.directories.length > 0) {
+                data.directories.forEach(dir => {
+                    const option = document.createElement('option');
+                    option.value = dir._key;
+                    option.textContent = `${dir.path} (${dir.free_gb} GB available)`;
+                    option.dataset.totalGb = dir.total_gb;
+                    option.dataset.freeGb = dir.free_gb;
+                    option.dataset.usedGb = dir.used_gb;
+                    directorySelect.appendChild(option);
+                });
+            }
+            
+            // If no directories available, show error
+            if (directorySelect.options.length === 0) {
+                directoryInfo.innerHTML = '<strong style="color: #ef4444;">No upload directories available. Please contact administrator.</strong>';
+                directorySelect.disabled = true;
+                return;
+            }
+            
+            // Select first option and show its info
+            directorySelect.selectedIndex = 0;
+            const firstOption = directorySelect.options[0];
+            const freeGb = firstOption.dataset.freeGb;
+            const totalGb = firstOption.dataset.totalGb;
+            const usedGb = firstOption.dataset.usedGb;
+            directoryInfo.innerHTML = `
+                <strong>Storage:</strong> ${freeGb} GB available of ${totalGb} GB total 
+                (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
+            `;
             
             // Update info when directory is selected
             directorySelect.addEventListener('change', function() {
                 const selected = this.options[this.selectedIndex];
-                if (selected.value) {
-                    const freeGb = selected.dataset.freeGb;
-                    const totalGb = selected.dataset.totalGb;
-                    const usedGb = selected.dataset.usedGb;
-                    directoryInfo.innerHTML = `
-                        <strong>Storage:</strong> ${freeGb} GB free / ${totalGb} GB total 
-                        (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
-                    `;
-                } else if (data.default_dir_info && data.default_dir_info.free_gb !== undefined) {
-                    // Show default directory info
-                    directoryInfo.innerHTML = `
-                        <strong>Storage:</strong> ${data.default_dir_info.free_gb} GB free / ${data.default_dir_info.total_gb} GB total 
-                        (${data.default_dir_info.total_gb > 0 ? Math.round((data.default_dir_info.used_gb / data.default_dir_info.total_gb) * 100) : 0}% used)
-                    `;
-                } else {
-                    directoryInfo.textContent = 'Using default upload directory';
-                }
+                const freeGb = selected.dataset.freeGb;
+                const totalGb = selected.dataset.totalGb;
+                const usedGb = selected.dataset.usedGb;
+                directoryInfo.innerHTML = `
+                    <strong>Storage:</strong> ${freeGb} GB available of ${totalGb} GB total 
+                    (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
+                `;
             });
         } else {
-            directoryInfo.textContent = 'No additional directories available. Using default.';
+            directoryInfo.innerHTML = '<strong style="color: #ef4444;">Failed to load directories. Please refresh the page.</strong>';
+            directorySelect.disabled = true;
         }
     } catch (error) {
         console.error('Error loading directories:', error);
-        directoryInfo.textContent = 'Could not load directories. Using default.';
+        directoryInfo.innerHTML = '<strong style="color: #ef4444;">Error loading directories. Please refresh the page.</strong>';
+        directorySelect.disabled = true;
     }
 }
 
