@@ -912,6 +912,14 @@ footer {
     border-top: 1px solid var(--border);
 }
 
+/* Top pagination has no top border and adjusted spacing */
+#pagination-controls-top.pagination-container {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    margin-bottom: 2rem;
+}
+
 .pagination-wrapper {
     display: flex;
     flex-direction: column;
