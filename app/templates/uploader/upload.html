@@ -29,8 +29,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="directory_id">Upload Directory *</label>
-                        <select id="directory_id" name="directory_id" required>
+                        <label for="directory_id">Upload Directory <abbr title="required">*</abbr></label>
+                        <select id="directory_id" name="directory_id" required aria-required="true">
                             <!-- Options will be loaded dynamically -->
                         </select>
                         <small class="form-help" id="directoryInfo">Loading directory information...</small>
@@ -87,6 +87,12 @@ const UPLOAD_ENDPOINT = "{{ upload_endpoint }}";
 // Load directories on page load
 document.addEventListener('DOMContentLoaded', async function() {
     await loadDirectories();
+    
+    // Add event listener for directory selection changes
+    const directorySelect = document.getElementById('directory_id');
+    directorySelect.addEventListener('change', function() {
+        updateStorageInfo(this.options[this.selectedIndex]);
+    });
 });
 
 async function loadDirectories() {
@@ -134,26 +140,7 @@ async function loadDirectories() {
             
             // Select first option and show its info
             directorySelect.selectedIndex = 0;
-            const firstOption = directorySelect.options[0];
-            const freeGb = firstOption.dataset.freeGb;
-            const totalGb = firstOption.dataset.totalGb;
-            const usedGb = firstOption.dataset.usedGb;
-            directoryInfo.innerHTML = `
-                <strong>Storage:</strong> ${freeGb} GB available of ${totalGb} GB total 
-                (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
-            `;
-            
-            // Update info when directory is selected
-            directorySelect.addEventListener('change', function() {
-                const selected = this.options[this.selectedIndex];
-                const freeGb = selected.dataset.freeGb;
-                const totalGb = selected.dataset.totalGb;
-                const usedGb = selected.dataset.usedGb;
-                directoryInfo.innerHTML = `
-                    <strong>Storage:</strong> ${freeGb} GB available of ${totalGb} GB total 
-                    (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
-                `;
-            });
+            updateStorageInfo(directorySelect.options[0]);
         } else {
             directoryInfo.innerHTML = '<strong style="color: #ef4444;">Failed to load directories. Please refresh the page.</strong>';
             directorySelect.disabled = true;
@@ -163,6 +150,17 @@ async function loadDirectories() {
         directoryInfo.innerHTML = '<strong style="color: #ef4444;">Error loading directories. Please refresh the page.</strong>';
         directorySelect.disabled = true;
     }
+}
+
+function updateStorageInfo(option) {
+    const directoryInfo = document.getElementById('directoryInfo');
+    const freeGb = option.dataset.freeGb;
+    const totalGb = option.dataset.totalGb;
+    const usedGb = option.dataset.usedGb;
+    directoryInfo.innerHTML = `
+        <strong>Storage:</strong> ${freeGb} GB available of ${totalGb} GB total 
+        (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
+    `;
 }
 
 function updateFileInfo() {
