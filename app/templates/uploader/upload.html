@@ -87,7 +87,6 @@ const UPLOAD_ENDPOINT = "{{ upload_endpoint }}";
 // Load directories on page load
 document.addEventListener('DOMContentLoaded', async function() {
     await loadDirectories();
-    
     // Add event listener for directory selection changes
     const directorySelect = document.getElementById('directory_id');
     directorySelect.addEventListener('change', function() {
