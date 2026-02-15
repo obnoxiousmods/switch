@@ -15,6 +15,11 @@
     // Check if user is moderator or admin
     const isModerator = window.userRole && (window.userRole.isModerator || window.userRole.isAdmin);
     
+    // Helper function to normalize strings for search (replace underscores with spaces)
+    function normalizeForSearch(text) {
+        return text.toLowerCase().replace(/_/g, ' ');
+    }
+    
     // DOM Elements
     const searchInput = document.getElementById('search-input');
     const resultsGrid = document.getElementById('results-grid');
@@ -122,9 +127,7 @@
                     } else {
                         filteredEntries = allEntries.filter(entry => {
                             // Normalize both entry name and search term by replacing underscores with spaces
-                            const normalizedEntryName = entry.name.toLowerCase().replace(/_/g, ' ');
-                            const normalizedSearchTerm = searchTerm.replace(/_/g, ' ');
-                            return normalizedEntryName.includes(normalizedSearchTerm);
+                            return normalizeForSearch(entry.name).includes(normalizeForSearch(searchTerm));
                         });
                     }
                     
@@ -156,9 +159,7 @@
             // Filter entries by name
             filteredEntries = allEntries.filter(entry => {
                 // Normalize both entry name and search term by replacing underscores with spaces
-                const normalizedEntryName = entry.name.toLowerCase().replace(/_/g, ' ');
-                const normalizedSearchTerm = searchTerm.replace(/_/g, ' ');
-                return normalizedEntryName.includes(normalizedSearchTerm);
+                return normalizeForSearch(entry.name).includes(normalizeForSearch(searchTerm));
             });
         }
         
@@ -180,9 +181,7 @@
         } else {
             filteredEntries = allEntries.filter(entry => {
                 // Normalize both entry name and search term by replacing underscores with spaces
-                const normalizedEntryName = entry.name.toLowerCase().replace(/_/g, ' ');
-                const normalizedSearchTerm = searchTerm.replace(/_/g, ' ');
-                return normalizedEntryName.includes(normalizedSearchTerm);
+                return normalizeForSearch(entry.name).includes(normalizeForSearch(searchTerm));
             });
         }
         
