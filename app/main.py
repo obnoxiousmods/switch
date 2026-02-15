@@ -172,6 +172,9 @@ async def compute_hashes_for_unhashed_entries():
                 "→ Processing entries in order from smallest to largest file"
             )
 
+            # Build a dictionary to track hashes and detect duplicates
+            hash_dict = {}  # key: sha256_hash, value: list of (entry_id, entry_name, filepath)
+
             # Process each entry
             for entry in entries_to_process:
                 try:
@@ -214,6 +217,12 @@ async def compute_hashes_for_unhashed_entries():
 
                     logger.info(f"→ Successfully computed hashes for: {entry_name}")
 
+                    # Track hash for duplicate detection
+                    if sha256_result and sha256_result != "processing":
+                        if sha256_result not in hash_dict:
+                            hash_dict[sha256_result] = []
+                        hash_dict[sha256_result].append((entry_id, entry_name, filepath))
+
                 except Exception as e:
                     logger.error(
                         f"→ Error computing hashes for entry {entry.get('_key')}: {e}",
@@ -224,6 +233,36 @@ async def compute_hashes_for_unhashed_entries():
                         await db.update_entry_hashes(entry.get("_key"), None, None)
                     except Exception:
                         pass
+
+            # Now check for duplicates and delete them
+            logger.info("→ Checking for duplicate hashes...")
+            duplicates_found = 0
+            for sha256_hash, entries_list in hash_dict.items():
+                if len(entries_list) > 1:
+                    # Found duplicate! Keep the first one, delete the rest
+                    logger.warning(f"→ Found {len(entries_list)} entries with same hash {sha256_hash}")
+                    for i, (entry_id, entry_name, filepath) in enumerate(entries_list):
+                        if i == 0:
+                            logger.info(f"→ Keeping: {entry_name} ({entry_id})")
+                        else:
+                            logger.info(f"→ Deleting duplicate: {entry_name} ({entry_id})")
+                            try:
+                                # Delete the file from disk
+                                if os.path.exists(filepath):
+                                    os.remove(filepath)
+                                    logger.info(f"→ Deleted file: {filepath}")
+                                
+                                # Delete the entry from database
+                                await db.delete_entry(entry_id)
+                                logger.info(f"→ Deleted database entry: {entry_id}")
+                                duplicates_found += 1
+                            except Exception as e:
+                                logger.error(f"→ Error deleting duplicate {entry_id}: {e}")
+
+            if duplicates_found > 0:
+                logger.info(f"→ Deleted {duplicates_found} duplicate entries")
+            else:
+                logger.info("→ No duplicate hashes found")
 
             logger.info("→ Background hash computation cycle completed")
 
