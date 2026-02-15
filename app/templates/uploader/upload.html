@@ -133,7 +133,8 @@ async function loadDirectories() {
             
             // If no directories available, show error
             if (directorySelect.options.length === 0) {
-                directoryInfo.innerHTML = '<strong style="color: #ef4444;">No upload directories available. Please contact administrator.</strong>';
+                directoryInfo.innerHTML = '<strong>No upload directories available. Please contact administrator.</strong>';
+                directoryInfo.classList.add('error-message');
                 directorySelect.disabled = true;
                 return;
             }
@@ -142,24 +143,28 @@ async function loadDirectories() {
             directorySelect.selectedIndex = 0;
             updateStorageInfo(directorySelect.options[0]);
         } else {
-            directoryInfo.innerHTML = '<strong style="color: #ef4444;">Failed to load directories. Please refresh the page.</strong>';
+            directoryInfo.innerHTML = '<strong>Failed to load directories. Please refresh the page.</strong>';
+            directoryInfo.classList.add('error-message');
             directorySelect.disabled = true;
         }
     } catch (error) {
         console.error('Error loading directories:', error);
-        directoryInfo.innerHTML = '<strong style="color: #ef4444;">Error loading directories. Please refresh the page.</strong>';
+        directoryInfo.innerHTML = '<strong>Error loading directories. Please refresh the page.</strong>';
+        directoryInfo.classList.add('error-message');
         directorySelect.disabled = true;
     }
 }
 
 function updateStorageInfo(option) {
     const directoryInfo = document.getElementById('directoryInfo');
-    const freeGb = option.dataset.freeGb;
-    const totalGb = option.dataset.totalGb;
-    const usedGb = option.dataset.usedGb;
+    const freeGb = option.dataset.freeGb || '0';
+    const totalGb = option.dataset.totalGb || '0';
+    const usedGb = option.dataset.usedGb || '0';
+    const percentUsed = totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0;
+    
     directoryInfo.innerHTML = `
         <strong>Storage:</strong> ${freeGb} GB available of ${totalGb} GB total 
-        (${totalGb > 0 ? Math.round((usedGb / totalGb) * 100) : 0}% used)
+        (${percentUsed}% used)
     `;
 }
 
@@ -532,6 +537,10 @@ async function uploadSingleFile(file, progressFill, progressText, progressSpeed)
     color: #999;
     font-size: 12px;
     margin-top: 5px;
+}
+
+.form-help.error-message {
+    color: #ef4444;
 }
 
 .file-info {
